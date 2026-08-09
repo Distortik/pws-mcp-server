@@ -59,7 +59,9 @@ Claude Desktop uses the one-click MCPB release. Do not edit `claude_desktop_conf
 3. In Claude Desktop, open **Settings > Extensions > Advanced settings**.
 4. Select **Install Extension** and choose the downloaded `.mcpb` file.
 5. Start PWS, enable the plugin, and load a save.
-6. Start a new Claude conversation and confirm that **Pro Wrestling Sim** is enabled.
+6. Open the **Code** tab in Claude Desktop, start a new conversation, and confirm that **Pro Wrestling Sim** is enabled.
+
+Use the **Code** tab, not the **Home** tab. Home conversations do not use MCP servers configured in Claude Code.
 
 The MCPB installs only the Claude-side connection. The in-game plugin must still be installed through Steam Workshop or manually.
 
@@ -100,8 +102,6 @@ $server = 'C:\Program Files (x86)\Steam\steamapps\workshop\content\1157700\37805
 codex mcp add pro-wrestling-sim -- node $server
 ```
 
-Open the **Codex** tab to use the server. MCP servers configured in Codex are not available in ordinary conversations on the **Home** tab. Type `/mcp` in a Codex conversation to confirm that `pro-wrestling-sim` is connected.
-
 See the [Codex MCP documentation](https://developers.openai.com/codex/mcp) for other installation methods.
 
 ## Connect another MCP client
@@ -120,7 +120,7 @@ Keep PWS open with a save loaded, then ask:
 
 > Connect to Pro Wrestling Sim and tell me the loaded save, current date, player promotion, company size, and cash balance.
 
-If you are using Codex, ask this from the **Codex** tab, not the **Home** tab.
+If you are using Claude Desktop, ask this from the **Code** tab, not the **Home** tab.
 
 If the answer contains information from your save, setup is complete.
 
@@ -148,13 +148,9 @@ Back up important saves before using any plugin that can perform game actions. N
 
 Start PWS, confirm the plugin is enabled, and load a save. If it was already open, restart PWS and then restart the AI client or extension.
 
-### Claude extension is installed but tools are missing
+### Not connected in Claude
 
-Confirm **Pro Wrestling Sim** is enabled for the conversation. Restart Claude Desktop after installing or updating the MCPB. Reinstall the newest MCPB from GitHub Releases if necessary.
-
-### Codex tools are missing in Home
-
-Open the **Codex** tab and start the conversation there. The normal **Home** chat does not use MCP servers configured in Codex. Type `/mcp` in the Codex conversation and confirm that `pro-wrestling-sim` is connected.
+Open the **Code** tab and start the conversation there. **Home** conversations do not use MCP servers configured in Claude Code. Confirm **Pro Wrestling Sim** is enabled for the conversation. If the tools are still missing, restart Claude Desktop after installing or updating the MCPB, or reinstall the newest MCPB from GitHub Releases.
 
 ### Workshop server file is missing
 
