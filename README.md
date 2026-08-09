@@ -24,6 +24,9 @@ Ask it to search your save, analyze your company, review contracts, recommend wo
 - Windows and Pro Wrestling Sim
 - The **PWS MCP Server** in-game plugin
 - One supported local AI client
+- An account or billing setup for that AI client
+
+This plugin provides the connection to PWS, but it does not include an AI model or subscription. **Claude Desktop's Code tab and Claude Code require an eligible paid Claude plan, or pay-as-you-go Claude API billing. Codex requires a ChatGPT account; the Free plan is supported, while paid ChatGPT plans provide more Codex usage.** Usage limits from your chosen plan still apply.
 
 Claude Desktop users do not need to install Node.js or edit a configuration file. The downloadable MCPB includes the Claude-side server and uses Claude Desktop's built-in Node runtime.
 
@@ -54,6 +57,8 @@ Use this only when you are not installing through Steam Workshop.
 
 Claude Desktop uses the one-click MCPB release. Do not edit `claude_desktop_config.json`.
 
+**Account requirement:** The Code tab uses Claude Code and requires an eligible paid Claude plan, or pay-as-you-go Claude API billing.
+
 1. Open the [latest GitHub release](https://github.com/Distortik/pws-mcp-server/releases/latest).
 2. Download `pws-mcp-server-vVERSION.mcpb` from **Assets**.
 3. In Claude Desktop, open **Settings > Extensions > Advanced settings**.
@@ -68,6 +73,8 @@ The MCPB installs only the Claude-side connection. The in-game plugin must still
 If your Claude organization blocks custom desktop extensions, an owner or administrator must allow them. See [Anthropic's local MCP server guide](https://support.anthropic.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop).
 
 ## Connect Claude Code
+
+**Account requirement:** Claude Code requires an eligible paid Claude plan, or pay-as-you-go Claude API billing.
 
 Install [Node.js 18 or newer](https://nodejs.org/en/download), then run this in PowerShell for a normal Workshop installation:
 
@@ -86,6 +93,8 @@ claude mcp add --scope user pro-wrestling-sim -- node $server
 Check the connection with `claude mcp list` or `/mcp` inside Claude Code. See the [Claude Code MCP documentation](https://code.claude.com/docs/en/mcp) for client details.
 
 ## Connect Codex
+
+**Account requirement:** Codex requires a ChatGPT account. The ChatGPT Free plan supports Codex; paid plans provide higher usage limits.
 
 Install [Node.js 18 or newer](https://nodejs.org/en/download). In Codex, open **Settings > Plugins > Add > Add MCP Server**, choose **STDIO**, and enter:
 
