@@ -1,14 +1,36 @@
+# Dependencies, build output, and test caches
 node_modules/
-coverage/
 dist/
+coverage/
+.nyc_output/
+.cache/
+.npm/
+
+# Logs and diagnostics
 *.log
-.DS_Store
-Thumbs.db
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Local environment and secrets
 .env
 .env.*
 !.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Generated release archives (the canonical outputs belong in ignored dist/)
+*.mcpb
+*.dxt
+*.zip
+
+# Local PWS runtime credentials and Workshop publishing copy
 pws-mcp-runtime.json
 .pws-mcp-runtime.json
+STEAM_WORKSHOP_DESCRIPTION.txt
 
 # PWS saves and SQLite working files
 *.db
@@ -23,3 +45,17 @@ pws-mcp-runtime.json
 # Local backup and temporary files
 *.bak
 *.tmp
+*.swp
+*.swo
+*~
+
+# IDE and operating-system files
+.vscode/
+.idea/
+.vs/
+*.code-workspace
+*.suo
+*.user
+.DS_Store
+Thumbs.db
+Desktop.ini
