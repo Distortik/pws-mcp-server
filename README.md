@@ -162,15 +162,13 @@ Official reference: [Codex MCP documentation](https://developers.openai.com/code
 
 ### Codex desktop app or IDE extension
 
-1. Open **Settings**.
-2. Open **MCP servers**.
-3. Select **Add server**.
-4. Enter the name `pro-wrestling-sim`.
-5. Choose **STDIO**.
-6. For the command, enter the Node.js path shown by `(Get-Command node).Source`.
-7. For the argument, enter your complete `mcp-server.js` path.
-8. Save the server.
-9. Select **Restart** or **Restart extension**.
+1. Open **Settings > Plugins > Add > Add MCP server**.
+2. Enter the name `pro-wrestling-sim`.
+3. Choose **STDIO**.
+4. For the command, enter the Node.js path shown by `(Get-Command node).Source`.
+5. For the argument, enter your complete `mcp-server.js` path.
+6. Save the server.
+7. Select **Restart** or **Restart extension**.
 
 For a normal Workshop installation, the values are:
 
