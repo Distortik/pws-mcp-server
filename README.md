@@ -16,7 +16,6 @@ Ask it to search your save, analyze your company, review contracts, recommend wo
 - [Ideas to try](#ideas-to-try)
 - [Safety](#safety)
 - [Troubleshooting](#troubleshooting)
-- [Build a coordinated GitHub release](#build-a-coordinated-github-release)
 - [Current limitations](#current-limitations)
 - [License](#license)
 
@@ -166,24 +165,6 @@ This applies to Codex, Claude Code, and other direct stdio clients. Install Node
 ### An action is rejected
 
 PWS validates game actions. Ask the assistant to explain the returned error and revise the request. Automatic show cards remain drafts until they pass validation and you approve them.
-
-## Build a coordinated GitHub release
-
-Maintainers can build both installation formats together with:
-
-```powershell
-npm install
-npm run release
-```
-
-The command checks the code, runs the tests, validates synchronized versions, and writes these assets:
-
-```text
-dist/pws-mcp-server-plugin-vVERSION.zip
-dist/pws-mcp-server-vVERSION.mcpb
-```
-
-Upload both assets to one versioned GitHub Release. The ZIP is the manual PWS plugin package; the MCPB is the Claude Desktop extension. Steam subscribers need only the MCPB from GitHub. See [RELEASING.md](RELEASING.md) for the complete release checklist and suggested release notes.
 
 ## Current limitations
 
