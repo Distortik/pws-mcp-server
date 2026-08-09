@@ -11,6 +11,23 @@ Once connected, you can ask normal questions such as:
 
 The server works with local AI clients that support MCP, including Codex, Claude Desktop, and Claude Code.
 
+## Table of contents
+
+- [What it can do](#what-it-can-do)
+- [What you need](#what-you-need)
+- [Before you begin](#before-you-begin)
+- [Installation](#installation)
+- [Connect Codex](#connect-codex)
+- [Connect Claude Desktop](#connect-claude-desktop)
+- [Connect Claude Code](#connect-claude-code)
+- [Connect another MCP client](#connect-another-mcp-client)
+- [Test the connection](#test-the-connection)
+- [Good first questions](#good-first-questions)
+- [Safety](#safety)
+- [Troubleshooting](#troubleshooting)
+- [Current limitations](#current-limitations)
+- [License](#license)
+
 ## What it can do
 
 - Search workers, promotions, shows, titles, storylines, teams, stables, venues, and news.
