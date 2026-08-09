@@ -7,6 +7,8 @@ var path = require('path');
 var projectRoot = path.resolve(__dirname, '..');
 var outputDirectory = path.join(projectRoot, 'dist', 'pws-mcp-server');
 var runtimeFiles = [
+    'LICENSE',
+    'NOTICE',
     'index.js',
     'mcp-server.js',
     'plugin.json',
