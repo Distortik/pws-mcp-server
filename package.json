@@ -1,0 +1,23 @@
+{
+  "name": "pws-mcp-server",
+  "version": "0.2.0",
+  "private": true,
+  "description": "MCP bridge for Pro Wrestling Sim",
+  "main": "index.js",
+  "type": "commonjs",
+  "bin": {
+    "pws-mcp-server": "mcp-server.js"
+  },
+  "scripts": {
+    "start": "node mcp-server.js",
+    "build:workshop": "node scripts/build-workshop.js",
+    "verify:workshop": "node scripts/build-workshop.js --verify",
+    "deploy:plugin": "node scripts/deploy-plugin.js",
+    "check": "node --check index.js && node --check src/bridge.js && node --check src/domain.js && node --check src/booking.js && node --check src/runtime.js && node --check src/tools.js && node --check scripts/build-workshop.js && node --check scripts/deploy-plugin.js && node --check scripts/verify-save.js && node --check mcp-server.js",
+    "test": "node --test",
+    "test:save": "node scripts/verify-save.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
