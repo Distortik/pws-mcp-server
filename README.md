@@ -4,6 +4,22 @@ PWS MCP Server connects an AI assistant to the save currently loaded in **Pro Wr
 
 Ask it to search your save, analyze your company, review contracts, recommend workers, plan storylines, or draft and apply complete show cards. Read-only questions do not change your save. Save-changing actions require confirmation and are validated by PWS.
 
+## Table of contents
+
+- [What you need](#what-you-need)
+- [Install the PWS plugin](#install-the-pws-plugin)
+- [Connect Claude Desktop](#connect-claude-desktop)
+- [Connect Claude Code](#connect-claude-code)
+- [Connect Codex](#connect-codex)
+- [Connect another MCP client](#connect-another-mcp-client)
+- [Test the connection](#test-the-connection)
+- [Ideas to try](#ideas-to-try)
+- [Safety](#safety)
+- [Troubleshooting](#troubleshooting)
+- [Build a coordinated GitHub release](#build-a-coordinated-github-release)
+- [Current limitations](#current-limitations)
+- [License](#license)
+
 ## What you need
 
 - Windows and Pro Wrestling Sim
@@ -35,7 +51,7 @@ Use this only when you are not installing through Steam Workshop.
 3. Copy it to `%APPDATA%\ProWrestlingSimulator\plugins`.
 4. Restart PWS, enable the plugin, and load a save.
 
-## Connect Claude Desktop — easiest setup
+## Connect Claude Desktop
 
 Claude Desktop uses the one-click MCPB release. Do not edit `claude_desktop_config.json`.
 
