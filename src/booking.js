@@ -1,6 +1,18 @@
 'use strict';
 
 var domain = require('./domain');
+var segmentService = require('./segments');
+
+var MATCH_PLAN_FIELDS = [
+    'type', 'participants', 'gimmick', 'segmentLength', 'winner', 'winType', 'purpose',
+    'purposeWorker', 'losers', 'segmentName', 'description', 'finishSpecific', 'matchStoryId',
+    'segmentPosition', 'cardPosition', 'referee', 'announcers', 'agent', 'titleIds',
+    'ringsideWorkers', 'planningReason'
+];
+var ANGLE_PLAN_FIELDS = [
+    'type', 'angleType', 'participants', 'beats', 'segmentLength', 'segmentName',
+    'description', 'segmentPosition', 'cardPosition', 'planningReason'
+];
 
 function clone(value) {
     return JSON.parse(JSON.stringify(value));
@@ -219,7 +231,9 @@ function validatePlan(api, options) {
         var segment = clone(input);
         segment.type = String(segment.type || '').toLowerCase();
         if (segment.type !== 'match' && segment.type !== 'angle') throw new Error('Segment ' + (index + 1) + ' must have type match or angle');
-        if (!Array.isArray(segment.participants) || segment.participants.length < 2) throw new Error('Segment ' + (index + 1) + ' requires at least two participant groups');
+        segmentService.rejectUnknown(input, segment.type === 'match' ? MATCH_PLAN_FIELDS : ANGLE_PLAN_FIELDS, 'Segment ' + (index + 1));
+        var minimumGroups = segment.type === 'match' ? 2 : 1;
+        if (!Array.isArray(segment.participants) || segment.participants.length < minimumGroups) throw new Error('Segment ' + (index + 1) + ' requires at least ' + minimumGroups + ' participant group' + (minimumGroups === 1 ? '' : 's'));
         segment.participants = segment.participants.map(function (group) {
             if (!Array.isArray(group) || !group.length) throw new Error('Every participant group must contain a contract ID');
             return group.map(function (id) {
@@ -227,6 +241,7 @@ function validatePlan(api, options) {
                 var worker = byContract[contractId];
                 if (!worker) throw new Error('Contract ' + id + ' is not active at the player promotion');
                 if (worker.injuryType || worker.isSuspended || worker.contractSuspended || worker.onTimeOff) throw new Error(worker.name + ' is unavailable');
+                if (segment.type === 'match' && worker.type && String(worker.type).toLowerCase() !== 'wrestler') throw new Error(worker.name + ' is not a wrestler and cannot be a match participant');
                 return contractId;
             });
         });
@@ -238,25 +253,105 @@ function validatePlan(api, options) {
                 matchUsage[contractId] = true;
             });
             segment.segmentLength = domain.clamp(segment.segmentLength, 10, 1, 120);
+            segment.titleIds = segment.titleIds == null ? [] : segment.titleIds;
+            var selectedTitles = segmentService.validateTitles(api, ctx, card.show, segment.participants, segment.titleIds, byContract);
+            segment.titleIds = selectedTitles.map(function (title) { return title.titleId; });
+            var winner = segment.winner == null ? 'auto' : String(segment.winner);
+            if (winner !== 'auto' && winner !== 'draw') {
+                var winnerId = domain.integer(segment.winner);
+                if (winnerId === null || flattened.indexOf(winnerId) === -1) throw new Error('Segment ' + (index + 1) + ' winner must be auto, draw, or a participating contract ID');
+                segment.winner = String(winnerId);
+            } else segment.winner = winner;
+            segment.winType = segment.winType || 'Pinfall';
+            segment.purpose = segment.purpose || 'Regular Match';
+            segment.gimmick = segment.gimmick || 'None';
+            segment.finishSpecific = segment.finishSpecific || '';
+            segment.matchStoryId = segment.matchStoryId || 'None';
+            if (segment.gimmick !== 'None' && !domain.get(api, 'SELECT matchgimmickID FROM matchgimmicks WHERE name=?', [segment.gimmick])) throw new Error('Segment ' + (index + 1) + ' uses an unknown match gimmick: ' + segment.gimmick);
+            if (segment.matchStoryId !== 'None') {
+                var matchStoryId = domain.integer(segment.matchStoryId);
+                if (matchStoryId === null || !domain.get(api, 'SELECT matchstoryID FROM matchstories WHERE matchstoryID=?', [matchStoryId])) throw new Error('Segment ' + (index + 1) + ' uses an unknown matchStoryId: ' + segment.matchStoryId);
+                segment.matchStoryId = String(matchStoryId);
+            }
+            ['purposeWorker', 'referee', 'agent'].forEach(function (field) {
+                if (segment[field] == null || segment[field] === '') return;
+                var contractId = domain.integer(segment[field]);
+                if (contractId === null || !byContract[contractId]) throw new Error('Segment ' + (index + 1) + ' ' + field + ' is not an active player-promotion contract');
+                segment[field] = contractId;
+            });
+            if (segment.purposeWorker != null && flattened.indexOf(Number(segment.purposeWorker)) === -1) throw new Error('Segment ' + (index + 1) + ' purposeWorker must be a match participant');
+            if (segment.losers != null && segment.losers !== '' && segment.losers !== 'Unspecified') {
+                var loserId = domain.integer(segment.losers);
+                if (loserId === null || flattened.indexOf(loserId) === -1) throw new Error('Segment ' + (index + 1) + ' losers must be a match participant or Unspecified');
+                segment.losers = String(loserId);
+            }
+            ['announcers', 'ringsideWorkers'].forEach(function (field) {
+                if (segment[field] == null) return;
+                if (!Array.isArray(segment[field])) throw new Error('Segment ' + (index + 1) + ' ' + field + ' must be an array');
+                if (field === 'announcers' && segment[field].length > 4) throw new Error('Segment ' + (index + 1) + ' cannot have more than four announcers');
+                var seenIds = {};
+                segment[field] = segment[field].map(function (value) {
+                    var contractId = domain.integer(value);
+                    if (contractId === null || !byContract[contractId]) throw new Error('Segment ' + (index + 1) + ' ' + field + ' contains a contract that is not active at the player promotion');
+                    if (seenIds[contractId]) throw new Error('Segment ' + (index + 1) + ' ' + field + ' contains duplicate contract ' + contractId);
+                    if (field === 'ringsideWorkers' && flattened.indexOf(contractId) !== -1) throw new Error('Segment ' + (index + 1) + ' ringside worker ' + contractId + ' is already a participant');
+                    seenIds[contractId] = true;
+                    return contractId;
+                });
+            });
         } else {
             segment.angleType = segment.angleType || 'Promo';
             if (!Array.isArray(segment.beats) || !segment.beats.length) {
                 var first = byContract[segment.participants[0][0]];
-                var second = byContract[segment.participants[1][0]];
-                segment.beats = [{ type: 'promo', length: domain.clamp(segment.segmentLength, 5, 1, 60), group1: [{ contractID: Number(first.contractID), workerID: Number(first.workerID) }], group2: [{ contractID: Number(second.contractID), workerID: Number(second.workerID) }] }];
+                var second = segment.participants[1] ? byContract[segment.participants[1][0]] : null;
+                segment.beats = [{
+                    type: 'promo', length: domain.clamp(segment.segmentLength, 5, 1, 60),
+                    group1: [{ contractID: Number(first.contractID), workerID: Number(first.workerID) }],
+                    group2: second ? [{ contractID: Number(second.contractID), workerID: Number(second.workerID) }] : []
+                }];
             }
             delete segment.segmentLength;
         }
         segment.showId = showId;
         segment.cardPosition = segment.cardPosition || 'mainshow';
+        segment.segmentName = segment.segmentName || '';
+        segment.description = segment.description || '';
         delete segment.planningReason;
         delete segment.type;
-        return { kind: String(input.type).toLowerCase(), options: segment };
+        return { kind: String(input.type).toLowerCase(), options: segment, selectedTitles: selectedTitles || [] };
     });
     var addedMinutes = normalized.reduce(function (sum, item) { return sum + duration(Object.assign({ type: item.kind }, item.options)); }, 0);
     var projected = card.bookedMinutes + addedMinutes;
     if (projected > Number(card.show.length || 0) && !options.allowOverrun) throw new Error('Plan exceeds the show length by ' + (projected - Number(card.show.length || 0)) + ' minutes');
-    return { show: card.show, existingMinutes: card.bookedMinutes, addedMinutes: addedMinutes, projectedMinutes: projected, segments: normalized };
+    return {
+        show: card.show, existingCard: card.segments, existingMinutes: card.bookedMinutes, addedMinutes: addedMinutes,
+        projectedMinutes: projected, segments: normalized,
+        selectedTitles: normalized.reduce(function (all, item, index) {
+            return all.concat((item.selectedTitles || []).map(function (title) { return Object.assign({ segmentIndex: index }, title); }));
+        }, [])
+    };
+}
+
+function rollbackCreated(api, created) {
+    var rollback = [];
+    for (var reverse = created.length - 1; reverse >= 0; reverse -= 1) {
+        try { rollback.push(Object.assign({ segmentId: created[reverse].segmentId }, api.actions.removeSegment(created[reverse].segmentId))); }
+        catch (error) { rollback.push({ segmentId: created[reverse].segmentId, success: false, error: error.message }); }
+    }
+    return rollback;
+}
+
+function verificationFields(item) {
+    var fields = ['participants', 'segmentLength', 'segmentName', 'description', 'cardPosition'];
+    if (item.options.segmentPosition != null) fields.push('segmentPosition');
+    if (item.kind === 'match') {
+        fields = fields.concat(['titleIds', 'winner', 'winType', 'purpose', 'finishSpecific', 'gimmick', 'matchStoryId']);
+        if (item.options.referee != null) fields.push('referee');
+        if (item.options.agent != null) fields.push('agent');
+        if (item.options.announcers != null) fields.push('announcers');
+        if (item.options.ringsideWorkers != null) fields.push('ringsideWorkers');
+    } else fields = fields.concat(['angleType', 'beats']);
+    return fields;
 }
 
 function applyPlan(api, options) {
@@ -265,17 +360,59 @@ function applyPlan(api, options) {
     var created = [];
     for (var index = 0; index < validated.segments.length; index += 1) {
         var item = validated.segments[index];
-        var result = item.kind === 'match' ? api.actions.bookMatch(item.options) : api.actions.bookAngle(item.options);
+        var result;
+        try { result = item.kind === 'match' ? api.actions.bookMatch(item.options) : api.actions.bookAngle(item.options); }
+        catch (error) {
+            return { success: false, error: error.message, failedAt: index, createdBeforeFailure: created, rollback: rollbackCreated(api, created) };
+        }
         if (!result || !result.success) {
-            var rollback = [];
-            for (var reverse = created.length - 1; reverse >= 0; reverse -= 1) {
-                rollback.push(api.actions.removeSegment(created[reverse].segmentId));
-            }
+            var rollback = rollbackCreated(api, created);
             return { success: false, error: result && result.error ? result.error : 'PWS rejected segment ' + (index + 1), failedAt: index, createdBeforeFailure: created, rollback: rollback };
         }
-        created.push({ type: item.kind, segmentId: Number(result.segmentId) });
+        var createdItem = { type: item.kind, segmentId: Number(result.segmentId) };
+        created.push(createdItem);
+        try {
+            var persisted = segmentService.readSegment(api, createdItem.segmentId);
+            var expected = Object.assign({}, item.options);
+            expected.segmentName = expected.segmentName || '';
+            expected.description = expected.description || '';
+            expected.cardPosition = expected.cardPosition || 'mainshow';
+            if (item.kind === 'angle') expected.segmentLength = duration({ type: 'angle', beats: expected.beats });
+            var mismatches = segmentService.verifyRequested(expected, persisted, verificationFields(item));
+            if (mismatches.length) {
+                return {
+                    success: false,
+                    error: 'Post-save verification failed for segment ' + (index + 1),
+                    failedAt: index,
+                    verification: { success: false, mismatches: mismatches },
+                    createdBeforeFailure: created,
+                    rollback: rollbackCreated(api, created)
+                };
+            }
+            createdItem.segment = persisted;
+            createdItem.selectedTitles = item.selectedTitles;
+        } catch (error) {
+            return {
+                success: false, error: 'Could not verify segment ' + (index + 1) + ': ' + error.message,
+                failedAt: index, createdBeforeFailure: created, rollback: rollbackCreated(api, created)
+            };
+        }
     }
-    return { success: true, showId: Number(validated.show.showId), addedMinutes: validated.addedMinutes, projectedMinutes: validated.projectedMinutes, createdSegments: created };
+    var afterCard;
+    var warnings = [];
+    try { afterCard = domain.show(api, { showId: Number(validated.show.showId) }); }
+    catch (error) {
+        afterCard = { segments: validated.existingCard.concat(created.map(function (item) { return item.segment; })), bookedMinutes: validated.projectedMinutes };
+        warnings.push('The new segments were verified individually, but the complete card could not be re-read: ' + error.message);
+    }
+    return {
+        success: true, showId: Number(validated.show.showId), addedMinutes: validated.addedMinutes,
+        projectedMinutes: validated.projectedMinutes, selectedTitles: validated.selectedTitles,
+        createdSegments: created, verifiedCard: created.map(function (item) { return item.segment; }),
+        verification: { success: true, mismatches: [] },
+        before: { segments: validated.existingCard, bookedMinutes: validated.existingMinutes },
+        after: { segments: afterCard.segments, bookedMinutes: afterCard.bookedMinutes }, warnings: warnings
+    };
 }
 
 module.exports = { applyPlan: applyPlan, bookingContext: bookingContext, planShow: planShow, validatePlan: validatePlan };

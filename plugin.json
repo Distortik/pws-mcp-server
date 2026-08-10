@@ -1,13 +1,14 @@
 {
   "id": "pws-mcp-server",
   "name": "PWS MCP Server",
-  "version": "0.2.0",
+  "version": "0.3.0-beta.1",
   "description": "Secure local bridge connecting MCP-compatible AI clients to Pro Wrestling Sim.",
   "author": "PWS MCP Server contributors",
   "main": "index.js",
   "permissions": [
     "events",
     "database",
+    "database:write",
     "actions"
   ]
 }

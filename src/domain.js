@@ -247,6 +247,25 @@ function show(api, options) {
     var segments = query(api,
         "SELECT s.segmentID AS segmentId,s.segmentType AS type,s.segmentLength AS length,s.segmentorder AS position,s.segmentName AS name,s.description,s.purpose,s.winType,s.winner,s.winnerName,s.angleType,s.rating,s.isPreshow,s.isMainshow,s.isPostshow,GROUP_CONCAT(CAST(o.opponentSet AS TEXT)||':'||o.contractID||':'||COALESCE(NULLIF(c.contractName,''),w.name),' | ') participants FROM segments s LEFT JOIN opponents o ON o.segmentID=s.segmentID LEFT JOIN contracts c ON c.contractID=o.contractID LEFT JOIN workers w ON w.workerID=COALESCE(o.workerID,c.workerID) WHERE s.showID=? GROUP BY s.segmentID ORDER BY s.isPreshow DESC,s.isMainshow DESC,s.isPostshow DESC,s.segmentorder,s.segmentID",
         [showId]);
+    var titleRows = query(api,
+        'SELECT mt.segmentID,mt.titleID,mt.champion,mt.winner,t.name,t.type,t.currentChampion,t.currentChampion2,t.currentChampion3,t.defences FROM matchtitles mt JOIN segments s ON s.segmentID=mt.segmentID LEFT JOIN titles t ON t.titleID=mt.titleID WHERE s.showID=? ORDER BY mt.matchTitleID',
+        [showId]);
+    var titlesBySegment = {};
+    titleRows.forEach(function (title) {
+        var key = Number(title.segmentID);
+        if (!titlesBySegment[key]) titlesBySegment[key] = [];
+        titlesBySegment[key].push({
+            titleId: Number(title.titleID), name: title.name || null, type: title.type || null,
+            champion: title.champion == null ? null : Number(title.champion),
+            winner: title.winner == null ? null : Number(title.winner),
+            currentChampionIds: [title.currentChampion, title.currentChampion2, title.currentChampion3].filter(function (id) { return Number(id) > 0; }).map(Number),
+            defences: Number(title.defences || 0)
+        });
+    });
+    segments.forEach(function (segment) {
+        segment.titles = titlesBySegment[Number(segment.segmentId)] || [];
+        segment.titleIds = segment.titles.map(function (title) { return title.titleId; });
+    });
     return { show: header, bookedMinutes: segments.reduce(function (sum, segment) { return sum + Number(segment.length || 0); }, 0), segments: segments };
 }
 

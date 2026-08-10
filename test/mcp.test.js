@@ -18,6 +18,14 @@ test('publishes a broad unique tool catalogue with safety annotations', async fu
     var apply = result.tools.find(function (tool) { return tool.name === 'pws_apply_show_plan'; });
     assert.equal(apply.annotations.destructiveHint, true);
     assert.deepEqual(apply.inputSchema.required, ['showId', 'segments', 'confirmed']);
+    var matchSchema = apply.inputSchema.properties.segments.items.oneOf[0];
+    assert.equal(matchSchema.additionalProperties, false);
+    assert.ok(matchSchema.properties.titleIds);
+    assert.equal(matchSchema.properties.titleId, undefined);
+    var update = result.tools.find(function (tool) { return tool.name === 'pws_update_segment'; });
+    assert.ok(update);
+    assert.equal(update.inputSchema.properties.changes.additionalProperties, false);
+    assert.equal(update.annotations.destructiveHint, true);
 });
 
 test('publishes management workflow prompts', async function () {

@@ -12,10 +12,12 @@ var runtimeFiles = [
     'index.js',
     'mcp-server.js',
     'plugin.json',
+    'src/audit.js',
     'src/booking.js',
     'src/bridge.js',
     'src/domain.js',
     'src/runtime.js',
+    'src/segments.js',
     'src/tools.js'
 ];
 

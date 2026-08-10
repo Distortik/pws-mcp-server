@@ -14,6 +14,7 @@ Ask it to search your save, analyze your company, review contracts, recommend wo
 - [Connect another MCP client](#connect-another-mcp-client)
 - [Test the connection](#test-the-connection)
 - [Ideas to try](#ideas-to-try)
+- [Booking API notes](#booking-api-notes)
 - [Safety](#safety)
 - [Troubleshooting](#troubleshooting)
 - [Current limitations](#current-limitations)
@@ -141,10 +142,19 @@ If the answer contains information from your save, setup is complete.
 - "Show me my champions, active storylines, and neglected wrestlers."
 - "Draft my next show, explain every choice, and wait for approval."
 
+## Booking API notes
+
+Use `titleIds: number[]` to put championships on the line in a match. This is the only supported championship field; singular `titleId` and other unknown segment fields are rejected. Validation checks that each title is active, belongs to the player promotion, fits the show brand and match team size, and includes every reigning champion unless the title is vacant. Multiple titles are supported.
+
+`pws_apply_show_plan` re-reads every created segment and verifies its participants, winner, runtime, title associations, and other requested booking fields. If verification fails, it reports failure and removes the new segments instead of returning a false success.
+
+`pws_update_segment` previews by default. After reviewing `before` and `proposed`, call it again with the same changes, `preview: false`, and `confirmed: true`. The update uses a narrow field allowlist, one transaction, rollback, a post-save read, before/after output, and an audit entry. It does not expose general-purpose SQL writes.
+
 ## Safety
 
 - The bridge listens only on the local computer and uses a random authentication token.
 - Raw database access is read-only and result-limited.
+- The plugin's internal database-write permission is used only by purpose-built, allowlisted transactional actions such as `pws_update_segment`; no raw SQL-write tool is exposed.
 - Save-changing actions are validated and audited by PWS.
 - Show plans are drafts until you explicitly approve applying them.
 - The assistant should never report a save change as successful unless PWS confirms it.

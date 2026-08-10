@@ -5,8 +5,10 @@ var fs = require('fs');
 var http = require('http');
 var path = require('path');
 var booking = require('./booking');
+var audit = require('./audit');
 var domain = require('./domain');
 var runtime = require('./runtime');
+var segments = require('./segments');
 
 var MAX_BODY_BYTES = 1024 * 1024;
 var ACTIONS = {
@@ -134,11 +136,13 @@ function dispatch(api, request) {
         return booking.validatePlan(api, params);
     case 'booking.apply':
         return booking.applyPlan(api, params);
+    case 'booking.updateSegment':
+        return segments.updateSegment(api, params);
     case 'actions.execute':
         if (params.confirmed !== true) throw new Error('Refusing to change the save: confirmed=true is required');
         return invokeAction(api, params.action, params.arguments);
     case 'actions.audit':
-        return api.actions.getAuditLog();
+        return (api.actions && typeof api.actions.getAuditLog === 'function' ? api.actions.getAuditLog() : []).concat(audit.get(api));
     default:
         throw new Error('Unknown bridge method: ' + request.method);
     }

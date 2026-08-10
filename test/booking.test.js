@@ -22,17 +22,123 @@ function withDomainStubs(callback) {
     }
 }
 
+function makeBookingApi(options) {
+    options = options || {};
+    var nextSegmentId = 90;
+    var state = { segments: {}, opponents: [], matchtitles: [], removed: [] };
+    var contracts = {
+        10: { contractID: 10, workerID: 1, name: 'Face', gender: 'Male' },
+        20: { contractID: 20, workerID: 2, name: 'Heel', gender: 'Male' },
+        30: { contractID: 30, workerID: 3, name: 'Face Two', gender: 'Male' },
+        40: { contractID: 40, workerID: 4, name: 'Heel Two', gender: 'Male' }
+    };
+    var titles = options.titles || {};
+    function titleRows(segmentId) {
+        return state.matchtitles.filter(function (row) { return row.segmentID === segmentId; }).map(function (row, index) {
+            return Object.assign({ matchTitleID: index + 1, champion: null, winner: null }, titles[row.titleID] || {}, row);
+        });
+    }
+    var api = {
+        _state: state,
+        database: {
+            get: function (sql, params) {
+                if (sql.indexOf('FROM titles WHERE titleID=?') !== -1) return titles[Number(params[0])] || null;
+                if (sql.indexOf('FROM segments s JOIN eventinstance') !== -1) {
+                    var segment = state.segments[Number(params[0])];
+                    return segment ? Object.assign({}, segment, { complete: 0, isCancelled: 0, promotionID: 2, showBrand: null }) : null;
+                }
+                return null;
+            },
+            query: function (sql, params) {
+                var segmentId = Number(params[0]);
+                if (sql.indexOf('FROM opponents o') !== -1) return state.opponents.filter(function (row) { return row.segmentID === segmentId; });
+                if (sql.indexOf('FROM matchtitles mt') !== -1) return titleRows(segmentId);
+                return [];
+            }
+        },
+        actions: {
+            bookMatch: function (input) {
+                var segmentId = nextSegmentId++;
+                var winner = input.winner == null ? 'auto' : String(input.winner);
+                var flat = [].concat.apply([], input.participants);
+                var winnerContract = contracts[Number(winner)];
+                state.segments[segmentId] = {
+                    segmentID: segmentId, showID: input.showId, segmentType: 'Match', segmentLength: input.segmentLength || 1,
+                    segmentorder: input.segmentPosition || 1, purpose: input.purpose || 'Regular Match', winType: input.winType || 'Pinfall',
+                    winner: winner, winnerWorkerID: winnerContract ? winnerContract.workerID : 0,
+                    winningSet: winnerContract ? String(input.participants.findIndex(function (group) { return group.indexOf(Number(winner)) !== -1; })) : winner,
+                    purposeWorker: input.purposeWorker || '', losers: input.losers || 'Unspecified', gimmick: input.gimmick || 'None',
+                    segmentName: input.segmentName || '', description: input.description || '', finishSpecific: input.finishSpecific || '',
+                    matchStoryID: input.matchStoryId || 'None', referee: input.referee || '', agent: input.agent || '',
+                    announcer1: (input.announcers || [])[0] || '', announcer2: (input.announcers || [])[1] || '',
+                    announcer3: (input.announcers || [])[2] || '', announcer4: (input.announcers || [])[3] || '',
+                    isPreshow: input.cardPosition === 'preshow' ? 1 : 0, isMainshow: input.cardPosition === 'preshow' || input.cardPosition === 'postshow' ? 0 : 1,
+                    isPostshow: input.cardPosition === 'postshow' ? 1 : 0
+                };
+                flat.forEach(function (contractId) {
+                    state.opponents.push({ opponentID: state.opponents.length + 1, segmentID: segmentId, opponentSet: input.participants.findIndex(function (group) { return group.indexOf(contractId) !== -1; }), contractID: contractId, workerID: contracts[contractId].workerID, isRingside: 0, isSubject: 0, name: contracts[contractId].name });
+                });
+                if (!options.dropTitles) (input.titleIds || []).forEach(function (titleId) { state.matchtitles.push({ segmentID: segmentId, titleID: titleId }); });
+                return { success: true, segmentId: segmentId };
+            },
+            bookAngle: function () { throw new Error('not expected'); },
+            removeSegment: function (segmentId) {
+                state.removed.push(segmentId); delete state.segments[segmentId];
+                state.opponents = state.opponents.filter(function (row) { return row.segmentID !== segmentId; });
+                state.matchtitles = state.matchtitles.filter(function (row) { return row.segmentID !== segmentId; });
+                return { success: true };
+            }
+        }
+    };
+    return api;
+}
+
 test('validates and applies a confirmed match plan', function () {
     withDomainStubs(function () {
-        var received;
-        var api = { actions: {
-            bookMatch: function (options) { received = options; return { success: true, segmentId: 99 }; },
-            bookAngle: function () { throw new Error('not expected'); }, removeSegment: function () { return { success: true }; }
-        } };
+        var api = makeBookingApi();
         var result = booking.applyPlan(api, { showId: 50, confirmed: true, segments: [{ type: 'match', participants: [[10], [20]], segmentLength: 15 }] });
         assert.equal(result.success, true);
-        assert.equal(received.showId, 50);
-        assert.deepEqual(received.participants, [[10], [20]]);
+        assert.equal(result.verifiedCard[0].showId, 50);
+        assert.deepEqual(result.verifiedCard[0].participants, [[10], [20]]);
+    });
+});
+
+test('rejects unsupported singular titleId instead of silently ignoring it', function () {
+    withDomainStubs(function () {
+        assert.throws(function () {
+            booking.validatePlan(makeBookingApi(), { showId: 50, segments: [{ type: 'match', participants: [[10], [20]], titleId: 101 }] });
+        }, /unsupported field "titleId"/);
+    });
+});
+
+test('validates and persists multiple championship associations', function () {
+    withDomainStubs(function () {
+        var titleRows = {
+            101: { titleID: 101, promotionID: 2, name: 'World Title', type: 'Singles', inactive: 0, defendable: 1, currentChampion: 1, defences: 4 },
+            102: { titleID: 102, promotionID: 2, name: 'Vacant Cup', type: 'Singles', inactive: 0, defendable: 1, currentChampion: null, defences: 0 }
+        };
+        var api = makeBookingApi({ titles: titleRows });
+        var input = { showId: 50, confirmed: true, segments: [{ type: 'match', participants: [[10], [20]], segmentLength: 20, winner: 20, titleIds: [101, 102] }] };
+        var validated = booking.validatePlan(api, input);
+        assert.deepEqual(validated.segments[0].options.titleIds, [101, 102]);
+        assert.deepEqual(validated.selectedTitles.map(function (title) { return [title.titleId, title.defense, title.vacant]; }), [[101, true, false], [102, false, true]]);
+        var applied = booking.applyPlan(api, input);
+        assert.equal(applied.success, true);
+        assert.deepEqual(applied.verifiedCard[0].titleIds, [101, 102]);
+        assert.deepEqual(api._state.matchtitles.map(function (row) { return row.titleID; }), [101, 102]);
+    });
+});
+
+test('never reports success when PWS drops a requested championship', function () {
+    withDomainStubs(function () {
+        var api = makeBookingApi({
+            dropTitles: true,
+            titles: { 101: { titleID: 101, promotionID: 2, name: 'Vacant Cup', type: 'Singles', inactive: 0, defendable: 1, currentChampion: null } }
+        });
+        var result = booking.applyPlan(api, { showId: 50, confirmed: true, segments: [{ type: 'match', participants: [[10], [20]], titleIds: [101] }] });
+        assert.equal(result.success, false);
+        assert.match(result.error, /verification failed/i);
+        assert.deepEqual(api._state.removed, [90]);
     });
 });
 

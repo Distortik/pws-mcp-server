@@ -64,3 +64,13 @@ Download `pws-mcp-server-plugin-vX.Y.Z.zip`, extract it, and copy the included `
 ## 4. Update Steam Workshop
 
 Upload the contents of `dist/pws-mcp-server` to the existing Workshop item. Keep the Workshop item and GitHub Release on the same version. This is an update to the existing distributions, not another GitHub release.
+
+## Testing prereleases
+
+Use a SemVer prerelease version such as `0.3.0-beta.1`, then run:
+
+```powershell
+npm run release:test
+```
+
+This creates a separately identified `PWS MCP Server TEST` plugin ZIP and the matching Claude Desktop MCPB. Mark the GitHub Release as a prerelease and do not upload `dist/pws-mcp-server` to Steam Workshop. Testers can keep their Workshop subscription, but should disable the Workshop plugin and enable only the TEST plugin while testing.

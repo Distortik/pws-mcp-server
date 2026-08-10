@@ -9,6 +9,56 @@ function object(properties, required) {
     return schema;
 }
 
+var idArray = { type: 'array', items: { type: 'integer', minimum: 1 }, uniqueItems: true };
+var participantGroups = {
+    type: 'array', minItems: 1,
+    items: { type: 'array', minItems: 1, items: { type: 'integer', minimum: 1 }, uniqueItems: true }
+};
+var nullableContractId = { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'null' }] };
+var winner = { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'string', enum: ['auto', 'draw'] }] };
+var cardPosition = { type: 'string', enum: ['preshow', 'mainshow', 'postshow'], default: 'mainshow' };
+var beatMember = object({ contractID: { type: 'integer', minimum: 1 }, workerID: { type: 'integer', minimum: 1 } }, ['contractID']);
+var beat = object({
+    type: { type: 'string', minLength: 1, maxLength: 50 },
+    length: { type: 'integer', minimum: 1, maximum: 120 },
+    group1: { type: 'array', items: beatMember }, group2: { type: 'array', items: beatMember }, group3: { type: 'array', items: beatMember },
+    option1: { type: 'string', maxLength: 200 }, option2: { type: 'string', maxLength: 200 }
+}, ['type', 'length']);
+var matchPlanSegment = object({
+    type: { type: 'string', const: 'match' }, participants: Object.assign({}, participantGroups, { minItems: 2 }),
+    gimmick: { type: 'string', maxLength: 200 }, segmentLength: { type: 'integer', minimum: 1, maximum: 120 }, winner: winner,
+    winType: { type: 'string', maxLength: 100 }, purpose: { type: 'string', maxLength: 100 }, purposeWorker: nullableContractId,
+    losers: { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'string', const: 'Unspecified' }, { type: 'null' }] },
+    segmentName: { type: 'string', maxLength: 500 }, description: { type: 'string', maxLength: 10000 },
+    finishSpecific: { type: 'string', maxLength: 500 }, matchStoryId: { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'string', const: 'None' }] },
+    segmentPosition: { type: 'integer', minimum: 1 }, cardPosition: cardPosition, referee: nullableContractId,
+    announcers: Object.assign({}, idArray, { maxItems: 4 }), agent: nullableContractId,
+    titleIds: Object.assign({}, idArray, { maxItems: 20, description: 'Canonical championship field. Every listed title is validated and persisted in matchtitles.' }),
+    ringsideWorkers: idArray, planningReason: { type: 'string', description: 'Planner metadata; returned by pws_plan_show and removed before persistence.' }
+}, ['type', 'participants']);
+var anglePlanSegment = object({
+    type: { type: 'string', const: 'angle' }, angleType: { type: 'string', maxLength: 100 },
+    participants: participantGroups, beats: { type: 'array', minItems: 1, items: beat },
+    segmentLength: { type: 'integer', minimum: 1, maximum: 120 }, segmentName: { type: 'string', maxLength: 500 },
+    description: { type: 'string', maxLength: 10000 }, segmentPosition: { type: 'integer', minimum: 1 },
+    cardPosition: cardPosition, planningReason: { type: 'string', description: 'Planner metadata; removed before persistence.' }
+}, ['type', 'participants']);
+var showPlanSegments = { type: 'array', minItems: 1, maxItems: 40, items: { oneOf: [matchPlanSegment, anglePlanSegment] } };
+var updateChanges = object({
+    participants: participantGroups, segmentLength: { type: 'integer', minimum: 1, maximum: 120 },
+    segmentPosition: { type: 'integer', minimum: 1 }, cardPosition: cardPosition,
+    segmentName: { type: 'string', maxLength: 500 }, description: { type: 'string', maxLength: 10000 },
+    titleIds: Object.assign({}, idArray, { maxItems: 20, description: 'Replace all championship associations for a match.' }),
+    winner: winner, winType: { type: 'string', maxLength: 100 }, finishSpecific: { type: 'string', maxLength: 500 },
+    purpose: { type: 'string', maxLength: 100 }, purposeWorker: nullableContractId,
+    losers: { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'string', const: 'Unspecified' }, { type: 'null' }] },
+    gimmick: { type: 'string', maxLength: 200 }, matchStoryId: { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'string', const: 'None' }] },
+    referee: nullableContractId, agent: nullableContractId, announcers: Object.assign({}, idArray, { maxItems: 4 }), ringsideWorkers: idArray,
+    angleType: { type: 'string', maxLength: 100 }, beats: { type: 'array', minItems: 1, items: beat },
+    subjectContractIds: Object.assign({}, idArray, { description: 'Angle participants stored by PWS as subjects (the only persisted per-participant role flag in the current schema).' })
+}, []);
+updateChanges.minProperties = 1;
+
 var TOOLS = [
     { name: 'pws_get_state', description: 'Get the loaded save, current date, player promotion, company size, cash, and home market.', inputSchema: object(), annotations: READ_ONLY },
     { name: 'pws_search', description: 'Search across PWS workers, promotions, shows, titles, storylines, tag teams, stables, venues, and news. Start here when resolving a name to an ID.', inputSchema: object({
@@ -53,13 +103,18 @@ var TOOLS = [
         featureContractIds: { type: 'array', items: { type: 'integer' } }, avoidContractIds: { type: 'array', items: { type: 'integer' } }, notes: { type: 'string', maxLength: 1000 }
     }), annotations: READ_ONLY },
     { name: 'pws_validate_show_plan', description: 'Validate a proposed show card against the live show, roster availability, duplicates, and runtime without changing the save.', inputSchema: object({
-        showId: { type: 'integer' }, segments: { type: 'array', minItems: 1, maxItems: 40, items: { type: 'object' } },
+        showId: { type: 'integer' }, segments: showPlanSegments,
         allowMultipleMatches: { type: 'boolean', default: false }, allowOverrun: { type: 'boolean', default: false }
     }, ['showId', 'segments']), annotations: READ_ONLY },
     { name: 'pws_apply_show_plan', description: 'BOOK A REVIEWED CARD INTO THE SAVE. Adds validated match/angle segments and rolls back newly created segments if a later addition fails. Requires confirmed=true.', inputSchema: object({
-        showId: { type: 'integer' }, segments: { type: 'array', minItems: 1, maxItems: 40, items: { type: 'object' } },
+        showId: { type: 'integer' }, segments: showPlanSegments,
         confirmed: { type: 'boolean', const: true }, allowMultipleMatches: { type: 'boolean', default: false }, allowOverrun: { type: 'boolean', default: false }
     }, ['showId', 'segments', 'confirmed']), annotations: WRITE },
+    { name: 'pws_update_segment', description: 'PREVIEW OR UPDATE ONE EXISTING MATCH/ANGLE. Preserves unrelated fields, validates the live show, writes transactionally, verifies the saved segment, and requires preview=false plus confirmed=true to mutate.', inputSchema: object({
+        segmentId: { type: 'integer', minimum: 1 }, changes: updateChanges,
+        preview: { type: 'boolean', default: true, description: 'Defaults to true. Set false only after reviewing the preview.' },
+        confirmed: { type: 'boolean', description: 'Must be true when preview=false.' }
+    }, ['segmentId', 'changes']), annotations: WRITE },
     { name: 'pws_execute_action', description: 'CHANGE THE CURRENT SAVE through a validated PWS action. Use purpose-built tools when available. Requires confirmed=true. Supported actions: book_match, book_angle, remove_segment, create_storyline, end_storyline, add_worker_to_storyline, remove_worker_from_storyline, sign_worker, release_worker, award_title, vacate_title, update_worker_attribute (sandbox only), create_news_item, create_email.', inputSchema: object({
         action: { type: 'string', enum: ['book_match', 'book_angle', 'remove_segment', 'create_storyline', 'end_storyline', 'add_worker_to_storyline', 'remove_worker_from_storyline', 'sign_worker', 'release_worker', 'award_title', 'vacate_title', 'update_worker_attribute', 'create_news_item', 'create_email'] },
         arguments: { type: 'object' }, confirmed: { type: 'boolean', const: true }
@@ -73,7 +128,7 @@ var ROUTES = {
     pws_get_worker_contracts: 'game.contracts', pws_analyze_hiring: 'hiring.analyze', pws_contract_advice: 'contracts.advise',
     pws_get_upcoming_shows: 'shows.upcoming', pws_get_show: 'shows.get', pws_get_titles: 'game.titles',
     pws_get_storylines: 'game.storylines', pws_get_booking_context: 'booking.context', pws_plan_show: 'booking.plan',
-    pws_validate_show_plan: 'booking.validate', pws_apply_show_plan: 'booking.apply', pws_execute_action: 'actions.execute',
+    pws_validate_show_plan: 'booking.validate', pws_apply_show_plan: 'booking.apply', pws_update_segment: 'booking.updateSegment', pws_execute_action: 'actions.execute',
     pws_get_audit_log: 'actions.audit'
 };
 
