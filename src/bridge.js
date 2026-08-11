@@ -95,6 +95,7 @@ function invokeAction(api, name, args) {
     var fn = api.actions[definition[0]];
     if (typeof fn !== 'function') throw new Error('Action is unavailable in this PWS version: ' + name);
     args = args || {};
+    if (name === 'sign_worker' && args.gimmick != null) args.gimmick = purposeBuiltActions.validateGimmick(api, args.gimmick);
     switch (definition[1]) {
     case 'object': return fn.call(api.actions, args);
     case 'id': return fn.call(api.actions, Number(args.id));
@@ -144,6 +145,12 @@ function dispatch(api, request) {
         return domain.venues(api, params);
     case 'shows.setVenue':
         return purposeBuiltActions.setShowVenue(api, params);
+    case 'shows.schedule':
+        return purposeBuiltActions.scheduleShow(api, params);
+    case 'shows.cancel':
+        return purposeBuiltActions.cancelShow(api, params);
+    case 'events.create':
+        return purposeBuiltActions.createEvent(api, params);
     case 'booking.context':
         return booking.bookingContext(api, params);
     case 'booking.plan':
@@ -164,6 +171,20 @@ function dispatch(api, request) {
         return purposeBuiltActions.changeStorylineMember(api, params, false);
     case 'storylines.diagnoseAttribution':
         return domain.storylineAttributionDiagnostics(api, params);
+    case 'stables.list':
+        return purposeBuiltActions.listStables(api, params);
+    case 'gimmicks.list':
+        return domain.gimmicks(api, params);
+    case 'stables.create':
+        return purposeBuiltActions.createStable(api, params);
+    case 'stables.dissolve':
+        return purposeBuiltActions.dissolveStable(api, params);
+    case 'stables.addWorker':
+        return purposeBuiltActions.changeStableMember(api, params, true);
+    case 'stables.removeWorker':
+        return purposeBuiltActions.changeStableMember(api, params, false);
+    case 'contracts.setGimmick':
+        return purposeBuiltActions.setContractGimmick(api, params);
     case 'contracts.release':
         return purposeBuiltActions.releaseWorker(api, params);
     case 'titles.vacate':

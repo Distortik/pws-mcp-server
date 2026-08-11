@@ -76,6 +76,186 @@ function validateContract(api, contractId) {
     return contract;
 }
 
+function validateGimmick(api, value) {
+    var name = String(value == null ? '' : value).trim();
+    if (!name) throw new Error('gimmick is required');
+    if (name.length > 100) throw new Error('gimmick cannot exceed 100 characters');
+    if (name.toLowerCase() === 'none') return 'None';
+    var row = domain.get(api, 'SELECT name FROM gimmicks WHERE name=? COLLATE NOCASE LIMIT 1', [name]);
+    if (!row) throw new Error('Gimmick not found in the loaded save: ' + name + '. Use pws_get_gimmicks to browse this database.');
+    return row.name;
+}
+
+function stable(api, stableId) {
+    var row = domain.get(api, 'SELECT stableID,stableName,stableHeat,promotionID,stableImage FROM stables WHERE stableID=?', [stableId]);
+    if (!row) return null;
+    row.members = domain.query(api, "SELECT sw.contractID,sw.isLeader,c.workerID,COALESCE(NULLIF(c.contractName,''),w.name) AS name FROM stableworkers sw JOIN contracts c ON c.contractID=sw.contractID LEFT JOIN workers w ON w.workerID=c.workerID WHERE sw.stableID=? ORDER BY CASE WHEN sw.isLeader IN (1,'true') THEN 0 ELSE 1 END,name", [stableId]);
+    return row;
+}
+
+function validateStable(api, stableId) {
+    var before = stable(api, stableId);
+    if (!before) throw new Error('Stable not found: ' + stableId);
+    if (Number(before.promotionID) !== context(api).promotionId) throw new Error('The stable does not belong to the player promotion');
+    return before;
+}
+
+function listStables(api, options) {
+    options = options || {};
+    var ctx = context(api);
+    var rows = domain.query(api, 'SELECT stableID FROM stables WHERE promotionID=? ORDER BY stableHeat DESC,stableName', [ctx.promotionId]);
+    if (options.stableId != null) rows = rows.filter(function (row) { return Number(row.stableID) === Number(options.stableId); });
+    return { game: domain.state(api), stables: rows.map(function (row) { return stable(api, Number(row.stableID)); }) };
+}
+
+function createStable(api, options) {
+    options = input(options, ['name', 'contractIds', 'leaderContractId', 'heat'], 'pws_create_stable');
+    var name = String(options.name || '').trim();
+    if (!name) throw new Error('name is required');
+    if (name.length > 100) throw new Error('name cannot exceed 100 characters');
+    if (!Array.isArray(options.contractIds) || options.contractIds.length < 2) throw new Error('contractIds must contain at least two contracts');
+    var ids = options.contractIds.map(function (id) { return integer(id, 'contractIds entry'); });
+    if (new Set(ids).size !== ids.length) throw new Error('contractIds contains a duplicate');
+    var contracts = ids.map(function (id) { return validateContract(api, id); });
+    var leader = options.leaderContractId == null ? null : integer(options.leaderContractId, 'leaderContractId');
+    if (leader !== null && ids.indexOf(leader) === -1) throw new Error('leaderContractId must be one of contractIds');
+    var heat = options.heat == null ? 50 : Number(options.heat);
+    if (!Number.isInteger(heat) || heat < 1 || heat > 100) throw new Error('heat must be an integer from 1 to 100');
+    var proposed = { promotionId: context(api).promotionId, name: name, contractIds: ids, leaderContractId: leader, heat: heat };
+    return mutation(options, 'stable.create', { api: api, before: null, proposed: proposed, audit: { proposed: proposed, contracts: contracts } }, function () {
+        return requireAction(api, 'createStable').call(api.actions, proposed);
+    }, function () {
+        var created = domain.get(api, 'SELECT stableID FROM stables WHERE promotionID=? AND stableName=? ORDER BY stableID DESC LIMIT 1', [proposed.promotionId, name]);
+        var after = created ? stable(api, Number(created.stableID)) : null;
+        var memberIds = after ? after.members.map(function (member) { return Number(member.contractID); }).sort() : [];
+        var persistedLeader = after && after.members.find(function (member) { return member.isLeader === true || Number(member.isLeader) === 1 || member.isLeader === 'true'; });
+        var correctLeader = leader === null ? !persistedLeader : persistedLeader && Number(persistedLeader.contractID) === leader;
+        var correct = after && JSON.stringify(memberIds) === JSON.stringify(ids.slice().sort()) && Number(after.stableHeat) === heat && correctLeader;
+        return correct ? { success: true, after: after } : { success: false, error: 'stable or membership was not persisted as requested', after: after };
+    });
+}
+
+function dissolveStable(api, options) {
+    options = input(options, ['stableId'], 'pws_dissolve_stable');
+    var stableId = integer(options.stableId, 'stableId');
+    var before = validateStable(api, stableId);
+    return mutation(options, 'stable.dissolve', { api: api, before: before, proposed: { stableId: stableId, operation: 'dissolve' }, audit: { stableId: stableId, before: before } }, function () {
+        return requireAction(api, 'dissolveStable').call(api.actions, stableId);
+    }, function () {
+        var after = stable(api, stableId);
+        return !after ? { success: true, after: null } : { success: false, error: 'stable still exists', after: after };
+    });
+}
+
+function changeStableMember(api, options, adding) {
+    var label = adding ? 'pws_add_stable_worker' : 'pws_remove_stable_worker';
+    options = input(options, ['stableId', 'contractId', 'isLeader'], label);
+    var stableId = integer(options.stableId, 'stableId');
+    var contractId = integer(options.contractId, 'contractId');
+    var before = validateStable(api, stableId);
+    var contract = validateContract(api, contractId);
+    var existing = before.members.find(function (member) { return Number(member.contractID) === contractId; });
+    if (adding && existing) throw new Error('The worker is already in this stable');
+    if (!adding && !existing) throw new Error('The worker is not in this stable');
+    if (!adding && before.members.length <= 2) throw new Error('A stable must retain at least two members; dissolve it instead');
+    return mutation(options, adding ? 'stable.addWorker' : 'stable.removeWorker', { api: api, before: before, proposed: { stableId: stableId, contractId: contractId, member: adding, isLeader: adding && options.isLeader === true }, audit: { stableId: stableId, contractId: contractId, before: before } }, function () {
+        var fn = requireAction(api, adding ? 'addWorkerToStable' : 'removeWorkerFromStable');
+        return adding ? fn.call(api.actions, stableId, contractId, options.isLeader === true) : fn.call(api.actions, stableId, contractId);
+    }, function () {
+        var after = stable(api, stableId);
+        var member = after && after.members.find(function (item) { return Number(item.contractID) === contractId; });
+        var correct = adding ? Boolean(member) : !member;
+        return correct ? { success: true, after: after } : { success: false, error: 'stable membership was not persisted', after: after };
+    });
+}
+
+function setContractGimmick(api, options) {
+    options = input(options, ['contractId', 'gimmick'], 'pws_set_contract_gimmick');
+    var contractId = integer(options.contractId, 'contractId');
+    var before = validateContract(api, contractId);
+    var gimmick = validateGimmick(api, options.gimmick);
+    return mutation(options, 'contract.setGimmick', { api: api, before: before, proposed: { contractId: contractId, gimmick: gimmick }, audit: { contractId: contractId, gimmick: gimmick, before: before } }, function () {
+        return requireAction(api, 'modifyContract').call(api.actions, { contractId: contractId, changes: { gimmick: gimmick } });
+    }, function () {
+        var after = domain.get(api, 'SELECT contractID,workerID,promotionID,gimmick FROM contracts WHERE contractID=?', [contractId]);
+        return after && after.gimmick === gimmick ? { success: true, after: after } : { success: false, error: 'gimmick was not persisted', after: after };
+    });
+}
+
+function event(api, eventId) {
+    return domain.get(api, 'SELECT eventID,eventName,promotionID,prestige,recurrenceType,recurrenceMonth,recurrenceWeek,brand,eventLength,importance,inactive,preferredVenue FROM events WHERE eventID=?', [eventId]);
+}
+
+function createEvent(api, options) {
+    options = input(options, ['name', 'recurrenceType', 'recurrenceMonth', 'recurrenceWeek', 'prestige', 'importance', 'eventLength', 'brand'], 'pws_create_event');
+    var ctx = context(api);
+    var name = String(options.name || '').trim();
+    if (!name) throw new Error('name is required');
+    if (name.length > 100) throw new Error('name cannot exceed 100 characters');
+    var recurrenceType = options.recurrenceType || 'OneOff';
+    if (['Weekly', 'Monthly', 'Annual', 'OneOff'].indexOf(recurrenceType) === -1) throw new Error('recurrenceType is invalid');
+    var month = options.recurrenceMonth == null ? null : Number(options.recurrenceMonth);
+    var week = options.recurrenceWeek == null ? null : Number(options.recurrenceWeek);
+    if (month !== null && (!Number.isInteger(month) || month < 1 || month > 12)) throw new Error('recurrenceMonth must be 1-12');
+    if (week !== null && (!Number.isInteger(week) || week < 1 || week > 5)) throw new Error('recurrenceWeek must be 1-5');
+    if (recurrenceType === 'Annual' && month === null) throw new Error('Annual events require recurrenceMonth');
+    if (recurrenceType === 'Monthly' && week === null) throw new Error('Monthly events require recurrenceWeek');
+    var prestige = options.prestige == null ? 1 : Number(options.prestige);
+    var length = options.eventLength == null ? 120 : Number(options.eventLength);
+    if (!Number.isInteger(prestige) || prestige < 1 || prestige > 100) throw new Error('prestige must be 1-100');
+    if (!Number.isInteger(length) || length < 1 || length > 600) throw new Error('eventLength must be 1-600');
+    var importance = options.importance || 'Normal';
+    if (['Huge', 'High', 'Normal', 'Unimportant', 'House Show'].indexOf(importance) === -1) throw new Error('importance is invalid');
+    var proposed = { promotionId: ctx.promotionId, name: name, recurrenceType: recurrenceType, recurrenceMonth: month, recurrenceWeek: week, prestige: prestige, importance: importance, eventLength: length };
+    if (options.brand != null) proposed.brand = integer(options.brand, 'brand');
+    return mutation(options, 'event.create', { api: api, before: null, proposed: proposed, audit: { proposed: proposed } }, function () {
+        return requireAction(api, 'createEvent').call(api.actions, proposed);
+    }, function () {
+        var row = domain.get(api, 'SELECT eventID FROM events WHERE promotionID=? AND eventName=? ORDER BY eventID DESC LIMIT 1', [ctx.promotionId, name]);
+        var after = row ? event(api, Number(row.eventID)) : null;
+        return after && Number(after.eventLength) === length && after.recurrenceType === recurrenceType ? { success: true, after: after } : { success: false, error: 'event was not persisted as requested', after: after };
+    });
+}
+
+function scheduleShow(api, options) {
+    options = input(options, ['eventId', 'airDate', 'location', 'venueId'], 'pws_schedule_show');
+    var eventId = integer(options.eventId, 'eventId');
+    var series = event(api, eventId);
+    if (!series) throw new Error('Event not found: ' + eventId);
+    if (Number(series.promotionID) !== context(api).promotionId) throw new Error('The event does not belong to the player promotion');
+    var airDate = String(options.airDate || '');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(airDate) || !domain.addDays(airDate, 0)) throw new Error('airDate must be a valid YYYY-MM-DD date');
+    if (airDate < context(api).currentDate) throw new Error('airDate cannot be before the current game date');
+    var location = options.location == null ? '' : String(options.location).trim();
+    if (location.length > 200) throw new Error('location cannot exceed 200 characters');
+    var venueId = options.venueId == null ? null : integer(options.venueId, 'venueId');
+    if (venueId !== null && !domain.get(api, 'SELECT venueID FROM venues WHERE venueID=?', [venueId])) throw new Error('Venue not found: ' + venueId);
+    var proposed = { eventId: eventId, airDate: airDate, location: location, venueId: venueId };
+    return mutation(options, 'show.schedule', { api: api, before: series, proposed: proposed, audit: { proposed: proposed } }, function () {
+        return requireAction(api, 'scheduleShow').call(api.actions, proposed);
+    }, function () {
+        var after = domain.get(api, 'SELECT instanceID AS showId,eventID,airDate,location,venueID,complete,isCancelled FROM eventinstance WHERE eventID=? AND airDate=? ORDER BY instanceID DESC LIMIT 1', [eventId, airDate]);
+        var correct = after && Number(after.eventID) === eventId && (venueId === null || Number(after.venueID) === venueId);
+        return correct ? { success: true, after: after } : { success: false, error: 'show instance was not persisted as requested', after: after };
+    });
+}
+
+function cancelShow(api, options) {
+    options = input(options, ['showId'], 'pws_cancel_show');
+    var showId = integer(options.showId, 'showId');
+    var before = domain.get(api, 'SELECT ei.instanceID AS showId,ei.eventID,ei.airDate,ei.complete,ei.isCancelled,e.promotionID FROM eventinstance ei JOIN events e ON e.eventID=ei.eventID WHERE ei.instanceID=?', [showId]);
+    if (!before) throw new Error('Show not found: ' + showId);
+    if (Number(before.promotionID) !== context(api).promotionId) throw new Error('The show does not belong to the player promotion');
+    if (Number(before.complete)) throw new Error('A completed show cannot be cancelled');
+    if (Number(before.isCancelled)) throw new Error('The show is already cancelled');
+    return mutation(options, 'show.cancel', { api: api, before: before, proposed: { showId: showId, isCancelled: true }, audit: { showId: showId, before: before } }, function () {
+        return requireAction(api, 'cancelShow').call(api.actions, showId);
+    }, function () {
+        var after = domain.get(api, 'SELECT instanceID AS showId,eventID,airDate,complete,isCancelled FROM eventinstance WHERE instanceID=?', [showId]);
+        return after && Number(after.isCancelled) === 1 ? { success: true, after: after } : { success: false, error: 'show cancellation was not persisted', after: after };
+    });
+}
+
 function endStoryline(api, options) {
     options = input(options, ['storylineId'], 'pws_end_storyline');
     var storylineId = integer(options.storylineId, 'storylineId');
@@ -159,4 +339,4 @@ function setShowVenue(api, options) {
     });
 }
 
-module.exports = { changeStorylineMember: changeStorylineMember, endStoryline: endStoryline, releaseWorker: releaseWorker, removeSegment: removeSegment, setShowVenue: setShowVenue, vacateTitle: vacateTitle };
+module.exports = { cancelShow: cancelShow, changeStableMember: changeStableMember, changeStorylineMember: changeStorylineMember, createEvent: createEvent, createStable: createStable, dissolveStable: dissolveStable, endStoryline: endStoryline, listStables: listStables, releaseWorker: releaseWorker, removeSegment: removeSegment, scheduleShow: scheduleShow, setContractGimmick: setContractGimmick, setShowVenue: setShowVenue, stable: stable, vacateTitle: vacateTitle, validateGimmick: validateGimmick };

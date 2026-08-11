@@ -20,13 +20,33 @@ test('clamp applies defaults and bounds', function () {
     assert.equal(domain.clamp(-2, 10, 1, 20), 1);
 });
 
+test('promotion size matches PWS continental popularity tiers', function () {
+    assert.equal(domain.promotionSize({ northAmericaPop: 11, europePop: 10, asiaPop: 10 }), 'Local');
+    assert.equal(domain.promotionSize({ northAmericaPop: 20 }), 'Regional');
+    assert.equal(domain.promotionSize({ northAmericaPop: 40 }), 'Cult');
+    assert.equal(domain.promotionSize({ northAmericaPop: 60 }), 'National');
+    assert.equal(domain.promotionSize({ northAmericaPop: 80 }), 'Continental');
+    assert.equal(domain.promotionSize({ northAmericaPop: 60, europePop: 60 }), 'Intercontinental');
+    assert.equal(domain.promotionSize({ northAmericaPop: 60, europePop: 60, asiaPop: 60 }), 'Global');
+});
+
+test('advanced promotion size matches PWS regional aggregation rules', function () {
+    assert.equal(domain.advancedPromotionSize([]), 'Local');
+    assert.equal(domain.advancedPromotionSize([{ popularity: 25, countryName: 'US', continent: 'North America' }]), 'Regional');
+    assert.equal(domain.advancedPromotionSize([
+        { popularity: 45, countryName: 'US', continent: 'North America' },
+        { popularity: 40, countryName: 'US', continent: 'North America' }
+    ]), 'Cult');
+    assert.equal(domain.advancedPromotionSize([{ popularity: 60, countryName: 'US', continent: 'North America' }]), 'Continental');
+});
+
 test('state resolves the player promotion when the PWS state helper omits it', function () {
     var api = {
         game: { getState: function () { return { currentDate: '1992-01-11' }; } },
         database: {
             get: function (sql) {
                 if (sql.indexOf('FROM saveinfo') !== -1) return { saveName: 'VWE1', saveCurrentDate: '1992-01-11', saveUserPromotion: 229 };
-                if (sql.indexOf('FROM promotions') !== -1) return { promotionID: 229, fullName: 'Vanguard Wrestling Entertainment', shortName: 'VWE', prestige: 100, money: 50000000, basedIn: 'North America', basedInCountry: 'United States', basedInRegion: 'Tennessee', style: 'Sports Entertainment' };
+                if (sql.indexOf('FROM promotions') !== -1) return { promotionID: 229, fullName: 'Vanguard Wrestling Entertainment', shortName: 'VWE', prestige: 100, money: 50000000, basedIn: 'North America', basedInCountry: 'United States', basedInRegion: 'Tennessee', style: 'Sports Entertainment', northAmericaPop: 11, southAmericaPop: 0, europePop: 10, asiaPop: 10, oceaniaPop: 0, africaPop: 0 };
                 return null;
             }
         }
@@ -35,6 +55,37 @@ test('state resolves the player promotion when the PWS state helper omits it', f
     assert.equal(result.promotionId, 229);
     assert.equal(result.promotionName, 'Vanguard Wrestling Entertainment');
     assert.equal(result.currentDate, '1992-01-11');
+    assert.equal(result.size, 'Local');
+    assert.equal(result.sizeMethod, 'continental popularity');
+    assert.deepEqual(result.popularity, { northAmerica: 11, southAmerica: 0, europe: 10, asia: 10, oceania: 0, africa: 0 });
+});
+
+test('storyline attribution diagnostics normalize entities and enforce storyline dates', function () {
+    var candidateSql = '';
+    var api = {
+        game: { getState: function () { return { promotionId: 229, currentDate: '1992-04-07' }; } },
+        database: {
+            get: function (sql) {
+                if (sql.indexOf('FROM saveinfo') !== -1) return { saveName: 'VWE1', saveCurrentDate: '1992-04-07', saveUserPromotion: 229 };
+                if (sql.indexOf('FROM promotions') !== -1) return { promotionID: 229, fullName: 'VWE', basedIn: 'North America', northAmericaPop: 11, europePop: 10, asiaPop: 10 };
+                return null;
+            },
+            query: function (sql) {
+                if (sql.indexOf('FROM segments') !== -1) {
+                    candidateSql = sql;
+                    return [{ segmentID: 1602, matchingHistoryRows: 1 }];
+                }
+                return [];
+            }
+        }
+    };
+    var result = domain.storylineAttributionDiagnostics(api, { limit: 50 });
+    assert.equal(result.missingCount, 0);
+    assert.match(candidateSql, /&amp;/);
+    assert.match(candidateSql, /&#39;/);
+    assert.match(candidateSql, /&quot;/);
+    assert.match(candidateSql, /date\(ei\.airDate\)>=date\(st\.startDate\)/);
+    assert.match(candidateSql, /date\(ei\.airDate\)<=date\(st\.endDate\)/);
 });
 
 test('storyline reads support one-story and lean heat responses', function () {
@@ -45,6 +96,16 @@ test('storyline reads support one-story and lean heat responses', function () {
     assert.deepEqual(domain.storylines(api, 2, { storylineId: 5, lean: true }), [
         { storylineId: 5, name: 'Main', heat: 77.3, segmentCount: 8, startDate: null }
     ]);
+});
+
+test('gimmick reads support search and disposition filters', function () {
+    var captured;
+    var api = { database: { query: function (sql, params) { captured = { sql: sql, params: params }; return [{ gimmickId: 35, name: 'Arrogant' }]; } } };
+    var result = domain.gimmicks(api, { search: 'entertainment', disposition: 'Heel', limit: 20 });
+    assert.equal(result.gimmicks[0].name, 'Arrogant');
+    assert.match(captured.sql, /modifiers LIKE/);
+    assert.match(captured.sql, /dispositionPreference=\?/);
+    assert.equal(captured.params[captured.params.length - 1], 20);
 });
 
 test('upcoming shows fall back to vw_eventinstance when the event join misses a live show', function () {

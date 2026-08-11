@@ -54,13 +54,49 @@ function ageAt(birthDate, currentDate) {
     return age >= 0 && age <= 120 ? age : null;
 }
 
-function tier(prestige) {
-    var value = Number(prestige || 0);
-    if (value < 25) return 'Local';
-    if (value < 40) return 'Small';
-    if (value < 60) return 'Regional';
-    if (value < 75) return 'National';
-    return 'Major';
+function popularityTier(value) {
+    value = Number(value || 0);
+    if (value >= 80) return 'Continental';
+    if (value >= 60) return 'National';
+    if (value >= 40) return 'Cult';
+    if (value >= 20) return 'Regional';
+    return 'Local';
+}
+
+function promotionSize(promotion) {
+    var values = ['northAmericaPop', 'southAmericaPop', 'europePop', 'asiaPop', 'oceaniaPop', 'africaPop']
+        .map(function (key) { return Number(promotion[key] || 0); })
+        .sort(function (a, b) { return a - b; });
+    var nationalOrHigher = values.filter(function (value) { return value >= 60; }).length;
+    if (nationalOrHigher >= 3) return 'Global';
+    if (nationalOrHigher >= 2) return 'Intercontinental';
+    return popularityTier(values[values.length - 1] || 0);
+}
+
+function advancedPromotionSize(rows) {
+    if (!rows || !rows.length) return 'Local';
+    var countryTotals = {};
+    var countryCounts = {};
+    var continentTotals = {};
+    var continentCounts = {};
+    var maxRegion = 0;
+    var regionsAt40 = 0;
+    rows.forEach(function (row) {
+        var value = Number(row.popularity || 0);
+        var country = row.countryName || '';
+        var continent = row.continent || '';
+        maxRegion = Math.max(maxRegion, value);
+        if (value >= 40) regionsAt40 += 1;
+        if (country) { countryTotals[country] = (countryTotals[country] || 0) + value; countryCounts[country] = (countryCounts[country] || 0) + 1; }
+        if (continent) { continentTotals[continent] = (continentTotals[continent] || 0) + value; continentCounts[continent] = (continentCounts[continent] || 0) + 1; }
+    });
+    var continentsAt60 = Object.keys(continentTotals).filter(function (key) { return continentTotals[key] / continentCounts[key] >= 60; }).length;
+    if (continentsAt60 >= 3) return 'Global';
+    if (continentsAt60 >= 2) return 'Intercontinental';
+    if (continentsAt60 >= 1) return 'Continental';
+    if (Object.keys(countryTotals).some(function (key) { return countryTotals[key] / countryCounts[key] >= 60; })) return 'National';
+    if (regionsAt40 >= 2) return 'Cult';
+    return maxRegion >= 20 ? 'Regional' : 'Local';
 }
 
 function context(api) {
@@ -69,15 +105,22 @@ function context(api) {
     var promotionId = integer(state.promotionId || state.promotionID || state.saveUserPromotion || save.saveUserPromotion);
     if (promotionId === null) throw new Error('No PWS save or player promotion is loaded');
     var promotion = get(api,
-        'SELECT promotionID, fullName, shortName, basedIn, basedInCountry, basedInRegion, style, prestige, money, womensDivision, entToWresRatio, angleToWresRatio, storylinesExpected, preferredWeeklyEvents, preferredMonthlyEvents FROM promotions WHERE promotionID = ?',
+        'SELECT promotionID, fullName, shortName, basedIn, basedInCountry, basedInRegion, style, prestige, money, northAmericaPop, southAmericaPop, europePop, asiaPop, oceaniaPop, africaPop, womensDivision, entToWresRatio, angleToWresRatio, storylinesExpected, preferredWeeklyEvents, preferredMonthlyEvents FROM promotions WHERE promotionID = ?',
         [promotionId]);
     if (!promotion) throw new Error('The player promotion could not be found');
+    var advancedMode = Number(state.advancedPopularityMode || 0) === 1;
+    var size = promotionSize(promotion);
+    if (advancedMode) {
+        var regionalRows = query(api, 'SELECT prp.popularity,c.countryName,c.continent FROM promotionRegionalPopularity prp JOIN regions r ON r.regionID=prp.regionID JOIN countries c ON c.countryID=r.regionParent WHERE prp.promotionID=?', [promotionId]);
+        size = advancedPromotionSize(regionalRows);
+    }
     return {
         saveName: state.saveName || save.saveName || null,
         currentDate: state.currentDate || save.saveCurrentDate || null,
         promotionId: promotionId,
         promotion: promotion,
-        size: tier(promotion.prestige),
+        size: size,
+        sizeMethod: advancedMode ? 'regional popularity' : 'continental popularity',
         popularityColumn: REGION_POP_COLUMNS[promotion.basedIn] || 'northAmericaPop'
     };
 }
@@ -92,7 +135,16 @@ function state(api) {
         promotionName: ctx.promotion.fullName,
         promotionShortName: ctx.promotion.shortName,
         size: ctx.size,
+        sizeMethod: ctx.sizeMethod,
         prestige: numeric(ctx.promotion.prestige),
+        popularity: {
+            northAmerica: numeric(ctx.promotion.northAmericaPop),
+            southAmerica: numeric(ctx.promotion.southAmericaPop),
+            europe: numeric(ctx.promotion.europePop),
+            asia: numeric(ctx.promotion.asiaPop),
+            oceania: numeric(ctx.promotion.oceaniaPop),
+            africa: numeric(ctx.promotion.africaPop)
+        },
         money: integer(ctx.promotion.money),
         region: ctx.promotion.basedIn,
         country: ctx.promotion.basedInCountry,
@@ -308,6 +360,16 @@ function venues(api, options) {
     return { venues: query(api, 'SELECT venueID AS venueId,venueName AS name,capacity,type,continent,country,region,wrestlingPopularity,preferredStyle,promotionExclusivity,openDate,closeDate FROM venues ' + (filters.length ? 'WHERE ' + filters.join(' AND ') : '') + ' ORDER BY capacity DESC,venueName LIMIT ?', params) };
 }
 
+function gimmicks(api, options) {
+    options = options || {};
+    var filters = [];
+    var params = [];
+    if (options.search) { filters.push('(name LIKE ? OR description LIKE ? OR modifiers LIKE ?)'); params.push('%' + text(options.search, 100) + '%', '%' + text(options.search, 100) + '%', '%' + text(options.search, 100) + '%'); }
+    if (options.disposition) { filters.push('dispositionPreference=?'); params.push(text(options.disposition, 20)); }
+    params.push(clamp(options.limit, 100, 1, 500));
+    return { gimmicks: query(api, 'SELECT gimmickID AS gimmickId,name,description,modifiers,dispositionPreference AS disposition FROM gimmicks ' + (filters.length ? 'WHERE ' + filters.join(' AND ') : '') + ' ORDER BY name LIMIT ?', params) };
+}
+
 function storylineAttributionDiagnostics(api, options) {
     options = options || {};
     var ctx = context(api);
@@ -315,17 +377,17 @@ function storylineAttributionDiagnostics(api, options) {
     var rows = query(api, [
         'SELECT s.segmentID,s.segmentName,s.segmentType,s.rating,ei.airDate,ei.instanceID AS showId,st.storylineID,st.storylineName,',
         'COUNT(DISTINCT sw.contractID) AS storylineMembersPresent,',
-        '(SELECT COUNT(*) FROM storylinehistories sh WHERE sh.storylineID=st.storylineID AND sh.segmentName=s.segmentName AND sh.segmentRating=s.rating) AS matchingHistoryRows',
+        "(SELECT COUNT(*) FROM storylinehistories sh WHERE sh.storylineID=st.storylineID AND REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(sh.segmentName,'&amp;','&'),'&#39;',CHAR(39)),'&#x27;',CHAR(39)),'&apos;',CHAR(39)),'&quot;',CHAR(34)),'&lt;','<'),'&gt;','>')=REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(s.segmentName,'&amp;','&'),'&#39;',CHAR(39)),'&#x27;',CHAR(39)),'&apos;',CHAR(39)),'&quot;',CHAR(34)),'&lt;','<'),'&gt;','>') AND sh.segmentRating=s.rating) AS matchingHistoryRows",
         'FROM segments s JOIN eventinstance ei ON ei.instanceID=s.showID JOIN events e ON e.eventID=ei.eventID',
         'JOIN opponents o ON o.segmentID=s.segmentID AND COALESCE(o.isRingside,0)=0',
         'JOIN storylineworkers sw ON sw.contractID=o.contractID',
         'JOIN storylines st ON st.storylineID=sw.storylineID AND st.promotionID=e.promotionID',
-        'WHERE e.promotionID=? AND ei.complete=1 AND COALESCE(ei.isCancelled,0)=0',
+        "WHERE e.promotionID=? AND ei.complete=1 AND COALESCE(ei.isCancelled,0)=0 AND (st.startDate IS NULL OR st.startDate='' OR date(ei.airDate)>=date(st.startDate)) AND (st.endDate IS NULL OR st.endDate='' OR date(ei.airDate)<=date(st.endDate))",
         'GROUP BY s.segmentID,st.storylineID HAVING COUNT(DISTINCT sw.contractID)>=2',
         'ORDER BY ei.airDate DESC,s.segmentID DESC LIMIT ?'
     ].join(' '), [ctx.promotionId, limit]);
     var missing = rows.filter(function (row) { return Number(row.matchingHistoryRows || 0) === 0; });
-    return { game: state(api), inspectedCandidates: rows.length, missingCount: missing.length, healthyCount: rows.length - missing.length, status: missing.length ? 'suspected-attribution-gaps' : 'no-gaps-detected', candidates: rows, suspectedMissing: missing, caveat: 'History rows do not store segment IDs or dates; matching uses storyline, segment name, and rating.' };
+    return { game: state(api), inspectedCandidates: rows.length, missingCount: missing.length, healthyCount: rows.length - missing.length, status: missing.length ? 'suspected-attribution-gaps' : 'no-gaps-detected', candidates: rows, suspectedMissing: missing, caveat: 'History rows do not store segment IDs or dates; matching uses storyline, HTML-entity-normalized segment name, and rating within the storyline lifetime.' };
 }
 
 function show(api, options) {
@@ -577,8 +639,12 @@ module.exports = {
     integer: integer,
     numeric: numeric,
     overview: overview,
+    popularityTier: popularityTier,
+    promotionSize: promotionSize,
+    advancedPromotionSize: advancedPromotionSize,
     query: query,
     get: get,
+    gimmicks: gimmicks,
     roster: roster,
     rosterCount: rosterCount,
     rosterRows: rosterRows,

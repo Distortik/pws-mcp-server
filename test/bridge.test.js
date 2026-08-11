@@ -29,6 +29,19 @@ test('dispatch routes actions through the validated game API', function () {
     assert.deepEqual(result, { success: true, newsId: 7 });
 });
 
+test('sign_worker validates and canonicalizes a database-specific gimmick', function () {
+    var received;
+    var api = {
+        database: { get: function (sql, params) { return sql.indexOf('FROM gimmicks WHERE') !== -1 && String(params[0]).toLowerCase() === 'arrogant' ? { name: 'Arrogant' } : null; } },
+        actions: { signWorker: function (value) { received = value; return { success: true, contractId: 7 }; } }
+    };
+    bridge.dispatch(api, { method: 'actions.execute', params: { action: 'sign_worker', arguments: { workerId: 1, promotionId: 2, contractType: 'PPA', role: 'Wrestler', gimmick: 'arrogant' }, confirmed: true } });
+    assert.equal(received.gimmick, 'Arrogant');
+    assert.throws(function () {
+        bridge.dispatch(api, { method: 'actions.execute', params: { action: 'sign_worker', arguments: { workerId: 1, promotionId: 2, contractType: 'PPA', role: 'Wrestler', gimmick: 'Missing' }, confirmed: true } });
+    }, /Gimmick not found/);
+});
+
 test('dispatch refuses unconfirmed save changes', function () {
     var api = { actions: { releaseWorker: function () { throw new Error('must not run'); } } };
     assert.throws(function () {

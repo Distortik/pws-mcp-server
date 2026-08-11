@@ -3,7 +3,7 @@
   "manifest_version": "0.3",
   "name": "pro-wrestling-sim",
   "display_name": "Pro Wrestling Sim",
-  "version": "0.3.0",
+  "version": "0.4.0-beta.2",
   "description": "Connect Claude Desktop to the save currently loaded in Pro Wrestling Sim.",
   "long_description": "Search and analyze the current Pro Wrestling Sim save, plan shows and storylines, review contracts, and perform validated game actions through the local PWS MCP bridge. The PWS MCP Server Workshop plugin must be enabled and a save must be loaded.",
   "author": {

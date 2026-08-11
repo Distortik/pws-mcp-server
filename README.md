@@ -95,6 +95,17 @@ claude mcp add --scope user pro-wrestling-sim -- node $server
 
 Check the connection with `claude mcp list` or `/mcp` inside Claude Code. See the [Claude Code MCP documentation](https://code.claude.com/docs/en/mcp) for client details.
 
+To test a prerelease without changing your Workshop setup, point Claude Code at the separately deployed TEST plugin:
+
+```powershell
+claude mcp remove --scope user pro-wrestling-sim
+$server = Join-Path $env:APPDATA 'ProWrestlingSimulator\plugins\pws-mcp-server-TEST\mcp-server.js'
+claude mcp add --scope user pro-wrestling-sim -- node $server
+claude mcp get pro-wrestling-sim
+```
+
+Restart Claude Code after changing the path. To return to the Workshop release, remove the server again and rerun the normal Workshop command above.
+
 ## Connect Codex
 
 **Account requirement:** Codex requires a ChatGPT account. The ChatGPT Free plan supports Codex; paid plans provide higher usage limits.
@@ -156,7 +167,9 @@ Purpose-built tools are also available for removing a segment, setting an unfini
 
 Large rosters can be read page-by-page with `offset` and `limit`; use `lean: true` for a compact booking-oriented response. Availability excludes workers in rehab as well as injured, suspended, and time-off workers. Storyline reads accept `storylineId` and `lean: true` for inexpensive heat/status checks.
 
-Use `pws_get_venues` to find a suitable building by geography and capacity. `pws_get_show` includes the assigned venue, capacity, type, and recurring-event default. If storyline progress appears to be missing after simulation, `pws_diagnose_storyline_attribution` reports recent segments that contained two or more storyline members but have no matching history row.
+Use `pws_get_venues` to find a suitable building by geography and capacity. `pws_get_show` includes the assigned venue, capacity, type, and recurring-event default. If storyline progress appears to be missing after simulation, `pws_diagnose_storyline_attribution` reports recent in-lifetime segments that contained two or more storyline members but have no entity-normalized matching history row.
+
+The 0.4.0 beta adds preview-first tools for stable creation and membership, contract gimmicks, event-series creation, show scheduling, and show cancellation. Gimmicks are database-specific: use `pws_get_gimmicks` to inspect names and requirements from the currently loaded save before assignment. Both contract assignment and the optional `sign_worker.gimmick` reject names absent from that database. Keep beta builds as the separate TEST plugin; do not replace the production Workshop plugin until live-save testing is complete.
 
 ## Safety
 

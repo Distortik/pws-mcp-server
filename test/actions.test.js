@@ -170,3 +170,102 @@ test('sets and verifies an unfinished show venue and event default', function ()
     assert.equal(applied.after.venueId, 99);
     assert.equal(applied.after.preferredVenue, 99);
 });
+
+function stableApi() {
+    var state = {
+        nextId: 8, stable: null,
+        contracts: {
+            10: { contractID: 10, workerID: 1, promotionID: 2, finalised: 1, expired: 0, contractStarted: 1, name: 'One', gimmick: 'None' },
+            20: { contractID: 20, workerID: 2, promotionID: 2, finalised: 1, expired: 0, contractStarted: 1, name: 'Two', gimmick: 'None' },
+            30: { contractID: 30, workerID: 3, promotionID: 2, finalised: 1, expired: 0, contractStarted: 1, name: 'Three', gimmick: 'None' }
+        }
+    };
+    function members() { return state.stable ? state.stable.members.map(function (member) { return Object.assign({}, member, state.contracts[member.contractID]); }) : []; }
+    return {
+        _state: state,
+        database: {
+            get: function (sql, params) {
+                if (sql.indexOf('FROM contracts c LEFT JOIN workers') !== -1) return Object.assign({}, state.contracts[Number(params[0])]);
+                if (sql.indexOf('SELECT contractID,workerID,promotionID,gimmick') !== -1) return Object.assign({}, state.contracts[Number(params[0])]);
+                if (sql.indexOf('SELECT stableID FROM stables') !== -1) return state.stable ? { stableID: state.stable.stableID } : null;
+                if (sql.indexOf('FROM stables WHERE') !== -1) return state.stable ? Object.assign({}, state.stable) : null;
+                if (sql.indexOf('FROM gimmicks WHERE') !== -1) return String(params[0]).toLowerCase() === 'heel manager' ? { name: 'Heel Manager' } : null;
+                return null;
+            },
+            query: function (sql) { return sql.indexOf('FROM stableworkers') !== -1 ? members() : []; }
+        },
+        actions: {
+            createStable: function (opts) {
+                state.stable = { stableID: state.nextId++, stableName: opts.name, stableHeat: opts.heat, promotionID: opts.promotionId, stableImage: '', members: opts.contractIds.map(function (id) { return { contractID: id, isLeader: id === opts.leaderContractId ? 'true' : 'false' }; }) };
+                return { success: true, stableId: state.stable.stableID };
+            },
+            addWorkerToStable: function (_stableId, contractId, leader) { state.stable.members.push({ contractID: contractId, isLeader: leader ? 'true' : 'false' }); return { success: true }; },
+            removeWorkerFromStable: function (_stableId, contractId) { state.stable.members = state.stable.members.filter(function (member) { return member.contractID !== contractId; }); return { success: true }; },
+            dissolveStable: function () { state.stable = null; return { success: true }; },
+            modifyContract: function (opts) { state.contracts[opts.contractId].gimmick = opts.changes.gimmick; return { success: true }; }
+        }
+    };
+}
+
+test('creates and verifies a stable with a leader', function () {
+    withContext(function () {
+        var api = stableApi();
+        var preview = actions.createStable(api, { name: 'The Group', contractIds: [10, 20], leaderContractId: 10, heat: 65 });
+        assert.equal(preview.status, 'preview');
+        var result = actions.createStable(api, { name: 'The Group', contractIds: [10, 20], leaderContractId: 10, heat: 65, preview: false, confirmed: true });
+        assert.equal(result.after.stableName, 'The Group');
+        assert.equal(result.after.members.length, 2);
+    });
+});
+
+test('adds, removes, and dissolves stable membership safely', function () {
+    withContext(function () {
+        var api = stableApi();
+        actions.createStable(api, { name: 'The Group', contractIds: [10, 20], preview: false, confirmed: true });
+        actions.changeStableMember(api, { stableId: 8, contractId: 30, isLeader: false, preview: false, confirmed: true }, true);
+        var removed = actions.changeStableMember(api, { stableId: 8, contractId: 30, preview: false, confirmed: true }, false);
+        assert.equal(removed.after.members.length, 2);
+        assert.throws(function () { actions.changeStableMember(api, { stableId: 8, contractId: 10 }, false); }, /at least two members/);
+        var dissolved = actions.dissolveStable(api, { stableId: 8, preview: false, confirmed: true });
+        assert.equal(dissolved.after, null);
+    });
+});
+
+test('sets and verifies a contract gimmick through PWS actions', function () {
+    withContext(function () {
+        var api = stableApi();
+        var result = actions.setContractGimmick(api, { contractId: 10, gimmick: 'Heel Manager', preview: false, confirmed: true });
+        assert.equal(result.after.gimmick, 'Heel Manager');
+        assert.throws(function () { actions.setContractGimmick(api, { contractId: 10, gimmick: 'Not In This Database' }); }, /Gimmick not found/);
+    });
+});
+
+test('creates an event, schedules a show, and verifies cancellation', function () {
+    withContext(function () {
+        var state = { event: null, show: null };
+        var api = {
+            database: {
+                get: function (sql, params) {
+                    if (sql.indexOf('SELECT eventID FROM events') !== -1) return state.event && { eventID: state.event.eventID };
+                    if (sql.indexOf('FROM events WHERE eventID') !== -1) return state.event && Object.assign({}, state.event);
+                    if (sql.indexOf('FROM venues') !== -1) return { venueID: 99 };
+                    if (sql.indexOf('FROM eventinstance WHERE eventID') !== -1) return state.show && Object.assign({}, state.show);
+                    if (sql.indexOf('JOIN events') !== -1) return state.show && Object.assign({ promotionID: 2 }, state.show);
+                    if (sql.indexOf('FROM eventinstance WHERE instanceID') !== -1) return state.show && Object.assign({}, state.show);
+                    return null;
+                }
+            },
+            actions: {
+                createEvent: function (opts) { state.event = { eventID: 7, eventName: opts.name, promotionID: 2, prestige: opts.prestige, recurrenceType: opts.recurrenceType, eventLength: opts.eventLength, importance: 2, inactive: 0 }; return { success: true, eventId: 7 }; },
+                scheduleShow: function (opts) { state.show = { showId: 50, instanceID: 50, eventID: opts.eventId, airDate: opts.airDate, location: opts.location, venueID: opts.venueId, complete: 0, isCancelled: 0 }; return { success: true, instanceId: 50 }; },
+                cancelShow: function () { state.show.isCancelled = 1; return { success: true }; }
+            }
+        };
+        var created = actions.createEvent(api, { name: 'Special', recurrenceType: 'OneOff', eventLength: 180, preview: false, confirmed: true });
+        assert.equal(created.after.eventID, 7);
+        var scheduled = actions.scheduleShow(api, { eventId: 7, airDate: '1992-04-01', venueId: 99, preview: false, confirmed: true });
+        assert.equal(scheduled.after.showId, 50);
+        var cancelled = actions.cancelShow(api, { showId: 50, preview: false, confirmed: true });
+        assert.equal(cancelled.after.isCancelled, 1);
+    });
+});
