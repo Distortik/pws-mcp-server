@@ -185,3 +185,12 @@ test('generated short cards stay within available runtime', function () {
         names.forEach(function (name) { domain[name] = originals[name]; });
     }
 });
+
+test('auto-generates beats for all three angle participant groups', function () {
+    withDomainStubs(function () {
+        var validated = booking.validatePlan(makeBookingApi(), { showId: 50, segments: [{
+            type: 'angle', participants: [[10], [20], [30]], segmentLength: 6
+        }] });
+        assert.deepEqual(validated.segments[0].options.beats[0].group3, [{ contractID: 30, workerID: 3 }]);
+    });
+});

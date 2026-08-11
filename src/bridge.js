@@ -9,20 +9,13 @@ var audit = require('./audit');
 var domain = require('./domain');
 var runtime = require('./runtime');
 var segments = require('./segments');
+var purposeBuiltActions = require('./actions');
 
 var MAX_BODY_BYTES = 1024 * 1024;
 var ACTIONS = {
-    book_match: ['bookMatch', 'object'],
-    book_angle: ['bookAngle', 'object'],
-    remove_segment: ['removeSegment', 'id'],
     create_storyline: ['createStoryline', 'object'],
-    end_storyline: ['endStoryline', 'id'],
-    add_worker_to_storyline: ['addWorkerToStoryline', 'pair'],
-    remove_worker_from_storyline: ['removeWorkerFromStoryline', 'pair'],
     sign_worker: ['signWorker', 'object'],
-    release_worker: ['releaseWorker', 'id'],
     award_title: ['awardTitle', 'object'],
-    vacate_title: ['vacateTitle', 'vacate'],
     update_worker_attribute: ['updateWorkerAttribute', 'attribute'],
     create_news_item: ['createNewsItem', 'object'],
     create_email: ['createEmail', 'object']
@@ -64,7 +57,26 @@ function assertReadOnlySql(sql) {
     if (!/^(select|with|pragma\s+(table_info|table_list|foreign_key_list)\s*\()/i.test(normalized)) {
         throw new Error('Only SELECT, WITH, and safe schema PRAGMA queries are allowed');
     }
-    if (/;\s*\S/.test(normalized)) throw new Error('Only one SQL statement is allowed');
+    var quote = null;
+    var comment = null;
+    for (var index = 0; index < normalized.length; index += 1) {
+        var character = normalized[index];
+        var next = normalized[index + 1];
+        if (comment === 'line') { if (character === '\n' || character === '\r') comment = null; continue; }
+        if (comment === 'block') { if (character === '*' && next === '/') { comment = null; index += 1; } continue; }
+        if (quote) {
+            if (character === quote) {
+                if (next === quote) { index += 1; continue; }
+                quote = null;
+            }
+            continue;
+        }
+        if (character === "'" || character === '"' || character === '`') { quote = character; continue; }
+        if (character === '[') { quote = ']'; continue; }
+        if (character === '-' && next === '-') { comment = 'line'; index += 1; continue; }
+        if (character === '/' && next === '*') { comment = 'block'; index += 1; continue; }
+        if (character === ';' && normalized.slice(index + 1).trim()) throw new Error('Only one SQL statement is allowed');
+    }
     return normalized;
 }
 
@@ -107,7 +119,7 @@ function dispatch(api, request) {
     case 'game.shows':
         return api.game.getRecentShows(Number(params.promotionId), params.limit == null ? 10 : Number(params.limit));
     case 'game.storylines':
-        return domain.storylines(api, params.promotionId == null ? domain.context(api).promotionId : Number(params.promotionId));
+        return domain.storylines(api, params.promotionId == null ? domain.context(api).promotionId : Number(params.promotionId), params);
     case 'game.titles':
         return domain.titles(api, params.promotionId == null ? domain.context(api).promotionId : Number(params.promotionId));
     case 'database.catalog':
@@ -128,6 +140,10 @@ function dispatch(api, request) {
         return domain.upcomingShows(api, params);
     case 'shows.get':
         return domain.show(api, params);
+    case 'venues.list':
+        return domain.venues(api, params);
+    case 'shows.setVenue':
+        return purposeBuiltActions.setShowVenue(api, params);
     case 'booking.context':
         return booking.bookingContext(api, params);
     case 'booking.plan':
@@ -138,6 +154,20 @@ function dispatch(api, request) {
         return booking.applyPlan(api, params);
     case 'booking.updateSegment':
         return segments.updateSegment(api, params);
+    case 'booking.removeSegment':
+        return purposeBuiltActions.removeSegment(api, params);
+    case 'storylines.end':
+        return purposeBuiltActions.endStoryline(api, params);
+    case 'storylines.addWorker':
+        return purposeBuiltActions.changeStorylineMember(api, params, true);
+    case 'storylines.removeWorker':
+        return purposeBuiltActions.changeStorylineMember(api, params, false);
+    case 'storylines.diagnoseAttribution':
+        return domain.storylineAttributionDiagnostics(api, params);
+    case 'contracts.release':
+        return purposeBuiltActions.releaseWorker(api, params);
+    case 'titles.vacate':
+        return purposeBuiltActions.vacateTitle(api, params);
     case 'actions.execute':
         if (params.confirmed !== true) throw new Error('Refusing to change the save: confirmed=true is required');
         return invokeAction(api, params.action, params.arguments);

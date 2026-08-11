@@ -31,6 +31,8 @@ dist/pws-mcp-server-vX.Y.Z.mcpb
 
 The ZIP is for manual installation of the in-game PWS plugin. The MCPB is the one-click Claude Desktop extension. Steam subscribers receive the in-game plugin from Workshop and need only the MCPB asset from GitHub.
 
+Steam cannot update Claude Desktop's installed extension. Every release and Workshop update must tell existing Claude Desktop users to download and install the matching new `.mcpb`, then restart Claude Desktop.
+
 ## 3. Create one GitHub Release
 
 1. Push the release commit to GitHub.
@@ -56,6 +58,8 @@ Suggested text for the top of the release notes:
 2. Download `pws-mcp-server-vX.Y.Z.mcpb` below.
 3. In Claude Desktop, open **Settings > Extensions > Advanced settings > Install Extension**.
 
+> **Updating:** A Steam Workshop update changes only the in-game plugin. Install this release's `.mcpb` separately and restart Claude Desktop.
+
 ### Manual PWS plugin installation
 
 Download `pws-mcp-server-plugin-vX.Y.Z.zip`, extract it, and copy the included `pws-mcp-server` folder to `%APPDATA%\ProWrestlingSimulator\plugins`. Claude Desktop users must also install the `.mcpb` asset.
@@ -64,6 +68,8 @@ Download `pws-mcp-server-plugin-vX.Y.Z.zip`, extract it, and copy the included `
 ## 4. Update Steam Workshop
 
 Upload the contents of `dist/pws-mcp-server` to the existing Workshop item. Keep the Workshop item and GitHub Release on the same version. This is an update to the existing distributions, not another GitHub release.
+
+Include the separate MCPB update warning in both the Workshop description/change notes and the GitHub release notes.
 
 ## Testing prereleases
 

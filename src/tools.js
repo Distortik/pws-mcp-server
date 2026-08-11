@@ -79,7 +79,8 @@ var TOOLS = [
     { name: 'pws_get_roster', description: 'List the active player-company roster with contracts, alignment, push, wages, availability, skills, popularity, momentum, morale, and recent usage.', inputSchema: object({
         search: { type: 'string' }, gender: { type: 'string' }, push: { type: 'string' }, alignment: { type: 'string', enum: ['Face', 'Heel'] },
         brand: { type: 'integer' }, availableOnly: { type: 'boolean', default: false }, includeStaff: { type: 'boolean', default: false },
-        usageDays: { type: 'integer', minimum: 7, maximum: 730, default: 90 }, limit: { type: 'integer', minimum: 1, maximum: 500, default: 150 }
+        usageDays: { type: 'integer', minimum: 7, maximum: 730, default: 90 }, lean: { type: 'boolean', default: false },
+        offset: { type: 'integer', minimum: 0, default: 0 }, limit: { type: 'integer', minimum: 1, maximum: 500, default: 100 }
     }), annotations: READ_ONLY },
     { name: 'pws_get_worker', description: 'Get a comprehensive worker profile including all attributes, active contracts, relationships, chemistry, storylines, and recent history.', inputSchema: object({ workerId: { type: 'integer' } }, ['workerId']), annotations: READ_ONLY },
     { name: 'pws_get_worker_contracts', description: 'List all active contracts for a worker.', inputSchema: object({ workerId: { type: 'integer' } }, ['workerId']), annotations: READ_ONLY },
@@ -94,8 +95,13 @@ var TOOLS = [
     }), annotations: READ_ONLY },
     { name: 'pws_get_upcoming_shows', description: 'List upcoming unfinished shows for the player promotion with duration and booking progress.', inputSchema: object({ limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 } }), annotations: READ_ONLY },
     { name: 'pws_get_show', description: 'Get any show and its complete card, participants, results, ratings, location, and runtime.', inputSchema: object({ showId: { type: 'integer' } }, ['showId']), annotations: READ_ONLY },
+    { name: 'pws_get_venues', description: 'Browse venues by name, geography, type, and capacity before assigning one to a show.', inputSchema: object({
+        search: { type: 'string', maxLength: 100 }, continent: { type: 'string' }, country: { type: 'integer' }, region: { type: 'integer' }, type: { type: 'string' },
+        minCapacity: { type: 'integer', minimum: 0 }, maxCapacity: { type: 'integer', minimum: 0 }, limit: { type: 'integer', minimum: 1, maximum: 200, default: 50 }
+    }), annotations: READ_ONLY },
     { name: 'pws_get_titles', description: 'List active championships and current champions for a promotion; defaults to the player promotion.', inputSchema: object({ promotionId: { type: 'integer' } }), annotations: READ_ONLY },
-    { name: 'pws_get_storylines', description: 'List active storylines and participants for a promotion; defaults to the player promotion.', inputSchema: object({ promotionId: { type: 'integer' } }), annotations: READ_ONLY },
+    { name: 'pws_get_storylines', description: 'List active storylines and participants for a promotion; filter one storyline or use lean=true for heat/status only.', inputSchema: object({ promotionId: { type: 'integer' }, storylineId: { type: 'integer', minimum: 1 }, lean: { type: 'boolean', default: false } }), annotations: READ_ONLY },
+    { name: 'pws_diagnose_storyline_attribution', description: 'Audit recent completed player-company segments that contained at least two members of an active or ended storyline and flag likely missing storyline-history attribution.', inputSchema: object({ limit: { type: 'integer', minimum: 1, maximum: 500, default: 100 } }), annotations: READ_ONLY },
     { name: 'pws_get_booking_context', description: 'Get everything needed to book a show intelligently: existing card, eligible roster, titles, storylines, recent matches, runtime, and company preferences.', inputSchema: object({ showId: { type: 'integer', description: 'Defaults to the next unfinished show.' } }), annotations: READ_ONLY },
     { name: 'pws_plan_show', description: 'Generate a complete dry-run card using roster ranking, alignment, active storylines, availability, fatigue-by-usage, brand, and runtime. This never changes the save.', inputSchema: object({
         showId: { type: 'integer', description: 'Defaults to the next unfinished show.' }, minutes: { type: 'integer', minimum: 10, maximum: 600 },
@@ -115,8 +121,29 @@ var TOOLS = [
         preview: { type: 'boolean', default: true, description: 'Defaults to true. Set false only after reviewing the preview.' },
         confirmed: { type: 'boolean', description: 'Must be true when preview=false.' }
     }, ['segmentId', 'changes']), annotations: WRITE },
-    { name: 'pws_execute_action', description: 'CHANGE THE CURRENT SAVE through a validated PWS action. Use purpose-built tools when available. Requires confirmed=true. Supported actions: book_match, book_angle, remove_segment, create_storyline, end_storyline, add_worker_to_storyline, remove_worker_from_storyline, sign_worker, release_worker, award_title, vacate_title, update_worker_attribute (sandbox only), create_news_item, create_email.', inputSchema: object({
-        action: { type: 'string', enum: ['book_match', 'book_angle', 'remove_segment', 'create_storyline', 'end_storyline', 'add_worker_to_storyline', 'remove_worker_from_storyline', 'sign_worker', 'release_worker', 'award_title', 'vacate_title', 'update_worker_attribute', 'create_news_item', 'create_email'] },
+    { name: 'pws_remove_segment', description: 'PREVIEW OR REMOVE ONE EXISTING MATCH/ANGLE from an unfinished player-company show. Verifies that the segment no longer exists. Defaults to preview.', inputSchema: object({
+        segmentId: { type: 'integer', minimum: 1 }, preview: { type: 'boolean', default: true }, confirmed: { type: 'boolean' }
+    }, ['segmentId']), annotations: WRITE },
+    { name: 'pws_set_show_venue', description: 'PREVIEW OR SET the venue for an unfinished player-company show, optionally making it the recurring event series default. Validates the venue and verifies persistence. Defaults to preview.', inputSchema: object({
+        showId: { type: 'integer', minimum: 1 }, venueId: { type: 'integer', minimum: 1 }, setEventDefault: { type: 'boolean', default: false }, preview: { type: 'boolean', default: true }, confirmed: { type: 'boolean' }
+    }, ['showId', 'venueId']), annotations: WRITE },
+    { name: 'pws_end_storyline', description: 'PREVIEW OR END an active player-company storyline. Verifies that it became inactive. Defaults to preview.', inputSchema: object({
+        storylineId: { type: 'integer', minimum: 1 }, preview: { type: 'boolean', default: true }, confirmed: { type: 'boolean' }
+    }, ['storylineId']), annotations: WRITE },
+    { name: 'pws_add_storyline_worker', description: 'PREVIEW OR ADD an active player-company contract to an active storyline. Verifies persisted membership. Defaults to preview.', inputSchema: object({
+        storylineId: { type: 'integer', minimum: 1 }, contractId: { type: 'integer', minimum: 1 }, preview: { type: 'boolean', default: true }, confirmed: { type: 'boolean' }
+    }, ['storylineId', 'contractId']), annotations: WRITE },
+    { name: 'pws_remove_storyline_worker', description: 'PREVIEW OR REMOVE a worker from an active storyline. Verifies removal. Defaults to preview.', inputSchema: object({
+        storylineId: { type: 'integer', minimum: 1 }, contractId: { type: 'integer', minimum: 1 }, preview: { type: 'boolean', default: true }, confirmed: { type: 'boolean' }
+    }, ['storylineId', 'contractId']), annotations: WRITE },
+    { name: 'pws_release_worker', description: 'PREVIEW OR RELEASE an active player-company contract. Verifies that the contract became inactive. Defaults to preview.', inputSchema: object({
+        contractId: { type: 'integer', minimum: 1 }, preview: { type: 'boolean', default: true }, confirmed: { type: 'boolean' }
+    }, ['contractId']), annotations: WRITE },
+    { name: 'pws_vacate_title', description: 'PREVIEW OR VACATE a player-company championship. Verifies that all current champion slots were cleared. Defaults to preview.', inputSchema: object({
+        titleId: { type: 'integer', minimum: 1 }, reason: { type: 'string', maxLength: 500 }, preview: { type: 'boolean', default: true }, confirmed: { type: 'boolean' }
+    }, ['titleId']), annotations: WRITE },
+    { name: 'pws_execute_action', description: 'ADVANCED SAVE ACTION for PWS operations that do not yet have a purpose-built verified tool. Requires confirmed=true. Supported actions: create_storyline, sign_worker, award_title, update_worker_attribute (sandbox only), create_news_item, create_email.', inputSchema: object({
+        action: { type: 'string', enum: ['create_storyline', 'sign_worker', 'award_title', 'update_worker_attribute', 'create_news_item', 'create_email'] },
         arguments: { type: 'object' }, confirmed: { type: 'boolean', const: true }
     }, ['action', 'arguments', 'confirmed']), annotations: WRITE },
     { name: 'pws_get_audit_log', description: 'Get the PWS action audit log for this plugin.', inputSchema: object(), annotations: READ_ONLY }
@@ -126,9 +153,11 @@ var ROUTES = {
     pws_get_state: 'game.state', pws_search: 'search', pws_database_catalog: 'database.catalog', pws_query: 'database.query',
     pws_company_overview: 'company.overview', pws_get_roster: 'roster.list', pws_get_worker: 'game.worker',
     pws_get_worker_contracts: 'game.contracts', pws_analyze_hiring: 'hiring.analyze', pws_contract_advice: 'contracts.advise',
-    pws_get_upcoming_shows: 'shows.upcoming', pws_get_show: 'shows.get', pws_get_titles: 'game.titles',
-    pws_get_storylines: 'game.storylines', pws_get_booking_context: 'booking.context', pws_plan_show: 'booking.plan',
-    pws_validate_show_plan: 'booking.validate', pws_apply_show_plan: 'booking.apply', pws_update_segment: 'booking.updateSegment', pws_execute_action: 'actions.execute',
+    pws_get_upcoming_shows: 'shows.upcoming', pws_get_show: 'shows.get', pws_get_venues: 'venues.list', pws_get_titles: 'game.titles',
+    pws_get_storylines: 'game.storylines', pws_diagnose_storyline_attribution: 'storylines.diagnoseAttribution', pws_get_booking_context: 'booking.context', pws_plan_show: 'booking.plan',
+    pws_validate_show_plan: 'booking.validate', pws_apply_show_plan: 'booking.apply', pws_update_segment: 'booking.updateSegment',
+    pws_remove_segment: 'booking.removeSegment', pws_set_show_venue: 'shows.setVenue', pws_end_storyline: 'storylines.end', pws_add_storyline_worker: 'storylines.addWorker',
+    pws_remove_storyline_worker: 'storylines.removeWorker', pws_release_worker: 'contracts.release', pws_vacate_title: 'titles.vacate', pws_execute_action: 'actions.execute',
     pws_get_audit_log: 'actions.audit'
 };
 

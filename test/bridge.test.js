@@ -15,12 +15,18 @@ test('rejects writes and stacked statements', function () {
     assert.throws(function () { bridge.assertReadOnlySql('PRAGMA journal_mode=WAL'); }, /Only SELECT/);
 });
 
+test('allows semicolons inside SQL string literals and comments', function () {
+    assert.equal(bridge.assertReadOnlySql("SELECT group_concat(name, ' ; ') FROM workers"), "SELECT group_concat(name, ' ; ') FROM workers");
+    assert.equal(bridge.assertReadOnlySql('SELECT 1 /* ; harmless */'), 'SELECT 1 /* ; harmless */');
+    assert.throws(function () { bridge.assertReadOnlySql("SELECT ';'; SELECT 2"); }, /Only one SQL statement/);
+});
+
 test('dispatch routes actions through the validated game API', function () {
     var received;
-    var api = { actions: { bookMatch: function (value) { received = value; return { success: true, segmentId: 7 }; } } };
-    var result = bridge.dispatch(api, { method: 'actions.execute', params: { action: 'book_match', arguments: { showId: 4 }, confirmed: true } });
-    assert.deepEqual(received, { showId: 4 });
-    assert.deepEqual(result, { success: true, segmentId: 7 });
+    var api = { actions: { createNewsItem: function (value) { received = value; return { success: true, newsId: 7 }; } } };
+    var result = bridge.dispatch(api, { method: 'actions.execute', params: { action: 'create_news_item', arguments: { headline: 'Test' }, confirmed: true } });
+    assert.deepEqual(received, { headline: 'Test' });
+    assert.deepEqual(result, { success: true, newsId: 7 });
 });
 
 test('dispatch refuses unconfirmed save changes', function () {

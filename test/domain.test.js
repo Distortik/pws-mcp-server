@@ -36,3 +36,35 @@ test('state resolves the player promotion when the PWS state helper omits it', f
     assert.equal(result.promotionName, 'Vanguard Wrestling Entertainment');
     assert.equal(result.currentDate, '1992-01-11');
 });
+
+test('storyline reads support one-story and lean heat responses', function () {
+    var api = { game: { getActiveStorylines: function () { return [
+        { storylineID: 4, storylineName: 'Other', heat: 30, overview: 'long' },
+        { storylineID: 5, storylineName: 'Main', heat: 77.25, segmentCount: 8, overview: 'longer' }
+    ]; } } };
+    assert.deepEqual(domain.storylines(api, 2, { storylineId: 5, lean: true }), [
+        { storylineId: 5, name: 'Main', heat: 77.3, segmentCount: 8, startDate: null }
+    ]);
+});
+
+test('upcoming shows fall back to vw_eventinstance when the event join misses a live show', function () {
+    var api = {
+        game: { getState: function () { return { promotionId: 2, currentDate: '1992-03-23' }; } },
+        database: {
+            get: function (sql) {
+                if (sql.indexOf('FROM saveinfo') !== -1) return { saveUserPromotion: 2, saveCurrentDate: '1992-03-23' };
+                if (sql.indexOf('FROM promotions') !== -1) return { promotionID: 2, fullName: 'VWE', basedIn: 'North America' };
+                if (sql.indexOf('FROM segments WHERE') !== -1) return { bookedMinutes: 42, segmentCount: 4 };
+                return null;
+            },
+            query: function (sql) {
+                if (sql.indexOf('FROM eventinstance ei JOIN events') !== -1) return [];
+                if (sql.indexOf('FROM vw_eventinstance') !== -1) return [{ instanceID: 347, airDate: '1992-03-23', eventName: 'Dominion', eventLength: 120, promotionID: 2, complete: 0 }];
+                return [];
+            }
+        }
+    };
+    var result = domain.upcomingShows(api, { limit: 20 });
+    assert.equal(result.shows[0].showId, 347);
+    assert.equal(result.shows[0].bookedMinutes, 42);
+});

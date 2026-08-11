@@ -71,6 +71,8 @@ Use the **Code** tab, not the **Home** tab. Home conversations do not use MCP se
 
 The MCPB installs only the Claude-side connection. The in-game plugin must still be installed through Steam Workshop or manually.
 
+When upgrading, update both halves: Steam updates the in-game plugin, but it cannot update Claude Desktop's installed extension. Download and install the matching new `.mcpb`, then restart Claude Desktop.
+
 If your Claude organization blocks custom desktop extensions, an owner or administrator must allow them. See [Anthropic's local MCP server guide](https://support.anthropic.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop).
 
 ## Connect Claude Code
@@ -150,6 +152,12 @@ Use `titleIds: number[]` to put championships on the line in a match. This is th
 
 `pws_update_segment` previews by default. After reviewing `before` and `proposed`, call it again with the same changes, `preview: false`, and `confirmed: true`. The update uses a narrow field allowlist, one transaction, rollback, a post-save read, before/after output, and an audit entry. It does not expose general-purpose SQL writes.
 
+Purpose-built tools are also available for removing a segment, setting an unfinished show's venue (with an optional recurring-event default), ending a storyline, adding or removing a storyline worker, releasing a worker, and vacating a championship. These operations preview by default, validate that the target belongs to the player company, require `preview: false` and `confirmed: true`, and re-read the save before reporting success. The advanced generic action tool no longer exposes these operations.
+
+Large rosters can be read page-by-page with `offset` and `limit`; use `lean: true` for a compact booking-oriented response. Availability excludes workers in rehab as well as injured, suspended, and time-off workers. Storyline reads accept `storylineId` and `lean: true` for inexpensive heat/status checks.
+
+Use `pws_get_venues` to find a suitable building by geography and capacity. `pws_get_show` includes the assigned venue, capacity, type, and recurring-event default. If storyline progress appears to be missing after simulation, `pws_diagnose_storyline_attribution` reports recent segments that contained two or more storyline members but have no matching history row.
+
 ## Safety
 
 - The bridge listens only on the local computer and uses a random authentication token.
@@ -193,6 +201,7 @@ PWS validates game actions. Ask the assistant to explain the returned error and 
 
 - Pro Wrestling Sim and its plugin API are Windows-only.
 - Contract renewals remain advisory until PWS exposes a validated renewal action.
+- Signing workers, creating storylines, and awarding titles still use the advanced confirmed-action interface until their complete PWS input contracts can be validated and exposed as purpose-built preview tools.
 - Privately distributed MCPB updates must be downloaded and installed again from a newer GitHub Release.
 
 ## License

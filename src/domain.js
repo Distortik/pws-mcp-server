@@ -173,8 +173,10 @@ function rosterRows(api, ctx, options) {
     if (options.push) { filters.push('c.push = ?'); params.push(text(options.push, 40)); }
     if (options.alignment) { filters.push('c.role = ?'); params.push(text(options.alignment, 20)); }
     if (options.brand != null) { filters.push('c.brand = ?'); params.push(Number(options.brand)); }
-    if (options.availableOnly) filters.push("COALESCE(w.injuryType,'') = '' AND COALESCE(w.isSuspended,0)=0 AND COALESCE(c.suspended,0)=0 AND COALESCE(c.onTimeOff,0)=0");
-    params.push(clamp(options.limit, 150, 1, 500));
+    if (options.availableOnly) filters.push("COALESCE(w.injuryType,'') = '' AND COALESCE(w.isInRehab,0)=0 AND COALESCE(w.isSuspended,0)=0 AND COALESCE(c.suspended,0)=0 AND COALESCE(c.onTimeOff,0)=0");
+    var limit = clamp(options.limit, 100, 1, 500);
+    var offset = Math.max(0, integer(options.offset) || 0);
+    params.push(limit, offset);
     return query(api, [
         'WITH usage AS (SELECT o.contractID, COUNT(DISTINCT s.segmentID) appearances,',
         "SUM(CASE WHEN s.segmentType='Match' THEN 1 ELSE 0 END) matches, SUM(CASE WHEN s.segmentType='Angle' THEN 1 ELSE 0 END) angles, MAX(ei.airDate) lastBooked",
@@ -182,14 +184,14 @@ function rosterRows(api, ctx, options) {
         'WHERE ei.complete=1 AND ei.airDate>=? GROUP BY o.contractID)',
         "SELECT c.contractID, c.workerID, COALESCE(NULLIF(c.contractName,''),w.name) name, w.type, w.gender, w.birthDate, w.style, w.basedIn,",
         'c.role AS alignment, c.push, c.brand, c.contractType, c.exclusive, c.expiryDate, c.wagePerMonth, c.wagePerAppearance, c.contractLength, c.momentum, c.morale, c.lastAppearance,',
-        'c.suspended AS contractSuspended, c.onTimeOff, w.status, w.injuryType, w.injuryHealDate, w.isSuspended, w.canDoAngles,',
-        'w.wrestlingSkill, w.entertainment, w.starPower, w.stamina, w.psychology, w.safety, w.potential, w.tagExpert, w.marketingDream, w.injuryProne,',
+        'c.suspended AS contractSuspended, c.onTimeOff, w.status, w.injuryType, w.injuryHealDate, w.isSuspended,w.suspensionReturnDate,w.canDoAngles,',
+        'w.wrestlingSkill, w.entertainment, w.starPower, w.stamina, w.psychology, w.safety, w.potential, w.tagExpert, w.marketingDream, w.injuryProne,w.isInRehab,w.rehabReturnDate,',
         'w.' + ctx.popularityColumn + ' AS marketPopularity, COALESCE(u.appearances,0) appearances, COALESCE(u.matches,0) matches, COALESCE(u.angles,0) angles, u.lastBooked',
         'FROM contracts c JOIN workers w ON w.workerID=c.workerID LEFT JOIN usage u ON u.contractID=c.contractID',
         "WHERE c.promotionID=? AND c.finalised=1 AND c.expired=0 AND c.contractStarted=1",
         options.includeStaff ? '' : "AND w.type='Wrestler'",
         filters.length ? 'AND ' + filters.join(' AND ') : '',
-        'ORDER BY COALESCE(c.momentum,0) DESC, w.' + ctx.popularityColumn + ' DESC LIMIT ?'
+        'ORDER BY COALESCE(c.momentum,0) DESC, w.' + ctx.popularityColumn + ' DESC LIMIT ? OFFSET ?'
     ].join(' '), params);
 }
 
@@ -200,7 +202,12 @@ function normalizeRoster(row, currentDate) {
     result.contractId = integer(row.contractID);
     result.workerId = integer(row.workerID);
     result.age = ageAt(row.birthDate, currentDate);
-    result.available = !row.injuryType && !row.isSuspended && !row.contractSuspended && !row.onTimeOff;
+    result.available = !row.injuryType && !row.isInRehab && !row.isSuspended && !row.contractSuspended && !row.onTimeOff;
+    result.unavailabilityReasons = [];
+    if (row.injuryType) result.unavailabilityReasons.push({ reason: 'injury', detail: row.injuryType, returnDate: row.injuryHealDate || null });
+    if (row.isInRehab) result.unavailabilityReasons.push({ reason: 'rehab', returnDate: row.rehabReturnDate || null });
+    if (row.isSuspended || row.contractSuspended) result.unavailabilityReasons.push({ reason: 'suspension', returnDate: row.suspensionReturnDate || null });
+    if (row.onTimeOff) result.unavailabilityReasons.push({ reason: 'timeOff', returnDate: null });
     result.appearances = integer(row.appearances) || 0;
     result.matches = integer(row.matches) || 0;
     result.angles = integer(row.angles) || 0;
@@ -208,9 +215,37 @@ function normalizeRoster(row, currentDate) {
 }
 
 function roster(api, options) {
+    options = options || {};
     var ctx = context(api);
     var rows = rosterRows(api, ctx, options).map(function (row) { return normalizeRoster(row, ctx.currentDate); });
-    return { game: state(api), count: rows.length, usageWindowDays: clamp(options && options.usageDays, 90, 7, 730), roster: rows };
+    if (options.lean) rows = rows.map(function (row) { return {
+        contractId: row.contractId, workerId: row.workerId, name: row.name, type: row.type, gender: row.gender,
+        alignment: row.alignment, push: row.push, brand: row.brand, available: row.available,
+        unavailableUntil: row.rehabReturnDate || row.injuryHealDate || null, unavailabilityReasons: row.unavailabilityReasons, momentum: row.momentum,
+        popularity: row.marketPopularity, appearances: row.appearances, lastBooked: row.lastBooked
+    }; });
+    var offset = Math.max(0, integer(options.offset) || 0);
+    var limit = clamp(options.limit, 100, 1, 500);
+    var total = rosterCount(api, ctx, options);
+    return { game: state(api), count: rows.length, total: total, offset: offset, limit: limit, hasMore: offset + rows.length < total, nextOffset: offset + rows.length < total ? offset + rows.length : null, usageWindowDays: clamp(options.usageDays, 90, 7, 730), roster: rows };
+}
+
+function rosterCount(api, ctx, options) {
+    var params = [ctx.promotionId];
+    var filters = [];
+    if (options.workerId != null) { filters.push('w.workerID=?'); params.push(Number(options.workerId)); }
+    if (options.search) { filters.push('(w.name LIKE ? OR c.contractName LIKE ?)'); params.push('%' + text(options.search, 100) + '%', '%' + text(options.search, 100) + '%'); }
+    if (options.gender) { filters.push('w.gender=?'); params.push(text(options.gender, 30)); }
+    if (options.push) { filters.push('c.push=?'); params.push(text(options.push, 40)); }
+    if (options.alignment) { filters.push('c.role=?'); params.push(text(options.alignment, 20)); }
+    if (options.brand != null) { filters.push('c.brand=?'); params.push(Number(options.brand)); }
+    if (options.availableOnly) filters.push("COALESCE(w.injuryType,'')='' AND COALESCE(w.isInRehab,0)=0 AND COALESCE(w.isSuspended,0)=0 AND COALESCE(c.suspended,0)=0 AND COALESCE(c.onTimeOff,0)=0");
+    var row = get(api, [
+        'SELECT COUNT(*) AS total FROM contracts c JOIN workers w ON w.workerID=c.workerID',
+        'WHERE c.promotionID=? AND c.finalised=1 AND c.expired=0 AND c.contractStarted=1',
+        options.includeStaff ? '' : "AND w.type='Wrestler'", filters.length ? 'AND ' + filters.join(' AND ') : ''
+    ].join(' '), params) || {};
+    return Number(row.total || 0);
 }
 
 function titles(api, promotionId) {
@@ -219,11 +254,19 @@ function titles(api, promotionId) {
         [promotionId]);
 }
 
-function storylines(api, promotionId) {
-    if (api.game && typeof api.game.getActiveStorylines === 'function') return api.game.getActiveStorylines(promotionId) || [];
-    return query(api,
+function storylines(api, promotionId, options) {
+    options = options || {};
+    var rows;
+    if (api.game && typeof api.game.getActiveStorylines === 'function') rows = api.game.getActiveStorylines(promotionId) || [];
+    else rows = query(api,
         "SELECT s.storylineID,s.storylineName,s.overview,s.startDate,GROUP_CONCAT(sw.contractID) contractIds,GROUP_CONCAT(COALESCE(NULLIF(c.contractName,''),w.name),' | ') workers FROM storylines s LEFT JOIN storylineworkers sw ON sw.storylineID=s.storylineID LEFT JOIN contracts c ON c.contractID=sw.contractID LEFT JOIN workers w ON w.workerID=c.workerID WHERE s.promotionID=? AND s.active=1 GROUP BY s.storylineID ORDER BY s.startDate",
         [promotionId]);
+    if (options.storylineId != null) rows = rows.filter(function (row) { return Number(row.storylineID || row.storylineId || row.id) === Number(options.storylineId); });
+    if (options.lean) rows = rows.map(function (row) { return {
+        storylineId: Number(row.storylineID || row.storylineId || row.id), name: row.storylineName || row.name,
+        heat: numeric(row.heat), segmentCount: integer(row.segmentCount), startDate: row.startDate || null
+    }; });
+    return rows;
 }
 
 function upcomingShows(api, options) {
@@ -233,7 +276,56 @@ function upcomingShows(api, options) {
     var rows = query(api,
         "SELECT ei.instanceID AS showId,ei.airDate AS date,COALESCE(NULLIF(ei.customName,''),e.eventName) name,e.eventID,e.eventLength AS length,e.importance,e.brand,ei.location,ei.venueID,COALESCE(SUM(s.segmentLength),0) bookedMinutes,COUNT(s.segmentID) segmentCount FROM eventinstance ei JOIN events e ON e.eventID=ei.eventID LEFT JOIN segments s ON s.showID=ei.instanceID WHERE e.promotionID=? AND COALESCE(ei.complete,0)=0 AND COALESCE(ei.isCancelled,0)=0 GROUP BY ei.instanceID ORDER BY ei.airDate,ei.instanceID LIMIT ?",
         [ctx.promotionId, limit]);
+    if (!rows.length) {
+        var viewRows = query(api, 'SELECT * FROM vw_eventinstance WHERE promotionID=? AND COALESCE(complete,0)=0 AND COALESCE(isCancelled,0)=0 ORDER BY airDate,instanceID LIMIT ?', [ctx.promotionId, limit]);
+        rows = viewRows.map(function (row) {
+            var showId = Number(row.instanceID || row.showId);
+            var totals = get(api, 'SELECT COALESCE(SUM(segmentLength),0) AS bookedMinutes,COUNT(segmentID) AS segmentCount FROM segments WHERE showID=?', [showId]) || {};
+            return {
+                showId: showId, date: row.airDate || row.date,
+                name: row.customName || row.eventName || row.name,
+                eventID: row.eventID, length: row.eventLength || row.length,
+                importance: row.importance, brand: row.brand, location: row.location,
+                venueID: row.venueID, bookedMinutes: Number(totals.bookedMinutes || 0), segmentCount: Number(totals.segmentCount || 0)
+            };
+        });
+    }
     return { game: state(api), shows: rows };
+}
+
+function venues(api, options) {
+    options = options || {};
+    var params = [];
+    var filters = [];
+    if (options.search) { filters.push('(venueName LIKE ? OR description LIKE ?)'); params.push('%' + text(options.search, 100) + '%', '%' + text(options.search, 100) + '%'); }
+    if (options.continent) { filters.push('continent=?'); params.push(text(options.continent, 50)); }
+    if (options.country != null) { filters.push('country=?'); params.push(Number(options.country)); }
+    if (options.region != null) { filters.push('region=?'); params.push(Number(options.region)); }
+    if (options.type) { filters.push('type=?'); params.push(text(options.type, 50)); }
+    if (options.minCapacity != null) { filters.push('capacity>=?'); params.push(Math.max(0, Number(options.minCapacity))); }
+    if (options.maxCapacity != null) { filters.push('capacity<=?'); params.push(Math.max(0, Number(options.maxCapacity))); }
+    params.push(clamp(options.limit, 50, 1, 200));
+    return { venues: query(api, 'SELECT venueID AS venueId,venueName AS name,capacity,type,continent,country,region,wrestlingPopularity,preferredStyle,promotionExclusivity,openDate,closeDate FROM venues ' + (filters.length ? 'WHERE ' + filters.join(' AND ') : '') + ' ORDER BY capacity DESC,venueName LIMIT ?', params) };
+}
+
+function storylineAttributionDiagnostics(api, options) {
+    options = options || {};
+    var ctx = context(api);
+    var limit = clamp(options.limit, 100, 1, 500);
+    var rows = query(api, [
+        'SELECT s.segmentID,s.segmentName,s.segmentType,s.rating,ei.airDate,ei.instanceID AS showId,st.storylineID,st.storylineName,',
+        'COUNT(DISTINCT sw.contractID) AS storylineMembersPresent,',
+        '(SELECT COUNT(*) FROM storylinehistories sh WHERE sh.storylineID=st.storylineID AND sh.segmentName=s.segmentName AND sh.segmentRating=s.rating) AS matchingHistoryRows',
+        'FROM segments s JOIN eventinstance ei ON ei.instanceID=s.showID JOIN events e ON e.eventID=ei.eventID',
+        'JOIN opponents o ON o.segmentID=s.segmentID AND COALESCE(o.isRingside,0)=0',
+        'JOIN storylineworkers sw ON sw.contractID=o.contractID',
+        'JOIN storylines st ON st.storylineID=sw.storylineID AND st.promotionID=e.promotionID',
+        'WHERE e.promotionID=? AND ei.complete=1 AND COALESCE(ei.isCancelled,0)=0',
+        'GROUP BY s.segmentID,st.storylineID HAVING COUNT(DISTINCT sw.contractID)>=2',
+        'ORDER BY ei.airDate DESC,s.segmentID DESC LIMIT ?'
+    ].join(' '), [ctx.promotionId, limit]);
+    var missing = rows.filter(function (row) { return Number(row.matchingHistoryRows || 0) === 0; });
+    return { game: state(api), inspectedCandidates: rows.length, missingCount: missing.length, healthyCount: rows.length - missing.length, status: missing.length ? 'suspected-attribution-gaps' : 'no-gaps-detected', candidates: rows, suspectedMissing: missing, caveat: 'History rows do not store segment IDs or dates; matching uses storyline, segment name, and rating.' };
 }
 
 function show(api, options) {
@@ -241,7 +333,7 @@ function show(api, options) {
     var showId = integer(options.showId);
     if (showId === null) throw new Error('showId is required');
     var header = get(api,
-        "SELECT ei.instanceID AS showId,ei.airDate AS date,COALESCE(NULLIF(ei.customName,''),e.eventName) name,e.eventLength AS length,e.importance,e.brand,ei.complete,ei.isCancelled,ei.location,ei.attendance,ei.score,p.promotionID,p.fullName AS promotion FROM eventinstance ei JOIN events e ON e.eventID=ei.eventID JOIN promotions p ON p.promotionID=e.promotionID WHERE ei.instanceID=?",
+        "SELECT ei.instanceID AS showId,ei.airDate AS date,COALESCE(NULLIF(ei.customName,''),e.eventName) name,e.eventLength AS length,e.importance,e.brand,ei.complete,ei.isCancelled,ei.location,ei.attendance,ei.score,ei.venueID AS venueId,v.venueName AS venueName,v.capacity AS venueCapacity,v.type AS venueType,e.preferredVenue AS eventDefaultVenueId,p.promotionID,p.fullName AS promotion FROM eventinstance ei JOIN events e ON e.eventID=ei.eventID JOIN promotions p ON p.promotionID=e.promotionID LEFT JOIN venues v ON v.venueID=ei.venueID WHERE ei.instanceID=?",
         [showId]);
     if (!header) throw new Error('Show not found: ' + showId);
     var segments = query(api,
@@ -488,12 +580,15 @@ module.exports = {
     query: query,
     get: get,
     roster: roster,
+    rosterCount: rosterCount,
     rosterRows: rosterRows,
     search: search,
     show: show,
     state: state,
     storylines: storylines,
+    storylineAttributionDiagnostics: storylineAttributionDiagnostics,
     titles: titles,
     upcomingShows: upcomingShows,
+    venues: venues,
     workerProfile: workerProfile
 };

@@ -1,0 +1,57 @@
+[h1]PWS MCP Server 0.3.0[/h1]
+
+[quote][b]Claude Desktop users must update both halves.[/b]
+Steam automatically updates only the in-game PWS plugin. Download and install [code]pws-mcp-server-v0.3.0.mcpb[/code] from the [url=https://github.com/Distortik/pws-mcp-server/releases/latest]matching GitHub release[/url], then restart Claude Desktop.[/quote]
+
+[h2]Booking and show management[/h2]
+
+[list]
+[*]Added complete show-plan validation and safer application with rollback when a later segment fails.
+[*]Added transactional editing of existing matches and angles with post-save verification.
+[*]Added multiple championship support for matches.
+[*]Added referees, agents, up to four announcers, and ringside workers.
+[*]Added venue assignment for unfinished shows, including an optional recurring-event default.
+[*]Added venue browsing by name, geography, type, and capacity.
+[/list]
+
+[h2]Storylines and roster management[/h2]
+
+[list]
+[*]Added preview-first verified tools for ending storylines and changing storyline membership.
+[*]Added a read-only diagnostic for likely missing storyline-history attribution after completed shows.
+[*]Added compact, paginated roster reads with exact totals.
+[*]Added explicit unavailability reasons for injuries, rehab, suspensions, and time off.
+[*]Added compact storyline heat/status reads and filtering by storyline ID.
+[*]Added preview-first verified worker release and championship vacation tools.
+[/list]
+
+[h2]Fixes[/h2]
+
+[list]
+[*]Fixed unfinished shows sometimes missing from upcoming-show results.
+[*]Fixed workers in rehab appearing eligible for booking.
+[*]Fixed large roster responses exceeding practical output limits.
+[*]Fixed semicolons inside SQL string literals being mistaken for multiple statements.
+[*]Fixed misleading errors caused by wrong action parameter keys.
+[*]Fixed three-sided angles losing the third participant group's beat data.
+[/list]
+
+[h2]Safety and release quality[/h2]
+
+[list]
+[*]Save-changing management tools preview by default and verify persisted results before reporting success.
+[*]Added local audit records and stricter ownership and availability validation.
+[*]Added release metadata and Workshop package integrity tests.
+[*]All 44 automated tests pass for this release.
+[/list]
+
+[h2]Updating[/h2]
+
+[olist]
+[*]Let Steam update the Workshop plugin and restart PWS.
+[*]Confirm [b]PWS MCP Server 0.3.0[/b] is enabled in the PWS plugin list.
+[*]If you use Claude Desktop, install the new [code].mcpb[/code] from GitHub Releases.
+[*]Restart Claude Desktop and confirm [b]Pro Wrestling Sim[/b] is enabled in the Code conversation.
+[/olist]
+
+[b]Codex, Claude Code, and other clients that run the Workshop copy of [code]mcp-server.js[/code] directly do not install the MCPB.[/b]

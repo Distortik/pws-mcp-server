@@ -26,6 +26,20 @@ test('publishes a broad unique tool catalogue with safety annotations', async fu
     assert.ok(update);
     assert.equal(update.inputSchema.properties.changes.additionalProperties, false);
     assert.equal(update.annotations.destructiveHint, true);
+    ['pws_remove_segment', 'pws_set_show_venue', 'pws_end_storyline', 'pws_add_storyline_worker', 'pws_remove_storyline_worker', 'pws_release_worker', 'pws_vacate_title'].forEach(function (name) {
+        var tool = result.tools.find(function (item) { return item.name === name; });
+        assert.ok(tool, name + ' should be published');
+        assert.equal(tool.inputSchema.properties.preview.default, true);
+        assert.equal(tool.annotations.destructiveHint, true);
+    });
+    ['pws_get_venues', 'pws_diagnose_storyline_attribution'].forEach(function (name) {
+        var tool = result.tools.find(function (item) { return item.name === name; });
+        assert.ok(tool, name + ' should be published');
+        assert.equal(tool.annotations.readOnlyHint, true);
+    });
+    var generic = result.tools.find(function (tool) { return tool.name === 'pws_execute_action'; });
+    assert.equal(generic.inputSchema.properties.action.enum.indexOf('release_worker'), -1);
+    assert.equal(generic.inputSchema.properties.action.enum.indexOf('vacate_title'), -1);
 });
 
 test('publishes management workflow prompts', async function () {

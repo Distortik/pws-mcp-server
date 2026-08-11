@@ -240,7 +240,7 @@ function validatePlan(api, options) {
                 var contractId = Number(id);
                 var worker = byContract[contractId];
                 if (!worker) throw new Error('Contract ' + id + ' is not active at the player promotion');
-                if (worker.injuryType || worker.isSuspended || worker.contractSuspended || worker.onTimeOff) throw new Error(worker.name + ' is unavailable');
+                if (worker.injuryType || worker.isInRehab || worker.isSuspended || worker.contractSuspended || worker.onTimeOff) throw new Error(worker.name + ' is unavailable');
                 if (segment.type === 'match' && worker.type && String(worker.type).toLowerCase() !== 'wrestler') throw new Error(worker.name + ' is not a wrestler and cannot be a match participant');
                 return contractId;
             });
@@ -302,13 +302,14 @@ function validatePlan(api, options) {
         } else {
             segment.angleType = segment.angleType || 'Promo';
             if (!Array.isArray(segment.beats) || !segment.beats.length) {
-                var first = byContract[segment.participants[0][0]];
-                var second = segment.participants[1] ? byContract[segment.participants[1][0]] : null;
-                segment.beats = [{
-                    type: 'promo', length: domain.clamp(segment.segmentLength, 5, 1, 60),
-                    group1: [{ contractID: Number(first.contractID), workerID: Number(first.workerID) }],
-                    group2: second ? [{ contractID: Number(second.contractID), workerID: Number(second.workerID) }] : []
-                }];
+                if (segment.participants.length > 3) throw new Error('Segment ' + (index + 1) + ' has more than three angle groups; PWS beats support group1 through group3');
+                var generatedBeat = { type: 'promo', length: domain.clamp(segment.segmentLength, 5, 1, 60) };
+                segment.participants.forEach(function (group, groupIndex) {
+                    generatedBeat['group' + (groupIndex + 1)] = group.map(function (contractId) {
+                        return { contractID: Number(contractId), workerID: Number(byContract[contractId].workerID) };
+                    });
+                });
+                segment.beats = [generatedBeat];
             }
             delete segment.segmentLength;
         }

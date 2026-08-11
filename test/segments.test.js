@@ -179,3 +179,28 @@ test('requires every current champion to participate in a defense', function () 
         assert.throws(function () { segments.updateSegment(api, { segmentId: 7, changes: { titleIds: [101] } }); }, /not every current champion is in the match/);
     });
 });
+
+test('can clear all title associations and book a draw', function () {
+    withContext(function () {
+        var api = fakeApi();
+        var result = segments.updateSegment(api, {
+            segmentId: 7, preview: false, confirmed: true,
+            changes: { titleIds: [], winner: 'draw' }
+        });
+        assert.deepEqual(result.segment.titleIds, []);
+        assert.equal(result.segment.winner, 'draw');
+        assert.deepEqual(api._state.matchtitles, []);
+    });
+});
+
+test('requires a new winner when participant changes remove the current winner', function () {
+    withContext(function () {
+        var api = fakeApi();
+        api._state.segment.winner = '10';
+        api._state.segment.winnerWorkerID = 1;
+        api._state.segment.winningSet = '0';
+        assert.throws(function () {
+            segments.updateSegment(api, { segmentId: 7, changes: { participants: [[20], [30]] } });
+        }, /Winner contract 10 is not among the participants/);
+    });
+});
