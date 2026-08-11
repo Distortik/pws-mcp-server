@@ -7,6 +7,7 @@ Ask it to search your save, analyze your company, review contracts, recommend wo
 ## Table of contents
 
 - [What you need](#what-you-need)
+- [Claude Desktop and Claude Code are separate](#claude-desktop-and-claude-code-are-separate)
 - [Install the PWS plugin](#install-the-pws-plugin)
 - [Connect Claude Desktop](#connect-claude-desktop)
 - [Connect Claude Code](#connect-claude-code)
@@ -32,6 +33,13 @@ This plugin provides the connection to PWS, but it does not include an AI model 
 Claude Desktop users do not need to install Node.js or edit a configuration file. The downloadable MCPB includes the Claude-side server and uses Claude Desktop's built-in Node runtime.
 
 Node.js 18 or newer is still required for Codex, Claude Code, and other clients that run the Workshop copy of `mcp-server.js` directly.
+
+## Claude Desktop and Claude Code are separate
+
+- **Claude Desktop** installs the downloaded `.mcpb` extension. Updating the MCPB does not change standalone Claude Code.
+- **Claude Code** ignores the MCPB and runs the exact `mcp-server.js` path stored in its MCP configuration. Inspect that path with `claude mcp get pro-wrestling-sim`.
+- Enabling a Workshop or TEST plugin inside PWS does not automatically repoint Claude Code at the matching server file.
+- After installing an MCPB or changing Claude Code's MCP path, fully restart the corresponding Claude client so it reloads the tool list.
 
 ## Install the PWS plugin
 
@@ -79,11 +87,12 @@ If your Claude organization blocks custom desktop extensions, an owner or admini
 
 **Account requirement:** Claude Code requires an eligible paid Claude plan, or pay-as-you-go Claude API billing.
 
-Install [Node.js 18 or newer](https://nodejs.org/en/download), then run this in PowerShell for a normal Workshop installation:
+Install [Node.js 18 or newer](https://nodejs.org/en/download), then run this in PowerShell for a normal Workshop installation. You can paste the block into PowerShell yourself or ask Claude Code to run it for you:
 
 ```powershell
 $server = 'C:\Program Files (x86)\Steam\steamapps\workshop\content\1157700\3780507815\plugins\pws-mcp-server\mcp-server.js'
 claude mcp add --scope user pro-wrestling-sim -- node $server
+claude mcp get pro-wrestling-sim
 ```
 
 If Steam is installed in another library, change the path. For a manual GitHub installation:
@@ -91,9 +100,10 @@ If Steam is installed in another library, change the path. For a manual GitHub i
 ```powershell
 $server = Join-Path $env:APPDATA 'ProWrestlingSimulator\plugins\pws-mcp-server\mcp-server.js'
 claude mcp add --scope user pro-wrestling-sim -- node $server
+claude mcp get pro-wrestling-sim
 ```
 
-Check the connection with `claude mcp list` or `/mcp` inside Claude Code. See the [Claude Code MCP documentation](https://code.claude.com/docs/en/mcp) for client details.
+Check the connection with `claude mcp list`, `claude mcp get pro-wrestling-sim`, or `/mcp` inside Claude Code. The configured command must point at the build you intend to test. See the [Claude Code MCP documentation](https://code.claude.com/docs/en/mcp) for client details.
 
 To test a prerelease without changing your Workshop setup, point Claude Code at the separately deployed TEST plugin:
 
@@ -104,7 +114,7 @@ claude mcp add --scope user pro-wrestling-sim -- node $server
 claude mcp get pro-wrestling-sim
 ```
 
-Restart Claude Code after changing the path. To return to the Workshop release, remove the server again and rerun the normal Workshop command above.
+Restart Claude Code after changing the path; MCP tools are loaded at session start and do not hot-reload. Installing the prerelease MCPB does not update Claude Code. To return to the Workshop release, remove the server again and rerun the normal Workshop command above.
 
 ## Connect Codex
 
@@ -177,6 +187,8 @@ The 0.4.0 beta adds preview-first tools for stable creation and membership, cont
 - Raw database access is read-only and result-limited.
 - The plugin's internal database-write permission is used only by purpose-built, allowlisted transactional actions such as `pws_update_segment`; no raw SQL-write tool is exposed.
 - Save-changing actions are validated and audited by PWS.
+- A preview is not permission to apply a change. The assistant may set `confirmed: true` only after you explicitly approve that exact preview.
+- General requests to inspect, test, or verify features do not authorize persistent or creative save changes.
 - Show plans are drafts until you explicitly approve applying them.
 - The assistant should never report a save change as successful unless PWS confirms it.
 
@@ -188,9 +200,13 @@ Back up important saves before using any plugin that can perform game actions. N
 
 Start PWS, confirm the plugin is enabled, and load a save. If it was already open, restart PWS and then restart the AI client or extension.
 
-### Not connected in Claude
+### Claude Desktop is not connected or has outdated tools
 
-Open the **Code** tab and start the conversation there. **Home** conversations do not use MCP servers configured in Claude Code. Confirm **Pro Wrestling Sim** is enabled for the conversation. If the tools are still missing, restart Claude Desktop after installing or updating the MCPB, or reinstall the newest MCPB from GitHub Releases.
+Open the **Code** tab and start the conversation there. **Home** conversations do not use MCP servers configured in Claude Code. Confirm **Pro Wrestling Sim** is enabled for the conversation. Install the matching newest MCPB from GitHub Releases, fully restart Claude Desktop, and start a new Code conversation.
+
+### Claude Code is not connected or has outdated tools
+
+Run `claude mcp get pro-wrestling-sim` and inspect the command shown. It must point to the intended Workshop, manual, or TEST `mcp-server.js`. Installing an MCPB has no effect on Claude Code. After correcting the path, fully restart Claude Code and check `/mcp` in the new session.
 
 ### Workshop server file is missing
 
