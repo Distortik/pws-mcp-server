@@ -1,0 +1,144 @@
+[h1]PWS MCP Server[/h1]
+
+[b]Connect Claude Desktop, Claude Code, Codex, and other local MCP clients to Pro Wrestling Sim.[/b]
+
+Ask an AI assistant to search your loaded save, analyze your company, recommend workers, review contracts, plan storylines, and draft or apply complete show cards.
+
+The server uses PWS's official plugin APIs. Database exploration is read-only. Save-changing actions are validated by PWS and require confirmation.
+
+[b]Important when updating:[/b] Steam updates only the in-game PWS plugin. Claude Desktop users must also download and install the matching latest [code].mcpb[/code] file from the [url=https://github.com/Distortik/pws-mcp-server/releases/latest]GitHub release[/url], then restart Claude Desktop.
+
+[h2]Features[/h2]
+
+[list]
+[*]Search workers, companies, shows, titles, stories, teams, stables, venues, and news.
+[*]Analyze finances, payroll, roster balance, availability, titles, and storylines.
+[*]Find realistic hiring targets and review expiring contracts.
+[*]Inspect detailed worker profiles, relationships, chemistry, and history.
+[*]Plan and validate complete show cards before applying them.
+[*]Book and edit matches and angles, set show venues, manage storylines, sign or release workers, and manage titles.
+[*]Handle large rosters with compact paginated reads and exclude workers in rehab from booking.
+[*]Diagnose likely missing storyline attribution after completed shows.
+[*]Inspect the database schema and run limited, read-only queries.
+[/list]
+
+[h1]Quick Installation[/h1]
+
+[h2]Before you start — AI account required[/h2]
+
+This plugin provides the connection to PWS, but it does not include an AI model or subscription. Usage limits from your chosen plan still apply.
+
+[list]
+[*][b]Claude Desktop or Claude Code:[/b] Requires an eligible paid Claude plan, or pay-as-you-go Claude API billing.
+[*][b]Codex:[/b] Requires a ChatGPT account. The Free plan supports Codex; paid ChatGPT plans provide more usage.
+[/list]
+
+[h2]1. Install the in-game plugin[/h2]
+
+1. Click [b]Subscribe[/b] on this page and wait for Steam.
+2. Restart PWS.
+3. Enable [b]PWS MCP Server[/b] in the plugin list on the splash screen.
+4. Load a save.
+
+The plugin works in the background and does not add an in-game page.
+
+[h2]2. Connect Claude Desktop — recommended[/h2]
+
+Claude Desktop has the simplest setup. It does not require Node.js or manual JSON editing.
+
+[b]Account requirement:[/b] The Code tab uses Claude Code and requires an eligible paid Claude plan, or pay-as-you-go Claude API billing.
+
+1. Open the [url=https://github.com/Distortik/pws-mcp-server/releases/latest]latest GitHub release[/url].
+2. Download the [code]pws-mcp-server-vVERSION.mcpb[/code] file under [b]Assets[/b].
+3. In Claude Desktop, open [b]Settings > Extensions > Advanced settings[/b].
+4. Select [b]Install Extension[/b] and choose the downloaded file.
+5. Open the [b]Code[/b] tab, start a new conversation, and confirm [b]Pro Wrestling Sim[/b] is enabled.
+
+Use the [b]Code[/b] tab, not the [b]Home[/b] tab. Home conversations do not use MCP servers configured in Claude Code.
+
+That is all. Do not edit [code]claude_desktop_config.json[/code]. The MCPB uses Claude Desktop's included Node runtime.
+
+[b]Already installed an older version?[/b] Download and install the newest [code].mcpb[/code] again. A Steam Workshop update does not update Claude Desktop's extension.
+
+[h2]Claude Code alternative[/h2]
+
+[b]Account requirement:[/b] Claude Code requires an eligible paid Claude plan, or pay-as-you-go Claude API billing.
+
+Claude Code and other direct clients require [url=https://nodejs.org/en/download]Node.js 18 or newer[/url]. For a normal Workshop installation, run in PowerShell:
+
+[code]$server = 'C:\Program Files (x86)\Steam\steamapps\workshop\content\1157700\3780507815\plugins\pws-mcp-server\mcp-server.js'
+claude mcp add --scope user pro-wrestling-sim -- node $server[/code]
+
+Check it with [code]claude mcp list[/code] or [code]/mcp[/code]. If Steam is installed in another library, change the server path.
+
+[h2]Codex alternative[/h2]
+
+[b]Account requirement:[/b] Codex requires a ChatGPT account. The ChatGPT Free plan supports Codex; paid plans provide more usage.
+
+Install Node.js 18 or newer, then add the server inside Codex:
+
+1. Open [b]Settings[/b].
+2. Select [b]Plugins[/b].
+3. Select [b]Add[/b].
+4. Select [b]Add MCP Server[/b].
+5. Enter the name [code]pro-wrestling-sim[/code].
+6. Choose [b]STDIO[/b].
+7. Enter the command and argument below:
+
+[code]Name:     pro-wrestling-sim
+Command:  C:\Program Files\nodejs\node.exe
+Argument: C:\Program Files (x86)\Steam\steamapps\workshop\content\1157700\3780507815\plugins\pws-mcp-server\mcp-server.js[/code]
+
+8. Save the server.
+9. Select [b]Restart[/b].
+
+Type [code]/mcp[/code] in Codex to confirm that [code]pro-wrestling-sim[/code] is connected. If Steam is installed in another library, change the argument path to that library's Workshop folder.
+
+[h2]Test it[/h2]
+
+Keep PWS open with a save loaded, then ask:
+
+[quote]Connect to Pro Wrestling Sim and tell me the loaded save, current date, player promotion, company size, and cash balance.[/quote]
+
+If you are using Claude Desktop, ask this from the [b]Code[/b] tab, not the [b]Home[/b] tab.
+
+If it answers with information from your save, setup is complete.
+
+[h2]Full guide and troubleshooting[/h2]
+
+The GitHub README contains manual installation instructions, other client setups, troubleshooting, safety information, and maintainer build instructions:
+
+[url=https://github.com/Distortik/pws-mcp-server#readme][b]Open the full PWS MCP Server guide on GitHub[/b][/url]
+
+[h2]Ideas to try[/h2]
+
+[list]
+[*]"Assess my company and identify my three biggest roster needs."
+[*]"Recommend five affordable hires who fit those needs."
+[*]"Review all contracts expiring in the next year."
+[*]"Show me my champions, active storylines, and neglected wrestlers."
+[*]"Draft my next show, explain every choice, and wait for approval."
+[/list]
+
+[h2]Safety and limitations[/h2]
+[list]
+[*]The bridge is local-only and protected by a random token.
+[*]Raw database queries are read-only and limited in size.
+[*]Save-changing actions require confirmation and are audited by PWS.
+[*]Venue changes, segment removal, storyline changes, worker releases, and title vacations preview first and are verified after the action.
+[*]Automatic show cards are drafts; review them before applying.
+[*]Contract renewals are advisory until PWS provides a validated renewal action.
+[/list]
+
+[b]Back up important saves before using any plugin that can perform game actions. Never share [code]%APPDATA%\ProWrestlingSimulator\mcp\pws-mcp-runtime.json[/code].[/b]
+
+[h2]Quick troubleshooting[/h2]
+
+[list]
+[*][b]Bridge offline:[/b] Start PWS, enable the plugin, and load a save.
+[*][b]Claude tools missing:[/b] Restart Claude Desktop and enable Pro Wrestling Sim for the conversation.
+[*][b]Not connected in Claude:[/b] Open the Code tab and start the conversation there. Home conversations do not use MCP servers configured in Claude Code.
+[*][b]Node not recognized:[/b] Install Node.js LTS; this does not apply to the Claude Desktop MCPB.
+[*][b]Tools outdated:[/b] Install the newest MCPB from GitHub Releases, then restart Claude Desktop.
+[*][b]No show available:[/b] Schedule an unfinished event in PWS first.
+[/list]

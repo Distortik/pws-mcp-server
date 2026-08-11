@@ -27,10 +27,9 @@ pnpm-debug.log*
 *.dxt
 *.zip
 
-# Local PWS runtime credentials and Workshop publishing copy
+# Local PWS runtime credentials
 pws-mcp-runtime.json
 .pws-mcp-runtime.json
-STEAM_WORKSHOP_DESCRIPTION.txt
 
 # PWS saves and SQLite working files
 *.db
