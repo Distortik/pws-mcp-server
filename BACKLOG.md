@@ -4,9 +4,9 @@ This is the version-controlled source of truth for open PWS MCP Server defects, 
 
 Status last reconciled: **12 August 2026**  
 Repository candidate: **0.4.0-beta.5**  
-Latest fully live-validated build: **0.4.0-beta.5** (save-mutation behavior remains inherited from beta.4)
+Latest fully live-validated build: **0.4.0-beta.5 hotfix**
 
-Beta.5 changes the MCP transport and packaging layer and fixes B14. All 71 automated tests, 13 non-mutating live bridge checks, the Windows Claude Desktop Home-chat check, and a live B14 dry-run validation pass.
+Beta.5 changes the MCP transport and packaging layer and fixes B14 and B15. All 73 automated tests, 13 non-mutating live bridge checks, the Windows Claude Desktop Home-chat check, a live B14 dry-run, and the affected B15 CareerMode show-start path pass.
 
 ## Release recommendation
 
@@ -103,6 +103,10 @@ Replace the remaining advanced generic writes with preview-first, ownership-awar
 - email creation.
 
 ## Recently closed
+
+### B15 â€” MCP-created angles can prevent a show from starting
+
+Fixed and live-validated in the in-place beta.5 hotfix. The public angle schema correctly allowed unused `group2` and `group3` fields to be omitted, but PWS's show runner calls `group2.forEach()` without checking that the array exists. New show plans and transactional angle edits now normalize all three beat groups before persistence. The original eight-segment CareerMode card was repaired without changing its workers, descriptions, order, or runtime and then started successfully.
 
 ### Claude Desktop Home compatibility
 

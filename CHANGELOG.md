@@ -2,6 +2,8 @@
 
 ## 0.4.0-beta.5 - 2026-08-12
 
+- Hotfix: normalized every MCP-created or MCP-edited angle beat to persist `group1`, `group2`, and `group3` arrays, including empty unused groups. This prevents PWS show startup from crashing when a promo omits `group2`.
+- Added regression coverage for a single-person promo and for later angle-beat edits; the affected CareerMode show was repaired without changing its card and then started successfully in PWS.
 - Replaced the hand-written JSON-lines stdin loop with the official MCP SDK server and stdio transport while preserving the existing tools, resources, prompts, and PWS version-pair checks.
 - Added a dedicated MCPB entry point that starts unconditionally when Claude Desktop loads it through its Node UtilityProcess wrapper; the reusable direct-path server remains import-safe for Claude Code, Codex, and tests.
 - Added real-client regression coverage that completes MCP initialization and lists the tool, resource, and prompt catalogues through the official SDK client transport.
@@ -9,7 +11,7 @@
 - Rebuilt MCPB packaging around a minimal validated staging directory so the installed extension contains the exact same standalone server that passed transport tests.
 - Generated and shipped third-party license notices for every dependency included in the standalone bundle.
 - Fixed B14 by allowing both `Wrestler` and `Occasional Wrestler` in match-plan validation and transactional segment edits while continuing to reject angle-only worker types.
-- Kept the beta narrow: B14 match eligibility is the only game-facing behavior change, and no PWS persistence or save-mutation code changed from beta.4.
+- Kept the beta narrow: game-facing changes are limited to B14 match eligibility and safe normalization of omitted angle-beat groups.
 - Passed the Windows Claude Desktop Home-chat acceptance test: the corrected MCPB initialized, exposed the PWS integration, called the live beta.5 bridge, and returned the loaded VWE1 state.
 - Passed all 13 non-mutating live bridge checks with the matching beta.5 TEST plugin, then live-validated B14 by successfully dry-running Wendi Richter (`Occasional Wrestler`) against a normal wrestler without creating a segment.
 

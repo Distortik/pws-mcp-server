@@ -77,11 +77,12 @@ These require validated PWS action contracts or carefully established database i
 - [Implemented after the first live attempt] Add a dedicated MCPB entry point that starts unconditionally when Claude Desktop loads it through its Node UtilityProcess wrapper; keep the reusable direct-path server import-safe.
 - [Passed] Wrapper-loaded entry-point regression coverage reproduces the Claude Desktop loading condition and completes initialization through the official MCP client.
 - [Implemented in 0.4.0-beta.5] Build Workshop and MCPB distributions from the same self-contained bundled server and validate the MCPB manifest from a minimal staging directory.
-- [Passed] Beta.5 syntax checks and all 71 automated tests, including official-client transport coverage and both B14 match-validation paths.
+- [Passed] Beta.5 syntax checks and all 73 automated tests, including official-client transport coverage, both B14 match-validation paths, and B15 angle-group normalization for new cards and edits.
 - [Implemented in 0.4.0-beta.5] Fix backlog item B14 so `Occasional Wrestler` is match-eligible in new show plans and segment edits while `Staff`, `Personality`, `Referee`, and `Announcer` remain ineligible.
 - [Passed] The corrected beta.5 MCPB initialized in a new Windows Claude Desktop Home conversation, exposed the Pro Wrestling Sim integration, and returned the loaded VWE1 state.
 - [Passed] The matching beta.5 client/plugin version pair completed all 13 non-mutating live bridge checks against VWE1.
 - [Passed] B14 passed a live dry-run show-plan validation with Wendi Richter (`Occasional Wrestler`) and Debbie Combs (`Wrestler`); no segment was created.
+- [Fixed and live-validated in beta.5 hotfix] **B15:** normalize omitted angle beat groups before persistence so PWS can start MCP-booked shows. The affected CareerMode card started after exact beat-shape repair.
 - [Planned for 0.4.0 promotion] Re-run the complete automated, live read-only, version-pair, and production packaging gates.
 - [Documented workaround] Claude Code and Codex users can paste a setup request into the client and let it locate, configure, and verify the stable Workshop/TEST `mcp-server.js` path instead of editing configuration manually.
 
@@ -94,6 +95,7 @@ The version-controlled [backlog](BACKLOG.md) was reconciled with the implementat
 - [Partial] **B10:** stable reads normalize `isLeader`, but mixed native persistence and leader-state verification still need hardening.
 - [Partial] **B11:** approval guidance is explicit, but confirmed writes are not yet cryptographically tied to the exact preview the user approved.
 - [Fixed and live-validated in beta.5] **B14:** allow `Occasional Wrestler` in both match-validation paths.
+- [Fixed and live-validated in beta.5 hotfix] **B15:** persist all three angle beat group arrays so single-person promos cannot crash show startup.
 - [Shipped and live-verified] **F9** worker-promise responses and **F15** contract-scoped personas/ring names.
 - [Future features] **F17** brands/titles, **F13** tag teams, **F14** worker-type visibility/default filtering, **F16** cash-aware hiring budgets, **F12** callable server information, **F10** network/TV management, **F11** incoming rival offers, **F6** contract negotiations, **F4** tournaments, **F14b** movesets, and purpose-built replacements for remaining generic write actions.
 

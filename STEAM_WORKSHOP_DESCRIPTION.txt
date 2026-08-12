@@ -7,6 +7,8 @@ Ask your AI assistant to inspect your save, plan shows, check workers and storyl
 [quote][b]Claude Desktop beta.5 compatibility fix[/b]
 
 The 0.4.0-beta.4 MCPB timed out during initialization in regular Claude Desktop Home chats on Windows. This is fixed in 0.4.0-beta.5 with the official MCP SDK transport and a dedicated Claude Desktop entry point. Beta.5 passed a fresh Home-chat connection and live PWS state read on Windows. Claude Code, Claude Desktop's Code tab, and Codex direct-path connections remain supported too.
+
+The current beta.5 files also hotfix MCP-created angles that omitted an unused worker group and could stop PWS from starting the show. New cards and later angle edits now save the complete native beat shape. Replace both beta.5 release assets with the corrected files.
 [/quote]
 
 [h2]Highlights[/h2]

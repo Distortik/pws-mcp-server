@@ -210,3 +210,16 @@ test('auto-generates beats for all three angle participant groups', function () 
         assert.deepEqual(validated.segments[0].options.beats[0].group3, [{ contractID: 30, workerID: 3 }]);
     });
 });
+
+test('normalizes omitted angle beat groups before calling PWS', function () {
+    withDomainStubs(function () {
+        var validated = booking.validatePlan(makeBookingApi(), { showId: 50, segments: [{
+            type: 'angle', participants: [[10]], angleType: 'Promo',
+            beats: [{ type: 'promo', length: 6, group1: [{ contractID: 10 }] }]
+        }] });
+        assert.deepEqual(validated.segments[0].options.beats, [{
+            type: 'promo', length: 6,
+            group1: [{ contractID: 10, workerID: 1 }], group2: [], group3: []
+        }]);
+    });
+});

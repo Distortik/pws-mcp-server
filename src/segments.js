@@ -277,7 +277,10 @@ function normalizeBeats(beats, contracts) {
         result.length = requiredInteger(result.length == null ? 1 : result.length, 'beats[' + index + '].length', 1);
         if (result.length > 120) throw new Error('beats[' + index + '].length cannot exceed 120');
         ['group1', 'group2', 'group3'].forEach(function (key) {
-            if (!has(result, key)) return;
+            // PWS's show runner iterates group1 and group2 without checking that
+            // they exist. Keep all three groups present even when a beat does not
+            // use them so a valid MCP-created angle cannot crash show startup.
+            if (!has(result, key)) result[key] = [];
             if (!Array.isArray(result[key])) throw new Error('beats[' + index + '].' + key + ' must be an array');
             result[key] = result[key].map(function (member, memberIndex) {
                 if (typeof member === 'object' && member !== null) rejectUnknown(member, ['contractID', 'workerID'], 'beats[' + index + '].' + key + '[' + memberIndex + ']');
@@ -511,6 +514,7 @@ module.exports = {
     ANGLE_CHANGE_FIELDS: ANGLE_CHANGE_FIELDS,
     MATCH_CHANGE_FIELDS: MATCH_CHANGE_FIELDS,
     readSegment: readSegment,
+    normalizeBeats: normalizeBeats,
     rejectUnknown: rejectUnknown,
     updateSegment: updateSegment,
     validateParticipants: validateParticipants,

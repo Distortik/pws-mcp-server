@@ -41,6 +41,8 @@ The `0.4.0-beta.4` MCPB installs, enables, and launches on Claude Desktop for Wi
 
 This is fixed in `0.4.0-beta.5`. Beta.5 uses the official MCP SDK transport plus a dedicated entry point that starts correctly when Claude Desktop loads the extension through its Node UtilityProcess wrapper. A fresh Windows Home conversation exposed the PWS integration and returned the live VWE1 state. Claude Code, the Code tab, and Codex remain supported through the direct `mcp-server.js` path.
 
+The current beta.5 assets also include an in-place booking hotfix: MCP-created and MCP-edited angle beats always persist all three PWS group arrays. This prevents single-person promos and other angles with unused groups from blocking show startup.
+
 ## Claude Desktop and Claude Code are separate
 
 - **Claude Desktop** installs the downloaded `.mcpb` extension. Updating the MCPB does not change standalone Claude Code.

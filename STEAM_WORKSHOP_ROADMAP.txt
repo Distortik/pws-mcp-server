@@ -101,14 +101,14 @@ Beta.5 replaces the hand-written stdio layer with the official MCP SDK transport
 [h2]Beta.5 test results[/h2]
 
 [list]
-[*]All 71 automated tests passed.
+[*]All 73 automated tests passed, including the beta.5 angle-group hotfix for new cards and edits.
 [*]The official MCP client initialized the source server, a standalone packaged copy without [code]node_modules[/code], and the wrapper-loaded MCPB entry point.
 [*]The complete catalogue of 46 PWS tools, three resources, and three prompts was returned through the official transport.
 [*]The TEST plugin ZIP and minimal self-contained MCPB built successfully with manifest validation and bundled third-party license notices.
 [*]All 13 non-mutating live bridge checks passed with the matching beta.5 TEST plugin on VWE1.
 [*]Backlog item B14 is fixed and live-validated: a dry-run match plan accepted Wendi Richter as an Occasional Wrestler without creating a segment, while angle-only worker types remain rejected.
 [*]A new Claude Desktop Home conversation on Windows loaded the Pro Wrestling Sim integration and returned the correct VWE1 state.
-[*]No PWS persistence or save-mutation code changed from the already live-validated beta.4 build.
+[*]The in-place beta.5 hotfix normalized missing empty angle groups; the affected CareerMode card then started successfully without changing its creative content.
 [/list]
 
 [quote][b]Direct-path setup alternative[/b]

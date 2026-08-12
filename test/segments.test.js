@@ -162,6 +162,20 @@ test('updates angle groups, subject roles, beats, and metadata', function () {
     });
 });
 
+test('normalizes omitted groups when editing an angle beat', function () {
+    withContext(function () {
+        var api = fakeApi({ angle: true });
+        var result = segments.updateSegment(api, {
+            segmentId: 7, preview: false, confirmed: true,
+            changes: { beats: [{ type: 'promo', length: 5, group1: [{ contractID: 10 }] }] }
+        });
+        assert.deepEqual(result.segment.beats, [{
+            type: 'promo', length: 5,
+            group1: [{ contractID: 10, workerID: 1 }], group2: [], group3: []
+        }]);
+    });
+});
+
 test('rejects unknown and segment-incompatible update fields', function () {
     withContext(function () {
         var api = fakeApi();

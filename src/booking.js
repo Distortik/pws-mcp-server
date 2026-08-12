@@ -311,6 +311,7 @@ function validatePlan(api, options) {
                 });
                 segment.beats = [generatedBeat];
             }
+            segment.beats = segmentService.normalizeBeats(segment.beats, byContract);
             delete segment.segmentLength;
         }
         segment.showId = showId;
