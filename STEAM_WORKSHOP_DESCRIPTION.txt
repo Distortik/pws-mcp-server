@@ -4,6 +4,11 @@
 
 Ask your AI assistant to inspect your save, plan shows, check workers and storylines, validate bookings, and perform supported changes through preview-first tools.
 
+[quote][b]Known Claude Desktop issue[/b]
+
+The 0.4.0-beta.4 MCPB currently installs and launches on Claude Desktop for Windows, but regular Home chats cancel its connection after a 60-second initialization timeout. Claude Code, Claude Desktop's Code tab, and Codex direct-path connections remain usable. A focused 0.4.0-beta.5 compatibility fix is planned before the final 0.4.0 release.
+[/quote]
+
 [h2]Highlights[/h2]
 
 [list]
@@ -25,7 +30,7 @@ Ask your AI assistant to inspect your save, plan shows, check workers and storyl
 
 [b]Claude Desktop[/b]
 
-Download and install the matching [code].mcpb[/code] file from the [url=https://github.com/JustRegularGuy/pws-mcp-server/releases]GitHub release[/url], then restart Claude Desktop.
+Download and install the matching [code].mcpb[/code] file from the [url=https://github.com/Distortik/pws-mcp-server/releases]GitHub release[/url], then restart Claude Desktop. Regular Home-chat use is currently affected by the beta issue above; use Code or Codex temporarily.
 
 [b]Important:[/b] Steam updates only the in-game plugin. It does not update Claude Desktop's [code].mcpb[/code] file.
 
@@ -33,17 +38,25 @@ Download and install the matching [code].mcpb[/code] file from the [url=https://
 
 Claude Code ignores [code].mcpb[/code] files. It must point directly at the server file you want to test. With Node.js 18 or newer installed, run:
 
+You do not have to find or edit the path manually. Paste this request into Claude Code and let it configure and verify the entry for you:
+
+[quote]Locate the installed PWS MCP Server [code]mcp-server.js[/code] for the build I am actually using (Workshop, manual, or TEST). Configure the user-level Claude Code MCP server named [code]pro-wrestling-sim[/code] to run it with Node, verify it with [code]claude mcp get pro-wrestling-sim[/code], and tell me the exact path you selected. Do not guess the Steam library or edit unrelated MCP entries.[/quote]
+
 [code]
-$server = "$env:APPDATA\ProWrestlingSimulator\plugins\pws-mcp-server\mcp-server.js"
-claude mcp add --scope user pws-mcp -- node $server
-claude mcp get pws-mcp
+$server = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1157700\3780507815\plugins\pws-mcp-server\mcp-server.js"
+claude mcp add --scope user pro-wrestling-sim -- node $server
+claude mcp get pro-wrestling-sim
 [/code]
 
-You can paste that block into Claude Code and ask it to run the commands for you. Restart Claude Code afterward. For beta testing, replace the path with the exact TEST plugin path.
+You can paste that block into Claude Code and ask it to run the commands for you. Restart Claude Code afterward. If Steam is on another drive, ask Claude Code to locate the path instead of guessing it. For beta testing, use the separately installed TEST plugin path.
 
 [b]Codex[/b]
 
-Add an STDIO MCP server named [code]pws-mcp[/code]. Use [code]node[/code] as the command and the full path to [code]mcp-server.js[/code] as its argument, then restart Codex.
+You can also paste this request into Codex instead of editing its settings manually:
+
+[quote]Locate the installed PWS MCP Server [code]mcp-server.js[/code] for the build I am actually using (Workshop, manual, or TEST). Configure the user-level Codex MCP server named [code]pro-wrestling-sim[/code] to run it with Node, verify the saved MCP entry, and tell me the exact path you selected. Do not guess the Steam library or edit unrelated MCP entries.[/quote]
+
+Codex can inspect the installed paths and run its MCP configuration command; approve the configuration change when prompted, then restart the MCP server/client.
 
 [h2]Test the connection[/h2]
 
@@ -69,10 +82,10 @@ Other mods are never required. PWS MCP can add optional compatibility when a mod
 [list]
 [*]Restart the game after installing or updating the Workshop plugin.
 [*]Restart the AI client after changing its MCP configuration.
-[*]If Claude Code shows old tools, run [code]claude mcp get pws-mcp[/code] and verify the exact path it is loading.
+[*]If Claude Code shows old tools, run [code]claude mcp get pro-wrestling-sim[/code] and verify the exact path it is loading.
 [*]If connection fails, confirm the game is open, the plugin is enabled, and a save is loaded.
 [/list]
 
-For detailed setup, updating, beta testing, permissions, and troubleshooting, read the [url=https://github.com/JustRegularGuy/pws-mcp-server#readme]complete GitHub guide[/url].
+For detailed setup, updating, beta testing, permissions, and troubleshooting, read the [url=https://github.com/Distortik/pws-mcp-server#readme]complete GitHub guide[/url].
 
 [i]PWS MCP Server is an unofficial community project and is not affiliated with Pro Wrestling Sim or its developer.[/i]

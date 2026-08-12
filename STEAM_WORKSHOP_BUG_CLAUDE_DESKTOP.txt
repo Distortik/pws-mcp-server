@@ -1,0 +1,55 @@
+[h1]Known Issue: Claude Desktop MCPB Initialization Timeout[/h1]
+
+[quote][b]Status: confirmed in 0.4.0-beta.4 on Windows; focused beta.5 fix planned.[/b][/quote]
+
+[h2]What happens[/h2]
+
+The PWS MCP Server MCPB installs, appears enabled, and launches in Claude Desktop, but regular Home chats do not receive its tools. Claude Desktop sends the MCP initialization request, waits 60 seconds, and disconnects the extension before tool registration completes.
+
+[h2]What still works[/h2]
+
+[list]
+[*]The in-game PWS bridge and beta.4 save tools.
+[*]Standalone Claude Code using the direct [code]mcp-server.js[/code] path.
+[*]Claude Desktop's Code tab using its Claude Code MCP configuration.
+[*]Codex using the direct [code]mcp-server.js[/code] path.
+[/list]
+
+The installed beta.4 server is byte-for-byte identical to the tested build and responds immediately when the same initialization request is replayed directly. This isolates the current blocker to regular Claude Desktop MCPB/stdio compatibility rather than PWS save access.
+
+[h2]Temporary setup without manual path editing[/h2]
+
+You can ask Claude Code or Codex to find and configure the correct path for you. Paste this request into the client you want to use:
+
+[quote]Locate the installed PWS MCP Server [code]mcp-server.js[/code] for the build I am actually using (Workshop, manual, or TEST). Configure your user-level MCP server named [code]pro-wrestling-sim[/code] to run it with Node, verify the saved entry, and tell me the exact path you selected. Do not guess the Steam library or edit unrelated MCP entries.[/quote]
+
+Approve the user-configuration change when prompted, restart that client, start PWS, load the intended save, and ask:
+
+[quote]Use the PWS MCP server to show my current game state.[/quote]
+
+Workshop and TEST plugin folder names remain stable across version updates, so the correctly configured path should not need to change every time. The client only needs to be restarted after updated files are deployed.
+
+[h2]What beta.5 will change[/h2]
+
+[list]
+[*]Replace or harden the current hand-written stdio compatibility layer using the official MCP SDK transport.
+[*]Add an automated initialization and tool-catalogue test using a real MCP client transport.
+[*]Install and test the beta.5 MCPB in a regular Claude Desktop Home conversation.
+[*]Re-run the complete automated, live-save, version-pair, and packaging gates before 0.4.0.
+[/list]
+
+[h2]Reporting another result[/h2]
+
+Please include:
+
+[list]
+[*]Windows version.
+[*]Claude Desktop version.
+[*]PWS MCP Server/MCPB version.
+[*]Whether you tested Home, Code, standalone Claude Code, or Codex.
+[*]Whether Pro Wrestling Sim was running with the intended save loaded.
+[*]Whether the extension showed as enabled under Settings > Extensions.
+[*]The relevant error text or timestamp from the PWS extension log.
+[/list]
+
+[b]Do not share[/b] [code]%APPDATA%\ProWrestlingSimulator\mcp\pws-mcp-runtime.json[/code]. It contains a temporary local access token.

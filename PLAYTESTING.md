@@ -93,3 +93,5 @@ Beta playtesting passes when:
 - persona changes preserve the global worker identity and restore cleanly;
 - the Workshop plugin can remain disabled while the TEST plugin and matching MCPB expose the same version;
 - all unexpected behavior is recorded with the tool input, returned error/result, relevant IDs, and whether PWS was reloaded.
+- the matching MCPB completes initialization in a regular Claude Desktop Home conversation and exposes the same version/tool catalogue as direct Claude Code and Codex connections; beta.4 currently fails this check and requires beta.5.
+- Claude Code and Codex path setup is tested through the documented copy/paste assistant request as well as the explicit CLI commands, so users are not required to locate or edit configuration manually.

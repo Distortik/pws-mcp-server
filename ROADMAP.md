@@ -67,7 +67,16 @@ These require validated PWS action contracts or carefully established database i
 - [Passed] Structured show results passed the live runner; event archiving and the date-overridden biker Undertaker persona plus its exact restoration were visually confirmed in PWS. After a full restart, the exact restored contract, WWF-only persona restriction, archived event, and all four cancelled show records persisted.
 - [Passed] Separate copy-only accept and decline fixtures were prepared from VWE1 with pending Rick Rude promise 1015. Acceptance and decline both passed transactionally and after restart, including status, handled-email, relationship-effect, and audit verification (+5 and -8 respectively).
 - [Passed] Built and inspected the beta.4 TEST ZIP and MCPB from a clean release command after all 67 automated tests passed.
-- [Passed] Beta.4 playtesting completed with no release blockers. Publish the beta.4 prerelease, then remove prerelease labels/metadata and run the final 0.4.0 release gate.
+- [Passed] Beta.4 feature, save-safety, visual, and restart-persistence testing completed with no PWS/save-operation blockers.
+- [Release blocker discovered after beta.4] The installed Windows MCPB launches in Claude Desktop regular chat but does not complete `initialize`; Claude cancels after 60 seconds. The identical server responds immediately when invoked directly, and Claude Code/Codex remain functional, isolating the issue to Desktop MCPB/stdio compatibility.
+
+### Beta.5 Claude Desktop compatibility gate
+
+- [Planned] Replace or harden the hand-written stdio layer using the official MCP SDK transport while preserving the existing tool/resource/prompt behavior.
+- [Planned] Add an automated initialization and tool-catalogue regression test using a real MCP client transport.
+- [Planned] Install a matching beta.5 MCPB and confirm regular Claude Desktop Home chat receives PWS tools, not only Claude Code/Code and Codex.
+- [Planned] Re-run all automated, live read-only, version-pair, and production packaging gates before promoting to `0.4.0`.
+- [Documented workaround] Claude Code and Codex users can paste a setup request into the client and let it locate, configure, and verify the stable Workshop/TEST `mcp-server.js` path instead of editing configuration manually.
 
 ### Storyline attribution ground truth
 

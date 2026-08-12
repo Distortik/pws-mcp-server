@@ -1,8 +1,8 @@
-[h1]PWS MCP Server Roadmap — Final Steps Toward 0.4.0[/h1]
+[h1]PWS MCP Server Roadmap — Beta.5 and the Final Steps Toward 0.4.0[/h1]
 
 [h2]PWS MCP Server Roadmap[/h2]
 
-This roadmap shows the current state of PWS MCP Server 0.4.0. Plans may still change if final production testing reveals a release blocker, but the beta feature and live-save test phase is now complete.
+This roadmap shows the current state of PWS MCP Server 0.4.0. The beta feature and live-save operation tests are complete. A Claude Desktop MCPB initialization issue discovered after beta.4 now requires a focused beta.5 compatibility fix before production release.
 
 [h2]Release path[/h2]
 
@@ -17,6 +17,8 @@ This roadmap shows the current state of PWS MCP Server 0.4.0. Plans may still ch
    |
    +-- 0.4.0-beta.4 — Hardening and completed live-save validation
    |
+   +-- 0.4.0-beta.5 — Claude Desktop MCPB compatibility
+   |
    +-- 0.4.0 — Next production Workshop release
 [/code]
 
@@ -30,7 +32,8 @@ SHOW & SEGMENT MANAGEMENT    [■■■■■■■■■■] Implemented and te
 PERSONAS & RING NAMES        [■■■■■■■■■■] Implemented and tested
 WORKER PROMISE RESPONSES     [■■■■■■■■■■] Implemented and tested
 STORYLINE DIAGNOSTICS        [■■■■■■■■■■] Implemented and validated
-RELEASE SAFETY & TESTING     [■■■■■■■■■■] Beta gate passed
+SAVE SAFETY & LIVE TESTING   [■■■■■■■■■■] Beta gate passed
+CLAUDE DESKTOP MCPB         [■■■■■■■□□□] Beta.5 fix required
 GENERIC ACTION REPLACEMENT   [■■■■■■□□□□] In progress
 TOURNAMENT MANAGEMENT        [□□□□□□□□□□] Planned after 0.4.0
 CONTRACT NEGOTIATIONS        [□□□□□□□□□□] Planned after 0.4.0
@@ -86,13 +89,27 @@ This supports cases such as selecting The Undertaker, biker Undertaker, Mankind,
 [*]Event archiving, retained show history, and exact persona restoration persisted across full PWS restarts.
 [*]The biker Undertaker persona and its date override were visually confirmed in PWS before the original presentation and WWF restriction were restored.
 [*]Promise acceptance and rejection were both verified transactionally and after full restarts on separate save copies.
-[*]No beta.4 release blockers remain.
+[*]No beta.4 PWS/save-operation blockers remain.
 [/list]
+
+[h2]Claude Desktop issue and beta.5[/h2]
+
+After the beta.4 live-save gate passed, regular Claude Desktop Home-chat testing exposed a separate client compatibility blocker on Windows. The MCPB installs, enables, and launches, but Claude Desktop cancels its MCP initialization after 60 seconds before exposing the tools. The identical server responds immediately when invoked directly, and Claude Code plus Codex continue to work.
+
+Beta.5 will focus on the stdio/SDK compatibility layer, add a real-client initialization regression test, and require regular Claude Desktop Home chat to expose the matching PWS tools before 0.4.0 can ship.
+
+[quote][b]Temporary user-friendly workaround[/b]
+
+Use Claude Code, Claude Desktop's Code tab, or Codex with the direct [code]mcp-server.js[/code] path. You do not have to edit configuration or guess the Steam library manually. Paste this request into Claude Code or Codex:
+
+Locate the installed PWS MCP Server [code]mcp-server.js[/code] for the build I am actually using (Workshop, manual, or TEST). Configure your user-level MCP server named [code]pro-wrestling-sim[/code] to run it with Node, verify the saved entry, and tell me the exact path you selected. Do not guess the Steam library or edit unrelated MCP entries.
+[/quote]
 
 [h2]What remains before 0.4.0[/h2]
 
 [list]
-[*]Promote the tested beta.4 code to version 0.4.0 without adding another large feature set.
+[*]Complete the focused beta.5 Claude Desktop compatibility fix without adding another large feature set.
+[*]Confirm a regular Claude Desktop Home conversation initializes the MCPB and receives the complete tool catalogue.
 [*]Build and inspect the production Workshop package and matching Claude Desktop MCPB.
 [*]Install the production package separately and run a final connection and save-read smoke test.
 [*]Publish the Workshop update, matching GitHub release, installation notes, and full changelog.
@@ -124,6 +141,9 @@ Copied or backed-up live-save testing
 Visual and restart-persistence checks
         |
         v
+Claude Desktop beta.5 compatibility test
+        |
+        v
 Production 0.4.0 package and smoke test
 [/code]
 
@@ -133,9 +153,9 @@ Beta builds remain separate from the production Workshop item. The Workshop vers
 
 Steam updates only the in-game PWS plugin.
 
-Claude Desktop users must also install the matching [code].mcpb[/code] from the [url=https://github.com/Distortik/pws-mcp-server/releases]GitHub release[/url] and restart Claude Desktop. Installing a newer package with the same extension identity normally upgrades the existing installation; uninstalling first should only be needed as a fallback.
+Claude Desktop users must also install the matching [code].mcpb[/code] from the [url=https://github.com/Distortik/pws-mcp-server/releases]GitHub release[/url] and restart Claude Desktop. Installing a newer package with the same extension identity normally upgrades the existing installation; uninstalling first should only be needed as a fallback. Regular Home-chat MCPB use remains blocked in beta.4 while beta.5 is developed.
 
-Claude Code and Codex users can keep their MCP configuration pointed at the stable Workshop plugin folder. Restart the client after an update so it reloads the current server and tool catalogue.
+Claude Code and Codex users can keep their MCP configuration pointed at the stable Workshop plugin folder. They can paste the setup request above into the client and ask it to locate, configure, and verify that path automatically instead of editing settings manually. Restart the client after an update so it reloads the current server and tool catalogue.
 
 [h2]Feedback[/h2]
 

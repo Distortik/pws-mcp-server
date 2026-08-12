@@ -2,6 +2,8 @@
 
 ## 0.4.0-beta.4 - 2026-08-12
 
+> **Known issue discovered after publication:** on Claude Desktop for Windows, the beta.4 MCPB installs and launches but regular Home chat cancels its MCP initialization after 60 seconds. Claude Code and Codex direct-path connections remain functional. A focused beta.5 compatibility fix is required before the final 0.4.0 release.
+
 - Added preview-first `pws_set_event_active` for reversible event-series archiving/restoration; archiving is blocked while unfinished non-cancelled shows remain and retains completed/cancelled history.
 - Added explicit persona date policy: native personas outside `minDate`/`maxDate` are rejected by default and require `allowDateOverride=true` for creative-sandbox use; promotion-ineligible personas must first be made available explicitly.
 - Added structured participant groups, opponent details, ringside workers, and angle subjects to `pws_get_show` while retaining the compact participant summary.
