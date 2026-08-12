@@ -22,14 +22,20 @@ function requireAction(api, name) {
 }
 
 function mutation(options, action, details, apply, verify) {
-    if (options.preview !== false) return { success: true, status: 'preview', action: action, before: details.before, proposed: details.proposed };
+    if (options.preview !== false) {
+        var preview = { success: true, status: 'preview', action: action, before: details.before, proposed: details.proposed };
+        if (details.warnings && details.warnings.length) preview.warnings = details.warnings;
+        return preview;
+    }
     if (options.confirmed !== true) throw new Error('Refusing to change the save: use preview first, then set preview=false and confirmed=true');
     var result = apply();
     if (result && result.success === false) throw new Error(result.error || (action + ' was rejected by PWS'));
     var verification = verify();
     if (!verification.success) throw new Error('Post-action verification failed: ' + verification.error);
     var entry = audit.record(details.api, action, details.audit);
-    return { success: true, status: 'applied', action: action, before: details.before, after: verification.after == null ? null : verification.after, result: result == null ? null : result, verification: verification, audit: entry };
+    var applied = { success: true, status: 'applied', action: action, before: details.before, after: verification.after == null ? null : verification.after, result: result == null ? null : result, verification: verification, audit: entry };
+    if (details.warnings && details.warnings.length) applied.warnings = details.warnings;
+    return applied;
 }
 
 function context(api) {
@@ -90,6 +96,7 @@ function stable(api, stableId) {
     var row = domain.get(api, 'SELECT stableID,stableName,stableHeat,promotionID,stableImage FROM stables WHERE stableID=?', [stableId]);
     if (!row) return null;
     row.members = domain.query(api, "SELECT sw.contractID,sw.isLeader,c.workerID,COALESCE(NULLIF(c.contractName,''),w.name) AS name FROM stableworkers sw JOIN contracts c ON c.contractID=sw.contractID LEFT JOIN workers w ON w.workerID=c.workerID WHERE sw.stableID=? ORDER BY CASE WHEN sw.isLeader IN (1,'true') THEN 0 ELSE 1 END,name", [stableId]);
+    row.members.forEach(function (member) { member.isLeader = domain.boolean(member.isLeader); });
     return row;
 }
 
@@ -183,7 +190,7 @@ function setContractGimmick(api, options) {
 }
 
 function setContractPersona(api, options) {
-    options = input(options, ['contractId', 'personaId', 'name', 'gimmick', 'picture', 'hasMask'], 'pws_set_contract_persona');
+    options = input(options, ['contractId', 'personaId', 'name', 'gimmick', 'picture', 'hasMask', 'allowDateOverride'], 'pws_set_contract_persona');
     var contractId = integer(options.contractId, 'contractId');
     var before = validateContract(api, contractId);
     var persona = null;
@@ -194,6 +201,7 @@ function setContractPersona(api, options) {
         if (Number(persona.workerID) !== Number(before.workerID)) throw new Error('The persona belongs to a different worker');
     }
     if (persona && options.name != null) throw new Error('Use personaId or name, not both');
+    if (!persona && options.allowDateOverride === true) throw new Error('allowDateOverride is only valid with personaId');
     var name = String(persona ? persona.name : (options.name == null ? '' : options.name)).trim();
     if (!name) throw new Error('personaId or name is required');
     if (name.length > 120) throw new Error('name cannot exceed 120 characters');
@@ -215,14 +223,20 @@ function setContractPersona(api, options) {
     if (gimmick !== null) changes.gimmick = gimmick;
     if (maskRequested) changes.hasMask = hasMask;
     var ctx = context(api);
+    var promotionEligible = persona ? (!Number(persona.promotionExclusive || 0) || Number(persona.promotionExclusive) === ctx.promotionId) : true;
+    var dateEligible = persona ? ((!persona.minDate || !ctx.currentDate || persona.minDate <= ctx.currentDate) && (!persona.maxDate || !ctx.currentDate || persona.maxDate >= ctx.currentDate)) : true;
+    if (persona && !promotionEligible) throw new Error('The persona is exclusive to ' + (persona.exclusivePromotion || ('promotion ' + persona.promotionExclusive)) + '. Use pws_set_persona_availability before selecting it.');
+    if (persona && !dateEligible && options.allowDateOverride !== true) throw new Error('The persona is outside its native date range' + (persona.minDate || persona.maxDate ? ' (' + (persona.minDate || 'unbounded') + ' to ' + (persona.maxDate || 'unbounded') + ')' : '') + '. Set allowDateOverride=true for an explicit creative-sandbox override.');
+    var warnings = persona && !dateEligible ? ['Creative-sandbox override: this persona is outside its native PWS date range. The alter ego definition and date limits are not changed.'] : [];
     var proposed = {
         contractId: contractId, personaId: persona ? Number(persona.personaId) : null,
         name: name, gimmick: gimmick === null ? before.gimmick : gimmick,
         contractPicture: pictureRequested ? picture : before.contractPicture,
         hasMask: maskRequested ? hasMask : before.hasMask,
         nativeEligibility: persona ? {
-            promotionEligible: !Number(persona.promotionExclusive || 0) || Number(persona.promotionExclusive) === ctx.promotionId,
-            dateEligible: (!persona.minDate || persona.minDate <= ctx.currentDate) && (!persona.maxDate || persona.maxDate >= ctx.currentDate),
+            promotionEligible: promotionEligible,
+            dateEligible: dateEligible,
+            dateOverride: !dateEligible && options.allowDateOverride === true,
             promotionExclusive: Number(persona.promotionExclusive || 0), exclusivePromotion: persona.exclusivePromotion || null,
             minDate: persona.minDate || null, maxDate: persona.maxDate || null
         } : null
@@ -232,7 +246,7 @@ function setContractPersona(api, options) {
         requireAction(api, 'modifyContract').call(api.actions, { contractId: contractId, changes: restore });
         if (pictureRequested && api.database && typeof api.database.execute === 'function') api.database.execute('UPDATE contracts SET contractPicture=? WHERE contractID=?', [before.contractPicture, contractId]);
     }
-    return mutation(options, 'contract.setPersona', { api: api, before: before, proposed: proposed, audit: { contractId: contractId, persona: persona, proposed: proposed, before: before } }, function () {
+    return mutation(options, 'contract.setPersona', { api: api, before: before, proposed: proposed, warnings: warnings, audit: { contractId: contractId, persona: persona, proposed: proposed, before: before } }, function () {
         var modify = requireAction(api, 'modifyContract');
         if (pictureRequested && (!api.database || typeof api.database.execute !== 'function')) throw new Error('This PWS version has not granted the plugin its required narrow database-write capability for persona pictures');
         var result = modify.call(api.actions, { contractId: contractId, changes: changes });
@@ -341,8 +355,48 @@ function respondToPromise(api, options) {
 
 function event(api, eventId) {
     var row = domain.get(api, 'SELECT eventID,eventName,promotionID,prestige,recurrenceType,recurrenceMonth,recurrenceWeek,brand,eventLength,importance,inactive,preferredVenue FROM events WHERE eventID=?', [eventId]);
-    if (row) row.importance = domain.importanceName(row.importance);
+    if (row) {
+        row.importance = domain.importanceName(row.importance);
+        row.inactive = domain.boolean(row.inactive);
+        row.active = !row.inactive;
+    }
     return row;
+}
+
+function setEventActive(api, options) {
+    options = input(options, ['eventId', 'active'], 'pws_set_event_active');
+    var eventId = integer(options.eventId, 'eventId');
+    if (typeof options.active !== 'boolean') throw new Error('active must be a boolean');
+    var before = event(api, eventId);
+    if (!before) throw new Error('Event not found: ' + eventId);
+    if (Number(before.promotionID) !== context(api).promotionId) throw new Error('The event does not belong to the player promotion');
+    if (before.active === options.active) throw new Error('The event is already ' + (options.active ? 'active' : 'archived'));
+    var instances = domain.query(api, 'SELECT instanceID AS showId,airDate,complete,isCancelled FROM eventinstance WHERE eventID=? ORDER BY airDate,instanceID', [eventId]).map(function (row) {
+        row.complete = domain.boolean(row.complete);
+        row.isCancelled = domain.boolean(row.isCancelled);
+        return row;
+    });
+    var blockers = instances.filter(function (show) { return !show.complete && !show.isCancelled; });
+    if (!options.active && blockers.length) throw new Error('Cannot archive an event with unfinished, non-cancelled shows: ' + blockers.map(function (show) { return show.showId; }).join(', '));
+    var proposed = {
+        eventId: eventId, active: options.active,
+        operation: options.active ? 'restore' : 'archive',
+        retainedShowInstances: instances.length
+    };
+    return mutation(options, 'event.setActive', {
+        api: api, before: before, proposed: proposed,
+        warnings: !options.active && instances.length ? ['Archiving hides the event series but retains its completed or cancelled show instances for save history.'] : [],
+        audit: { eventId: eventId, active: options.active, before: before, showInstances: instances }
+    }, function () {
+        if (!api.database || typeof api.database.execute !== 'function') throw new Error('This PWS version has not granted the plugin its required narrow database-write capability');
+        api.database.execute('UPDATE events SET inactive=? WHERE eventID=?', [options.active ? 0 : 1, eventId]);
+        return { success: true };
+    }, function () {
+        var after = event(api, eventId);
+        if (after && after.active === options.active) return { success: true, after: after };
+        api.database.execute('UPDATE events SET inactive=? WHERE eventID=?', [before.active ? 0 : 1, eventId]);
+        return { success: false, error: 'event active state was not persisted; the original state was restored', after: after };
+    });
 }
 
 function createEvent(api, options) {
@@ -389,6 +443,7 @@ function scheduleShow(api, options) {
     var series = event(api, eventId);
     if (!series) throw new Error('Event not found: ' + eventId);
     if (Number(series.promotionID) !== context(api).promotionId) throw new Error('The event does not belong to the player promotion');
+    if (!series.active) throw new Error('The event is archived; restore it with pws_set_event_active before scheduling a show');
     var airDate = String(options.airDate || '');
     if (!/^\d{4}-\d{2}-\d{2}$/.test(airDate) || !domain.addDays(airDate, 0)) throw new Error('airDate must be a valid YYYY-MM-DD date');
     if (airDate < context(api).currentDate) throw new Error('airDate cannot be before the current game date');
@@ -505,4 +560,4 @@ function setShowVenue(api, options) {
     });
 }
 
-module.exports = { cancelShow: cancelShow, changeStableMember: changeStableMember, changeStorylineMember: changeStorylineMember, createEvent: createEvent, createStable: createStable, dissolveStable: dissolveStable, endStoryline: endStoryline, listStables: listStables, releaseWorker: releaseWorker, removeSegment: removeSegment, respondToPromise: respondToPromise, scheduleShow: scheduleShow, setContractGimmick: setContractGimmick, setContractPersona: setContractPersona, setPersonaAvailability: setPersonaAvailability, setShowVenue: setShowVenue, stable: stable, vacateTitle: vacateTitle, validateGimmick: validateGimmick };
+module.exports = { cancelShow: cancelShow, changeStableMember: changeStableMember, changeStorylineMember: changeStorylineMember, createEvent: createEvent, createStable: createStable, dissolveStable: dissolveStable, endStoryline: endStoryline, listStables: listStables, releaseWorker: releaseWorker, removeSegment: removeSegment, respondToPromise: respondToPromise, scheduleShow: scheduleShow, setContractGimmick: setContractGimmick, setContractPersona: setContractPersona, setEventActive: setEventActive, setPersonaAvailability: setPersonaAvailability, setShowVenue: setShowVenue, stable: stable, vacateTitle: vacateTitle, validateGimmick: validateGimmick };

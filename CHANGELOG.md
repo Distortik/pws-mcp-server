@@ -1,6 +1,19 @@
 # Changelog
 
-## 0.4.0-beta.3 - Unreleased
+## 0.4.0-beta.4 - 2026-08-12
+
+- Added preview-first `pws_set_event_active` for reversible event-series archiving/restoration; archiving is blocked while unfinished non-cancelled shows remain and retains completed/cancelled history.
+- Added explicit persona date policy: native personas outside `minDate`/`maxDate` are rejected by default and require `allowDateOverride=true` for creative-sandbox use; promotion-ineligible personas must first be made available explicitly.
+- Added structured participant groups, opponent details, ringside workers, and angle subjects to `pws_get_show` while retaining the compact participant summary.
+- Standardized `pws_update_segment` applied results with an `after` field while retaining `segment` as a compatibility alias.
+- Normalized persona, promise, show, stable-member, and event flags to JSON booleans in public read/result shapes.
+- Added a first-party live bridge regression runner with compact JSON reports and `finally`-based restoration for opt-in reversible persona/event checks.
+- Added a copy-only promise fixture preparation workflow for live accept/decline testing when the active save has no pending decision request.
+- Added automatic client/plugin version-pair validation with an actionable mismatch error, including compatibility checks against older plugins that do not publish their version in the runtime file.
+- Expanded beta.4 regression coverage for event archiving, persona restrictions and date overrides, show participants, mutation envelopes, boolean normalization, and testing utilities.
+- Live-validated all 17 automated bridge checks, reversible persona/event cleanup, date-overridden persona selection and exact restoration, archived-event persistence with retained history, and both promise-response paths across full PWS restarts.
+
+## 0.4.0-beta.3 - 2026-08-12
 
 - Added `pws_get_promises` for outstanding, declined, fulfilled, and expired worker promises with related workers, contracts, titles, and deadlines.
 - Added preview-first `pws_respond_to_promise` for accepting or declining pending requests transactionally with PWS's decision-email and relationship consequences.

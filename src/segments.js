@@ -496,7 +496,7 @@ function updateSegment(api, options) {
         });
         return {
             success: true, status: 'applied', segmentId: segmentId, changedFields: changedFields,
-            before: before, segment: persisted, selectedTitles: normalized.selectedTitles,
+            before: before, after: persisted, segment: persisted, selectedTitles: normalized.selectedTitles,
             verification: { success: true, mismatches: [] }, audit: entry
         };
     } catch (error) {

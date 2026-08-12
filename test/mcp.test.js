@@ -11,6 +11,12 @@ test('negotiates a compatible MCP version and publishes guidance', async functio
     assert.ok(result.capabilities.prompts);
 });
 
+test('rejects a mismatched in-game plugin before exposing stale tool behavior', function () {
+    assert.doesNotThrow(function () { mcp.assertRuntimeVersion({ pluginVersion: '0.4.0-beta.4' }); });
+    assert.doesNotThrow(function () { mcp.assertRuntimeVersion({}); });
+    assert.throws(function () { mcp.assertRuntimeVersion({ pluginVersion: '0.4.0-beta.3' }); }, /version mismatch.*matching pair/i);
+});
+
 test('publishes a broad unique tool catalogue with safety annotations', async function () {
     var result = await mcp.handle({ method: 'tools/list', params: {} });
     assert.ok(result.tools.length >= 19);
@@ -37,7 +43,7 @@ test('publishes a broad unique tool catalogue with safety annotations', async fu
         assert.ok(tool, name + ' should be published');
         assert.equal(tool.annotations.readOnlyHint, true);
     });
-    ['pws_create_stable', 'pws_dissolve_stable', 'pws_add_stable_worker', 'pws_remove_stable_worker', 'pws_set_contract_gimmick', 'pws_set_contract_persona', 'pws_set_persona_availability', 'pws_respond_to_promise', 'pws_create_event', 'pws_schedule_show', 'pws_cancel_show'].forEach(function (name) {
+    ['pws_create_stable', 'pws_dissolve_stable', 'pws_add_stable_worker', 'pws_remove_stable_worker', 'pws_set_contract_gimmick', 'pws_set_contract_persona', 'pws_set_persona_availability', 'pws_respond_to_promise', 'pws_create_event', 'pws_set_event_active', 'pws_schedule_show', 'pws_cancel_show'].forEach(function (name) {
         var tool = result.tools.find(function (item) { return item.name === name; });
         assert.ok(tool, name + ' should be published');
         assert.equal(tool.inputSchema.properties.preview.default, true);

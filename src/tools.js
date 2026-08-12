@@ -146,6 +146,9 @@ var TOOLS = [
         importance: { type: 'string', enum: ['Huge', 'High', 'Normal', 'Unimportant', 'House Show'], default: 'Normal' }, eventLength: { type: 'integer', minimum: 1, maximum: 600, default: 120 },
         brand: { type: 'integer', minimum: 1 }, preview: { type: 'boolean', default: true }, confirmed: { type: 'boolean' }
     }, ['name']), annotations: WRITE },
+    { name: 'pws_set_event_active', description: 'BETA: PREVIEW OR ARCHIVE/RESTORE a player-company event series. Archiving is reversible, retains completed/cancelled show history, and is blocked while the series has an unfinished non-cancelled show. Defaults to preview.', inputSchema: object({
+        eventId: { type: 'integer', minimum: 1 }, active: { type: 'boolean' }, preview: { type: 'boolean', default: true }, confirmed: { type: 'boolean' }
+    }, ['eventId', 'active']), annotations: WRITE },
     { name: 'pws_schedule_show', description: 'BETA: PREVIEW OR SCHEDULE a show instance for a player-company event series, optionally at a validated venue. Verifies persistence. Defaults to preview.', inputSchema: object({
         eventId: { type: 'integer', minimum: 1 }, airDate: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, location: { type: 'string', maxLength: 200 }, venueId: { type: 'integer', minimum: 1 },
         preview: { type: 'boolean', default: true }, confirmed: { type: 'boolean' }
@@ -188,6 +191,7 @@ var TOOLS = [
         contractId: { type: 'integer', minimum: 1 }, personaId: { type: 'integer', minimum: 1 }, name: { type: 'string', minLength: 1, maxLength: 120 }, gimmick: { type: 'string', minLength: 1, maxLength: 100 },
         picture: { anyOf: [{ type: 'string', maxLength: 500 }, { type: 'null' }], description: 'Optional exact contract picture override; use the preview before-state to restore it.' },
         hasMask: { type: 'boolean', description: 'Optional exact contract mask override; use the preview before-state to restore it.' },
+        allowDateOverride: { type: 'boolean', default: false, description: 'Explicitly allow a selected native persona outside its minDate/maxDate for creative-sandbox booking. Does not alter the native date limits.' },
         preview: { type: 'boolean', default: true }, confirmed: { type: 'boolean' }
     }, ['contractId']), annotations: WRITE },
     { name: 'pws_set_persona_availability', description: 'BETA: PREVIEW OR CHANGE a native alter ego definition between free use (promotionExclusive=0), the player promotion, or a specified promotion for exact restoration. This changes availability globally within the loaded save, not merely one contract. Defaults to preview.', inputSchema: object({
@@ -207,7 +211,7 @@ var ROUTES = {
     pws_get_upcoming_shows: 'shows.upcoming', pws_get_show: 'shows.get', pws_get_venues: 'venues.list', pws_get_titles: 'game.titles',
     pws_get_storylines: 'game.storylines', pws_diagnose_storyline_attribution: 'storylines.diagnoseAttribution', pws_get_stables: 'stables.list', pws_get_gimmicks: 'gimmicks.list', pws_get_personas: 'personas.list', pws_get_promises: 'promises.list', pws_respond_to_promise: 'promises.respond', pws_get_booking_context: 'booking.context', pws_plan_show: 'booking.plan',
     pws_validate_show_plan: 'booking.validate', pws_apply_show_plan: 'booking.apply', pws_update_segment: 'booking.updateSegment',
-    pws_remove_segment: 'booking.removeSegment', pws_set_show_venue: 'shows.setVenue', pws_create_event: 'events.create', pws_schedule_show: 'shows.schedule', pws_cancel_show: 'shows.cancel', pws_end_storyline: 'storylines.end', pws_add_storyline_worker: 'storylines.addWorker',
+    pws_remove_segment: 'booking.removeSegment', pws_set_show_venue: 'shows.setVenue', pws_create_event: 'events.create', pws_set_event_active: 'events.setActive', pws_schedule_show: 'shows.schedule', pws_cancel_show: 'shows.cancel', pws_end_storyline: 'storylines.end', pws_add_storyline_worker: 'storylines.addWorker',
     pws_remove_storyline_worker: 'storylines.removeWorker', pws_release_worker: 'contracts.release', pws_set_contract_gimmick: 'contracts.setGimmick', pws_set_contract_persona: 'contracts.setPersona', pws_set_persona_availability: 'personas.setAvailability', pws_vacate_title: 'titles.vacate',
     pws_create_stable: 'stables.create', pws_dissolve_stable: 'stables.dissolve', pws_add_stable_worker: 'stables.addWorker', pws_remove_stable_worker: 'stables.removeWorker', pws_execute_action: 'actions.execute',
     pws_get_audit_log: 'actions.audit'

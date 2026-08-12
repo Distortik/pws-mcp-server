@@ -40,6 +40,7 @@ Node.js 18 or newer is still required for Codex, Claude Code, and other clients 
 - **Claude Code** ignores the MCPB and runs the exact `mcp-server.js` path stored in its MCP configuration. Inspect that path with `claude mcp get pro-wrestling-sim`.
 - Enabling a Workshop or TEST plugin inside PWS does not automatically repoint Claude Code at the matching server file.
 - After installing an MCPB or changing Claude Code's MCP path, fully restart the corresponding Claude client so it reloads the tool list.
+- Workshop and TEST installs use stable folder names, so Claude Code and Codex paths do not change between versions. Once configured correctly, replace/deploy the files in that folder and restart the client; the beta.4 server also reports an explicit error if its version does not match the running in-game plugin.
 
 ## Install the PWS plugin
 
@@ -81,6 +82,8 @@ The MCPB installs only the Claude-side connection. The in-game plugin must still
 
 When upgrading, update both halves: Steam updates the in-game plugin, but it cannot update Claude Desktop's installed extension. Download and install the matching new `.mcpb`, then restart Claude Desktop.
 
+For a privately distributed update, install the newer `.mcpb` through **Install Extension** using the same extension identity; uninstalling the previous version first is not normally required. If Claude Desktop does not show the new version after a full restart, uninstall/reinstall is the fallback.
+
 If your Claude organization blocks custom desktop extensions, an owner or administrator must allow them. See [Anthropic's local MCP server guide](https://support.anthropic.com/en/articles/10949351-getting-started-with-local-mcp-servers-on-claude-desktop).
 
 ## Connect Claude Code
@@ -114,7 +117,7 @@ claude mcp add --scope user pro-wrestling-sim -- node $server
 claude mcp get pro-wrestling-sim
 ```
 
-Restart Claude Code after changing the path; MCP tools are loaded at session start and do not hot-reload. Installing the prerelease MCPB does not update Claude Code. To return to the Workshop release, remove the server again and rerun the normal Workshop command above.
+Restart Claude Code after changing the path; MCP tools are loaded at session start and do not hot-reload. Installing the prerelease MCPB does not update Claude Code. The TEST folder name is stable across beta versions, so later TEST deployments do not require another path change. To return to the Workshop release, remove the server again and rerun the normal Workshop command above.
 
 ## Connect Codex
 
@@ -136,6 +139,8 @@ codex mcp add pro-wrestling-sim -- node $server
 ```
 
 See the [Codex MCP documentation](https://developers.openai.com/codex/mcp) for other installation methods.
+
+The Workshop and TEST plugin folder names are stable across updates, so Codex only needs this path configured once. Restart the MCP server/client after deploying an update so it reloads the new tool catalogue.
 
 ## Connect another MCP client
 
@@ -171,15 +176,15 @@ Use `titleIds: number[]` to put championships on the line in a match. This is th
 
 `pws_apply_show_plan` re-reads every created segment and verifies its participants, winner, runtime, title associations, and other requested booking fields. If verification fails, it reports failure and removes the new segments instead of returning a false success.
 
-`pws_update_segment` previews by default. After reviewing `before` and `proposed`, call it again with the same changes, `preview: false`, and `confirmed: true`. The update uses a narrow field allowlist, one transaction, rollback, a post-save read, before/after output, and an audit entry. It does not expose general-purpose SQL writes.
+`pws_update_segment` previews by default. After reviewing `before` and `proposed`, call it again with the same changes, `preview: false`, and `confirmed: true`. The update uses a narrow field allowlist, one transaction, rollback, a post-save read, before/after output, and an audit entry. Applied results expose the persisted segment as `after` and retain `segment` as a compatibility alias. It does not expose general-purpose SQL writes.
 
 Purpose-built tools are also available for removing a segment, setting an unfinished show's venue (with an optional recurring-event default), ending a storyline, adding or removing a storyline worker, releasing a worker, and vacating a championship. These operations preview by default, validate that the target belongs to the player company, require `preview: false` and `confirmed: true`, and re-read the save before reporting success. The advanced generic action tool no longer exposes these operations.
 
 Large rosters can be read page-by-page with `offset` and `limit`; use `lean: true` for a compact booking-oriented response. Availability excludes workers in rehab as well as injured, suspended, and time-off workers. Storyline reads accept `storylineId` and `lean: true` for inexpensive heat/status checks.
 
-Use `pws_get_venues` to find a suitable building by geography and capacity. `pws_get_show` includes the assigned venue, capacity, type, and recurring-event default. If storyline progress appears to be missing after simulation, `pws_diagnose_storyline_attribution` reports recent in-lifetime segments that contained two or more storyline members but have no entity-normalized matching history row.
+Use `pws_get_venues` to find a suitable building by geography and capacity. `pws_get_show` includes the assigned venue, capacity, type, recurring-event default, structured participant groups, opponent details, ringside workers, and angle subjects. If storyline progress appears to be missing after simulation, `pws_diagnose_storyline_attribution` reports recent in-lifetime segments that contained two or more storyline members but have no entity-normalized matching history row.
 
-The 0.4.0 beta adds preview-first tools for stable creation and membership, contract gimmicks and personas, worker promises, event-series creation, show scheduling, and show cancellation. Use `pws_get_personas` to browse a worker's native PWS alter egos and inspect their preferred gimmick, picture, mask, promotion restriction, and valid dates. `pws_set_contract_persona` changes only the player-company contract identity, so selecting Mankind or setting a custom ring name does not rename Mick Foley globally; selecting a native persona also applies its available preferred gimmick, picture, and mask as one verified presentation change. Optional picture and mask overrides allow the complete before-state returned by a preview to be restored exactly. `pws_set_persona_availability` separately changes the alter-ego definition between free use (`promotionExclusive=0`), the player promotion, or a specified promotion for exact restoration throughout the loaded save; date limits remain independent. PWS still supports one active presentation per contract at a time; it does not currently expose simultaneous per-match persona selection. Gimmicks are database-specific: use `pws_get_gimmicks` before assignment. `pws_get_promises` lists requests and obligations by deadline, while `pws_respond_to_promise` previews and transactionally applies the native accept/decline result, handled-email flag, and worker relationship effect. Keep beta builds as the separate TEST plugin; do not replace the production Workshop plugin until live-save testing is complete.
+The 0.4.0 beta adds preview-first tools for stable creation and membership, contract gimmicks and personas, worker promises, event-series creation/archiving, show scheduling, and show cancellation. Use `pws_get_personas` to browse a worker's native PWS alter egos and inspect their preferred gimmick, picture, mask, promotion restriction, and valid dates. `pws_set_contract_persona` changes only the player-company contract identity, so selecting Mankind or setting a custom ring name does not rename Mick Foley globally; selecting a native persona also applies its available preferred gimmick, picture, and mask as one verified presentation change. Optional picture and mask overrides allow the complete before-state returned by a preview to be restored exactly. Promotion-ineligible personas must first be made available with `pws_set_persona_availability`. Date-ineligible personas are rejected by default and require `allowDateOverride=true` for explicit creative-sandbox use; neither operation changes `minDate` or `maxDate`. PWS still supports one active presentation per contract at a time; it does not currently expose simultaneous per-match persona selection. `pws_set_event_active` safely archives or restores an event series without deleting its show history and blocks archiving while unfinished non-cancelled shows remain. Gimmicks are database-specific: use `pws_get_gimmicks` before assignment. `pws_get_promises` lists requests and obligations by deadline, while `pws_respond_to_promise` previews and transactionally applies the native accept/decline result, handled-email flag, and worker relationship effect. Keep beta builds as the separate TEST plugin; do not replace the production Workshop plugin until live-save testing is complete.
 
 Use [PLAYTESTING.md](PLAYTESTING.md) as the release gate for a 0.4.0 prerelease.
 

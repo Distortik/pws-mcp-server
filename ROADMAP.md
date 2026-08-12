@@ -50,14 +50,24 @@ These require validated PWS action contracts or carefully established database i
 
 ### Beta.4 implementation backlog
 
-- Add a first-party live bridge regression runner that records compact pass/fail results and always cleans up reversible test data.
-- Return structured participant groups from `pws_get_show` instead of only a display string, matching the richer shape used by segment previews and updates.
-- Standardize mutation result envelopes; segment updates currently return the persisted object as `segment`, while most purpose-built actions return it as `after`.
-- Add a safe event-series cleanup/archive action so cancelled disposable test events do not remain in the save database.
-- Normalize database-backed flags such as persona eligibility and promise actionability to JSON booleans consistently across read tools.
-- Decide and document whether contract persona switching should reject alter egos outside their `minDate`/`maxDate`, or allow an explicit creative-sandbox override; beta.3 reports date eligibility without silently changing the date limits.
+- [Implemented in 0.4.0-beta.4] Add a first-party live bridge regression runner that records compact pass/fail results and always cleans up reversible test data.
+- [Implemented in 0.4.0-beta.4] Return structured participant groups from `pws_get_show` instead of only a display string, matching the richer shape used by segment previews and updates.
+- [Implemented in 0.4.0-beta.4] Standardize mutation result envelopes; segment updates now return the persisted object as `after` and retain `segment` as a compatibility alias.
+- [Implemented in 0.4.0-beta.4] Add safe, reversible event-series archiving so cancelled disposable test events no longer remain active in the save.
+- [Implemented in 0.4.0-beta.4] Normalize database-backed flags such as persona eligibility and promise actionability to JSON booleans consistently across read tools.
+- [Implemented in 0.4.0-beta.4] Reject date-ineligible personas by default while allowing `allowDateOverride=true` as an explicit creative-sandbox override; date limits are never silently changed.
 - [Validated during playtest] `pws_get_audit_log` includes PWS-native match/angle creation and removal entries alongside the MCP server's verified local entries; consider a unified result shape in beta.4, but no actions were missing.
-- Add a controlled promise-response integration fixture or test-save preparation workflow; VWE1 had no pending decision promise, so only read, classification, and rejection paths could be exercised live.
+- [Implemented in 0.4.0-beta.4] Add a controlled copy-only promise-response test-save preparation workflow; VWE1 had no pending decision promise, so the fixture enables both live response paths without altering the source save.
+
+### Beta.4 and 0.4.0 release gate
+
+- [Passed] Beta.4 syntax checks and 67 automated tests.
+- [Implemented in 0.4.0-beta.4] Keep Claude Code and Codex pointed at stable Workshop/TEST folder paths across updates and automatically reject mismatched client/plugin version pairs with restart/install guidance.
+- [Passed] The matching beta.4 TEST plugin is deployed and hash-verified; the first-party live regression runner passed all 17 read-only and reversible checks against VWE1, including cleanup.
+- [Passed] Structured show results passed the live runner; event archiving and the date-overridden biker Undertaker persona plus its exact restoration were visually confirmed in PWS. After a full restart, the exact restored contract, WWF-only persona restriction, archived event, and all four cancelled show records persisted.
+- [Passed] Separate copy-only accept and decline fixtures were prepared from VWE1 with pending Rick Rude promise 1015. Acceptance and decline both passed transactionally and after restart, including status, handled-email, relationship-effect, and audit verification (+5 and -8 respectively).
+- [Passed] Built and inspected the beta.4 TEST ZIP and MCPB from a clean release command after all 67 automated tests passed.
+- [Passed] Beta.4 playtesting completed with no release blockers. Publish the beta.4 prerelease, then remove prerelease labels/metadata and run the final 0.4.0 release gate.
 
 ### Storyline attribution ground truth
 

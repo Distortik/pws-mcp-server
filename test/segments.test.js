@@ -118,6 +118,7 @@ test('updates a match transactionally and returns the complete verified segment'
         });
         assert.equal(result.success, true);
         assert.equal(result.status, 'applied');
+        assert.equal(result.after, result.segment);
         assert.deepEqual(result.segment.titleIds, [101, 102]);
         assert.equal(result.segment.winner, '20');
         assert.equal(result.segment.winType, 'Submission');

@@ -27,6 +27,15 @@ function numeric(value) {
     return Number.isFinite(parsed) ? Math.round(parsed * 10) / 10 : null;
 }
 
+function boolean(value) {
+    if (value === true || value === false) return value;
+    if (value == null || value === '') return false;
+    var normalized = String(value).trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].indexOf(normalized) !== -1) return true;
+    if (['0', 'false', 'no', 'off'].indexOf(normalized) !== -1) return false;
+    return Boolean(value);
+}
+
 function clamp(value, fallback, min, max) {
     var parsed = integer(value);
     if (parsed === null) return fallback;
@@ -356,6 +365,7 @@ function upcomingShows(api, options) {
             };
         });
     }
+    rows.forEach(function (row) { row.importance = importanceName(row.importance); });
     return { game: state(api), shows: rows };
 }
 
@@ -411,7 +421,16 @@ function personas(api, options) {
         'FROM alteregos ae JOIN workers w ON w.workerID=ae.workerID LEFT JOIN promotions ep ON ep.promotionID=ae.promotionExclusive' + (filters.length ? ' WHERE ' + filters.join(' AND ') : ''),
         'ORDER BY ae.workerID,COALESCE(ae.percentUsed,0) DESC,ae.alterEgoName LIMIT ?'
     ].join(' '), [ctx.promotionId, ctx.currentDate, ctx.currentDate].concat(params));
-    return { game: state(api), contract: contract, personas: rows, note: 'Personas are applied to the promotion contract name; the underlying global worker name is preserved.' };
+    if (contract && contract.hasMask != null) contract.hasMask = boolean(contract.hasMask);
+    rows.forEach(function (row) {
+        row.promotionEligible = boolean(row.promotionEligible);
+        row.dateEligible = boolean(row.dateEligible);
+        row.hasMask = boolean(row.hasMask);
+    });
+    return {
+        game: state(api), contract: contract, personas: rows,
+        note: 'Personas are applied to the promotion contract name; the underlying global worker name is preserved. Promotion-ineligible personas must first be made available with pws_set_persona_availability. Date-ineligible personas require allowDateOverride=true when selected for creative-sandbox booking.'
+    };
 }
 
 function promises(api, options) {
@@ -443,6 +462,9 @@ function promises(api, options) {
         row.status = Number(row.passed) ? 'fulfilled' : Number(row.expired) ? 'expired' : Number(row.agreed) === -1 ? 'declined' : Number(row.agreed) === 1 ? 'active' : 'pending';
         row.overdue = (row.status === 'pending' || row.status === 'active') && row.daysRemaining != null && Number(row.daysRemaining) < 0;
         row.actionable = row.status === 'pending' && row.decisionEmailId != null && Number(row.decisionIsHandled || 0) === 0;
+        row.expired = boolean(row.expired);
+        row.passed = boolean(row.passed);
+        if (row.decisionIsHandled != null) row.decisionIsHandled = boolean(row.decisionIsHandled);
         return row;
     });
     return { game: state(api), promises: rows, counts: rows.reduce(function (counts, row) { counts[row.status] = (counts[row.status] || 0) + 1; return counts; }, {}), note: 'Pending promises are requests not yet agreed; active promises were accepted and still need to be fulfilled.' };
@@ -477,9 +499,25 @@ function show(api, options) {
         [showId]);
     if (!header) throw new Error('Show not found: ' + showId);
     header.importance = importanceName(header.importance);
+    header.complete = boolean(header.complete);
+    header.isCancelled = boolean(header.isCancelled);
     var segments = query(api,
-        "SELECT s.segmentID AS segmentId,s.segmentType AS type,s.segmentLength AS length,s.segmentorder AS position,s.segmentName AS name,s.description,s.purpose,s.winType,s.winner,s.winnerName,s.angleType,s.rating,s.isPreshow,s.isMainshow,s.isPostshow,GROUP_CONCAT(CAST(o.opponentSet AS TEXT)||':'||o.contractID||':'||COALESCE(NULLIF(c.contractName,''),w.name),' | ') participants FROM segments s LEFT JOIN opponents o ON o.segmentID=s.segmentID LEFT JOIN contracts c ON c.contractID=o.contractID LEFT JOIN workers w ON w.workerID=COALESCE(o.workerID,c.workerID) WHERE s.showID=? GROUP BY s.segmentID ORDER BY s.isPreshow DESC,s.isMainshow DESC,s.isPostshow DESC,s.segmentorder,s.segmentID",
+        "SELECT s.segmentID AS segmentId,s.segmentType AS type,s.segmentLength AS length,s.segmentorder AS position,s.segmentName AS name,s.description,s.purpose,s.winType,s.winner,s.winnerName,s.angleType,s.rating,s.isPreshow,s.isMainshow,s.isPostshow,GROUP_CONCAT(CAST(o.opponentSet AS TEXT)||':'||o.contractID||':'||COALESCE(NULLIF(c.contractName,''),w.name),' | ') participantSummary FROM segments s LEFT JOIN opponents o ON o.segmentID=s.segmentID LEFT JOIN contracts c ON c.contractID=o.contractID LEFT JOIN workers w ON w.workerID=COALESCE(o.workerID,c.workerID) WHERE s.showID=? GROUP BY s.segmentID ORDER BY s.isPreshow DESC,s.isMainshow DESC,s.isPostshow DESC,s.segmentorder,s.segmentID",
         [showId]);
+    var opponentRows = query(api, [
+        'SELECT o.segmentID,o.opponentID,o.opponentSet,o.contractID,o.workerID,o.isRingside,o.isSubject,',
+        "COALESCE(NULLIF(c.contractName,''),w.name) AS name",
+        'FROM opponents o JOIN segments s ON s.segmentID=o.segmentID',
+        'LEFT JOIN contracts c ON c.contractID=o.contractID',
+        'LEFT JOIN workers w ON w.workerID=COALESCE(o.workerID,c.workerID)',
+        'WHERE s.showID=? ORDER BY o.segmentID,o.opponentSet,o.opponentID'
+    ].join(' '), [showId]);
+    var opponentsBySegment = {};
+    opponentRows.forEach(function (row) {
+        var key = Number(row.segmentID);
+        if (!opponentsBySegment[key]) opponentsBySegment[key] = [];
+        opponentsBySegment[key].push(row);
+    });
     var titleRows = query(api,
         'SELECT mt.segmentID,mt.titleID,mt.champion,mt.winner,t.name,t.type,t.currentChampion,t.currentChampion2,t.currentChampion3,t.defences FROM matchtitles mt JOIN segments s ON s.segmentID=mt.segmentID LEFT JOIN titles t ON t.titleID=mt.titleID WHERE s.showID=? ORDER BY mt.matchTitleID',
         [showId]);
@@ -497,6 +535,29 @@ function show(api, options) {
     });
     segments.forEach(function (segment) {
         segment.type = String(segment.type || '').toLowerCase();
+        segment.isPreshow = boolean(segment.isPreshow);
+        segment.isMainshow = boolean(segment.isMainshow);
+        segment.isPostshow = boolean(segment.isPostshow);
+        var details = (opponentsBySegment[Number(segment.segmentId)] || []).map(function (row) {
+            return {
+                contractId: row.contractID == null ? null : Number(row.contractID),
+                workerId: row.workerID == null ? null : Number(row.workerID),
+                name: row.name || null,
+                group: Number(row.opponentSet),
+                ringside: boolean(row.isRingside) || Number(row.opponentSet) < 0,
+                subject: boolean(row.isSubject)
+            };
+        });
+        var groups = {};
+        details.forEach(function (opponent) {
+            if (opponent.contractId === null || opponent.ringside) return;
+            if (!groups[opponent.group]) groups[opponent.group] = [];
+            groups[opponent.group].push(opponent.contractId);
+        });
+        segment.participants = Object.keys(groups).map(Number).sort(function (a, b) { return a - b; }).map(function (group) { return groups[group]; });
+        segment.opponentDetails = details;
+        segment.ringsideWorkers = details.filter(function (opponent) { return opponent.ringside && opponent.contractId !== null; }).map(function (opponent) { return opponent.contractId; });
+        segment.subjectContractIds = details.filter(function (opponent) { return opponent.subject && opponent.contractId !== null; }).map(function (opponent) { return opponent.contractId; });
         segment.titles = titlesBySegment[Number(segment.segmentId)] || [];
         segment.titleIds = segment.titles.map(function (title) { return title.titleId; });
     });
@@ -711,6 +772,7 @@ function contractAdvice(api, options) {
 module.exports = {
     addDays: addDays,
     ageAt: ageAt,
+    boolean: boolean,
     catalog: catalog,
     clamp: clamp,
     context: context,

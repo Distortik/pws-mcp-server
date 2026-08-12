@@ -9,7 +9,7 @@ var segments = require('../src/segments');
 
 function withContext(callback) {
     var original = domain.context;
-    domain.context = function () { return { promotionId: 2, promotion: { fullName: 'Player Promotion' } }; };
+    domain.context = function () { return { promotionId: 2, currentDate: '1992-04-20', promotion: { fullName: 'Player Promotion' } }; };
     try { callback(); } finally { domain.context = original; }
 }
 
@@ -268,6 +268,28 @@ test('switches a contract persona without renaming the underlying worker', funct
     });
 });
 
+test('enforces persona promotion access and requires an explicit date override', function () {
+    withContext(function () {
+        var api = stableApi();
+        var originalGet = api.database.get;
+        api.database.get = function (sql, params) {
+            if (sql.indexOf('FROM alteregos ae LEFT JOIN promotions') !== -1) return { personaId: 78, workerID: 1, name: 'Future One', preferredGimmick: 'Heel Manager', promotionExclusive: 2, exclusivePromotion: 'Player Promotion', minDate: '2000-01-01' };
+            return originalGet(sql, params);
+        };
+        assert.throws(function () { actions.setContractPersona(api, { contractId: 10, personaId: 78 }); }, /allowDateOverride=true/);
+        var preview = actions.setContractPersona(api, { contractId: 10, personaId: 78, allowDateOverride: true });
+        assert.equal(preview.proposed.nativeEligibility.dateEligible, false);
+        assert.equal(preview.proposed.nativeEligibility.dateOverride, true);
+        assert.equal(preview.warnings.length, 1);
+
+        api.database.get = function (sql, params) {
+            if (sql.indexOf('FROM alteregos ae LEFT JOIN promotions') !== -1) return { personaId: 79, workerID: 1, name: 'Exclusive One', preferredGimmick: 'Heel Manager', promotionExclusive: 19, exclusivePromotion: 'Other Promotion' };
+            return originalGet(sql, params);
+        };
+        assert.throws(function () { actions.setContractPersona(api, { contractId: 10, personaId: 79 }); }, /pws_set_persona_availability/);
+    });
+});
+
 test('restores the contract when complete persona presentation verification fails', function () {
     withContext(function () {
         var api = stableApi();
@@ -371,7 +393,7 @@ test('rolls back an incomplete promise response', function () {
     });
 });
 
-test('creates an event, schedules a show, and verifies cancellation', function () {
+test('creates an event, schedules a show, cancels it, and archives the series reversibly', function () {
     withContext(function () {
         var state = { event: null, show: null };
         var api = {
@@ -385,8 +407,13 @@ test('creates an event, schedules a show, and verifies cancellation', function (
                     if (sql.indexOf('FROM eventinstance WHERE instanceID') !== -1) return state.show && Object.assign({}, state.show);
                     return null;
                 },
-                execute: function (sql) {
+                query: function (sql) {
+                    if (sql.indexOf('FROM eventinstance WHERE eventID') !== -1) return state.show ? [Object.assign({}, state.show)] : [];
+                    return [];
+                },
+                execute: function (sql, params) {
                     if (sql.indexOf('UPDATE events SET importance=0') !== -1 && state.event) state.event.importance = 0;
+                    if (sql.indexOf('UPDATE events SET inactive') !== -1 && state.event) state.event.inactive = params[0];
                 }
             },
             actions: {
@@ -400,9 +427,15 @@ test('creates an event, schedules a show, and verifies cancellation', function (
         assert.equal(created.after.importance, 'Normal');
         var houseShow = actions.createEvent(api, { name: 'House Special', recurrenceType: 'OneOff', importance: 'House Show', eventLength: 90, preview: false, confirmed: true });
         assert.equal(houseShow.after.importance, 'House Show');
-        var scheduled = actions.scheduleShow(api, { eventId: 7, airDate: '1992-04-01', venueId: 99, preview: false, confirmed: true });
+        var scheduled = actions.scheduleShow(api, { eventId: 7, airDate: '1992-05-01', venueId: 99, preview: false, confirmed: true });
         assert.equal(scheduled.after.showId, 50);
+        assert.throws(function () { actions.setEventActive(api, { eventId: 7, active: false }); }, /unfinished, non-cancelled/);
         var cancelled = actions.cancelShow(api, { showId: 50, preview: false, confirmed: true });
         assert.equal(cancelled.after.isCancelled, 1);
+        var archived = actions.setEventActive(api, { eventId: 7, active: false, preview: false, confirmed: true });
+        assert.equal(archived.after.active, false);
+        assert.equal(archived.after.inactive, true);
+        var restored = actions.setEventActive(api, { eventId: 7, active: true, preview: false, confirmed: true });
+        assert.equal(restored.after.active, true);
     });
 });

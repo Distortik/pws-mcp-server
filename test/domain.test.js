@@ -20,6 +20,14 @@ test('clamp applies defaults and bounds', function () {
     assert.equal(domain.clamp(-2, 10, 1, 20), 1);
 });
 
+test('boolean normalizes native numeric and string flags', function () {
+    assert.equal(domain.boolean(1), true);
+    assert.equal(domain.boolean('true'), true);
+    assert.equal(domain.boolean(0), false);
+    assert.equal(domain.boolean('false'), false);
+    assert.equal(domain.boolean(null), false);
+});
+
 test('promotion size matches PWS continental popularity tiers', function () {
     assert.equal(domain.promotionSize({ northAmericaPop: 11, europePop: 10, asiaPop: 10 }), 'Local');
     assert.equal(domain.promotionSize({ northAmericaPop: 20 }), 'Regional');
@@ -127,19 +135,22 @@ function managementReadApi(rowsByTable, contract) {
     };
 }
 
-test('persona reads return native alter egos and the active contract identity', function () {
+test('persona reads return native alter egos, booleans, and the active contract identity', function () {
     var captured;
     var api = managementReadApi({ personas: [{ personaId: 77, workerId: 781, name: 'Mankind', dateEligible: 1 }] }, { contractId: 10, workerId: 781, workerName: 'Mick Foley', activeName: 'Cactus Jack', promotionID: 2 });
     api.database.query = function (sql, params) {
         if (sql.indexOf('FROM alteregos') !== -1) {
             captured = { sql: sql, params: params };
-            return [{ personaId: 77, workerId: 781, name: 'Mankind', dateEligible: 1 }];
+            return [{ personaId: 77, workerId: 781, name: 'Mankind', promotionEligible: 1, dateEligible: 1, hasMask: 0 }];
         }
         return [];
     };
     var result = domain.personas(api, { contractId: 10 });
     assert.equal(result.contract.activeName, 'Cactus Jack');
     assert.equal(result.personas[0].name, 'Mankind');
+    assert.equal(result.personas[0].promotionEligible, true);
+    assert.equal(result.personas[0].dateEligible, true);
+    assert.equal(result.personas[0].hasMask, false);
     assert.match(captured.sql, /ae\.workerID=\?/);
     assert.equal(captured.params[3], 781);
     assert.match(result.note, /global worker name is preserved/);
@@ -155,6 +166,9 @@ test('promise reads classify pending and accepted obligations', function () {
     assert.deepEqual(result.promises.map(function (row) { return row.status; }), ['pending', 'active', 'declined']);
     assert.deepEqual(result.counts, { pending: 1, active: 1, declined: 1 });
     assert.equal(result.promises[0].actionable, true);
+    assert.equal(result.promises[0].expired, false);
+    assert.equal(result.promises[0].passed, false);
+    assert.equal(result.promises[0].decisionIsHandled, false);
 });
 
 test('upcoming shows fall back to vw_eventinstance when the event join misses a live show', function () {
@@ -179,15 +193,26 @@ test('upcoming shows fall back to vw_eventinstance when the event join misses a 
     assert.equal(result.shows[0].bookedMinutes, 42);
 });
 
-test('show reads normalize native event importance and segment types', function () {
+test('show reads normalize flags and return structured participant groups', function () {
     var api = { database: {
-        get: function () { return { showId: 50, importance: 1, promotionID: 2, length: 60 }; },
+        get: function () { return { showId: 50, importance: 1, promotionID: 2, length: 60, complete: 0, isCancelled: 'false' }; },
         query: function (sql) {
-            if (sql.indexOf('FROM segments') !== -1) return [{ segmentId: 7, type: 'Match', length: 10 }];
+            if (sql.indexOf('FROM segments') !== -1) return [{ segmentId: 7, type: 'Match', length: 10, isPreshow: 0, isMainshow: 1, isPostshow: 0, participantSummary: '0:10:One | 1:20:Two' }];
+            if (sql.indexOf('FROM opponents o JOIN segments') !== -1) return [
+                { segmentID: 7, opponentID: 1, opponentSet: 0, contractID: 10, workerID: 1, isRingside: 0, isSubject: 0, name: 'One' },
+                { segmentID: 7, opponentID: 2, opponentSet: 1, contractID: 20, workerID: 2, isRingside: 0, isSubject: 0, name: 'Two' },
+                { segmentID: 7, opponentID: 3, opponentSet: -1, contractID: 30, workerID: 3, isRingside: 1, isSubject: 0, name: 'Manager' }
+            ];
             return [];
         }
     } };
     var result = domain.show(api, { showId: 50 });
     assert.equal(result.show.importance, 'Unimportant');
+    assert.equal(result.show.complete, false);
+    assert.equal(result.show.isCancelled, false);
     assert.equal(result.segments[0].type, 'match');
+    assert.equal(result.segments[0].isMainshow, true);
+    assert.deepEqual(result.segments[0].participants, [[10], [20]]);
+    assert.deepEqual(result.segments[0].ringsideWorkers, [30]);
+    assert.equal(result.segments[0].opponentDetails[0].subject, false);
 });

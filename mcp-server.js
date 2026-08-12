@@ -7,7 +7,7 @@ var readline = require('readline');
 var definitions = require('./src/tools');
 var runtime = require('./src/runtime');
 
-var SERVER = { name: 'pws-mcp-server', version: '0.4.0-beta.3' };
+var SERVER = { name: 'pws-mcp-server', version: '0.4.0-beta.4' };
 var PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 var INSTRUCTIONS = 'Use PWS search tools to resolve names to IDs before acting. Read company and booking context before giving management advice. Show plans are drafts: explain major choices and obtain explicit user approval before applying a plan or calling any save-changing action. Prefer purpose-built tools over raw SQL. Never claim a save change succeeded unless the tool result says success=true.';
 
@@ -15,6 +15,22 @@ function runtimeConfig() {
     var file = runtime.resolveRuntimePath({ pluginDirectory: __dirname });
     try { return JSON.parse(fs.readFileSync(file, 'utf8')); }
     catch (_) { throw new Error('PWS bridge is offline. Start Pro Wrestling Sim and enable the PWS MCP Server plugin.'); }
+}
+
+function assertRuntimeVersion(config) {
+    if (!config || !config.pluginVersion || config.pluginVersion === SERVER.version) return config;
+    throw new Error('PWS MCP version mismatch: this client is ' + SERVER.version + ' but the in-game plugin is ' + config.pluginVersion + '. Install or select the matching pair, restart PWS, and restart this MCP client.');
+}
+
+function ensureRuntimeVersion() {
+    var config;
+    try { config = assertRuntimeVersion(runtimeConfig()); }
+    catch (error) { return Promise.reject(error); }
+    if (config.pluginVersion) return Promise.resolve(config);
+    return rpc('health', {}).then(function (health) {
+        assertRuntimeVersion({ pluginVersion: health && health.pluginVersion });
+        return config;
+    });
 }
 
 function rpc(method, params) {
@@ -45,14 +61,17 @@ function rpc(method, params) {
 function toolCall(name, args) {
     var route = definitions.ROUTES[name];
     if (!route) return Promise.reject(new Error('Unknown tool: ' + name));
-    return rpc(route, args || {});
+    return ensureRuntimeVersion().then(function () { return rpc(route, args || {}); });
 }
 
 function resourceRead(uri) {
-    if (uri === 'pws://state') return rpc('game.state', {});
-    if (uri === 'pws://company') return rpc('company.overview', {});
-    if (uri === 'pws://shows/upcoming') return rpc('shows.upcoming', { limit: 20 });
-    throw Object.assign(new Error('Resource not found: ' + uri), { code: -32002 });
+    var method;
+    var params = {};
+    if (uri === 'pws://state') method = 'game.state';
+    else if (uri === 'pws://company') method = 'company.overview';
+    else if (uri === 'pws://shows/upcoming') { method = 'shows.upcoming'; params = { limit: 20 }; }
+    else return Promise.reject(Object.assign(new Error('Resource not found: ' + uri), { code: -32002 }));
+    return ensureRuntimeVersion().then(function () { return rpc(method, params); });
 }
 
 async function handle(message) {
@@ -112,4 +131,4 @@ function start() {
 
 if (require.main === module) start();
 
-module.exports = { handle: handle, resourceRead: resourceRead, rpc: rpc, start: start, toolCall: toolCall, TOOLS: definitions.TOOLS };
+module.exports = { assertRuntimeVersion: assertRuntimeVersion, ensureRuntimeVersion: ensureRuntimeVersion, handle: handle, resourceRead: resourceRead, rpc: rpc, start: start, toolCall: toolCall, TOOLS: definitions.TOOLS };

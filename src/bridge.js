@@ -151,6 +151,8 @@ function dispatch(api, request) {
         return purposeBuiltActions.cancelShow(api, params);
     case 'events.create':
         return purposeBuiltActions.createEvent(api, params);
+    case 'events.setActive':
+        return purposeBuiltActions.setEventActive(api, params);
     case 'booking.context':
         return booking.bookingContext(api, params);
     case 'booking.plan':
@@ -235,7 +237,8 @@ function createBridge(api, options) {
                     var address = server.address();
                     fs.mkdirSync(path.dirname(runtimePath), { recursive: true });
                     fs.writeFileSync(runtimePath, JSON.stringify({
-                        host: '127.0.0.1', port: address.port, token: token, pid: process.pid
+                        host: '127.0.0.1', port: address.port, token: token, pid: process.pid,
+                        pluginVersion: api.plugin && api.plugin.version ? String(api.plugin.version) : null
                     }, null, 2), { encoding: 'utf8', mode: 384 });
                     resolve({ host: '127.0.0.1', port: address.port });
                 });

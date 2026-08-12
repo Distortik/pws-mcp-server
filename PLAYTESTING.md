@@ -1,23 +1,25 @@
 # Beta playtesting
 
-Use this checklist for `0.4.0-beta.3`. Test on a copied or backed-up save. Do not enable the Workshop and TEST versions of the plugin together.
+Use this checklist for `0.4.0-beta.4`. Test on a copied or backed-up save. Do not enable the Workshop and TEST versions of the plugin together.
 
 ## Install the matching pair
 
 1. Back up the target PWS save.
 2. Disable the Workshop version of PWS MCP Server.
-3. Extract `pws-mcp-server-TEST-plugin-v0.4.0-beta.3.zip` under `%APPDATA%\ProWrestlingSimulator\plugins` and enable only **PWS MCP Server TEST**.
-4. Install `pws-mcp-server-v0.4.0-beta.3.mcpb` in Claude Desktop and restart it.
+3. Extract `pws-mcp-server-TEST-plugin-v0.4.0-beta.4.zip` under `%APPDATA%\ProWrestlingSimulator\plugins` and enable only **PWS MCP Server TEST**.
+4. Install `pws-mcp-server-v0.4.0-beta.4.mcpb` in Claude Desktop and restart it.
 5. For Claude Code, point the user-level MCP entry to `%APPDATA%\ProWrestlingSimulator\plugins\pws-mcp-server-TEST\mcp-server.js`.
-6. Confirm `pws_get_state` reports the intended save, player promotion, and `0.4.0-beta.3` tool set.
+6. Confirm `pws_get_state` reports the intended save, player promotion, and `0.4.0-beta.4` tool set.
+7. If a client reports a version mismatch, update/reselect the matching in-game plugin and client server, then restart both; beta.4 rejects mismatched pairs before running tools.
 
 ## Read-only checks
 
 - Confirm `pws_get_state` reports all six continental popularity values and the correct popularity-derived company tier.
 - Run `pws_get_gimmicks` with search and disposition filters.
 - Run `pws_get_promises` with no filter and then each applicable status. Check worker/title relationships, deadlines, `daysRemaining`, `overdue`, and declined requests.
-- Run `pws_get_personas` for Mark Calaway or Mick Foley. Check promotion names and eligibility, date eligibility, preferred gimmick, picture, and mask.
+- Run `pws_get_personas` for Mark Calaway or Mick Foley. Check promotion names, boolean promotion/date eligibility and mask flags, preferred gimmick, picture, and dates.
 - Run `pws_get_stables`, `pws_get_upcoming_shows`, `pws_get_venues`, and `pws_diagnose_storyline_attribution`.
+- Run `pws_get_show` on a booked show. Confirm `participants` contains grouped contract IDs, `opponentDetails` contains names/roles, and ringside/subject arrays match the card.
 
 ## Persona checks
 
@@ -31,11 +33,21 @@ Use one active player-company contract whose original presentation has been reco
 6. Preview changing a promotion-specific persona to `free-use`. Record the preview's original `promotionExclusive` value.
 7. Apply free use, re-read the persona, and confirm `promotionExclusive=0`.
 8. Restore it with `availability=specific-promotion` and the recorded original promotion ID. Confirm the original promotion name returns.
-9. For a date-limited persona such as biker Undertaker, confirm free use does not silently remove `minDate` or `maxDate`.
+9. For a date-limited persona such as biker Undertaker, confirm selection is rejected by default with an `allowDateOverride=true` instruction.
+10. Preview it with `allowDateOverride=true`; confirm the creative-sandbox warning appears and free use/date override does not alter `minDate` or `maxDate`.
 
 ## Promise checks
 
 Use pending decision emails on the backed-up save.
+
+If the save has none, close PWS and create two independent fixture copies with Node.js 22 or newer:
+
+```powershell
+npm.cmd run fixture:promise -- "C:\path\VWE1.db" "C:\path\VWE1-promise-accept.db"
+npm.cmd run fixture:promise -- "C:\path\VWE1.db" "C:\path\VWE1-promise-decline.db"
+```
+
+The command never edits the source and refuses to overwrite an existing output. Load only the generated copy and use the printed `promiseId`.
 
 1. Preview both accept and decline decisions; confirm the status and relationship-effect range are explicit.
 2. Accept one pending request. Confirm the promise becomes active, its email is handled, and the relationship change is between +5 and +15.
@@ -49,6 +61,7 @@ For every operation, inspect the preview before applying it and confirm the PWS 
 - Create a stable with a leader, add a member, remove that member, and dissolve the test stable.
 - Change a contract gimmick, then restore it.
 - Create a one-off event series, schedule a show, assign a venue, optionally set the event default, and cancel the unfinished test show.
+- Preview and apply `pws_set_event_active` with `active=false`; confirm the cancelled series becomes archived but its show remains in history. Restore it with `active=true`, then archive it again for final cleanup.
 - Confirm every successful mutation appears in `pws_get_audit_log`.
 
 ## Regression checks
@@ -59,6 +72,18 @@ For every operation, inspect the preview before applying it and confirm the PWS 
 - Add and remove a storyline worker, then run storyline-attribution diagnostics.
 - Exercise release and title-vacation previews without applying them unless the save is disposable.
 - Confirm raw `pws_query` remains read-only and rejects writes or stacked statements.
+
+Run the automated live suite after the beta.4 TEST plugin is loaded:
+
+```powershell
+npm.cmd run test:live
+```
+
+For explicit reversible checks, supply a persona ID and an archive-safe disposable event ID. The runner restores both in a `finally` cleanup pass and writes a compact report under `dist`:
+
+```powershell
+npm.cmd run test:live -- --persona-id 79 --event-id 7
+```
 
 ## Release gate
 
