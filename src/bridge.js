@@ -175,6 +175,12 @@ function dispatch(api, request) {
         return purposeBuiltActions.listStables(api, params);
     case 'gimmicks.list':
         return domain.gimmicks(api, params);
+    case 'personas.list':
+        return domain.personas(api, params);
+    case 'promises.list':
+        return domain.promises(api, params);
+    case 'promises.respond':
+        return purposeBuiltActions.respondToPromise(api, params);
     case 'stables.create':
         return purposeBuiltActions.createStable(api, params);
     case 'stables.dissolve':
@@ -185,6 +191,10 @@ function dispatch(api, request) {
         return purposeBuiltActions.changeStableMember(api, params, false);
     case 'contracts.setGimmick':
         return purposeBuiltActions.setContractGimmick(api, params);
+    case 'contracts.setPersona':
+        return purposeBuiltActions.setContractPersona(api, params);
+    case 'personas.setAvailability':
+        return purposeBuiltActions.setPersonaAvailability(api, params);
     case 'contracts.release':
         return purposeBuiltActions.releaseWorker(api, params);
     case 'titles.vacate':

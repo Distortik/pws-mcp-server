@@ -108,6 +108,55 @@ test('gimmick reads support search and disposition filters', function () {
     assert.equal(captured.params[captured.params.length - 1], 20);
 });
 
+function managementReadApi(rowsByTable, contract) {
+    return {
+        game: { getState: function () { return { promotionId: 2, currentDate: '1992-04-20' }; } },
+        database: {
+            get: function (sql) {
+                if (sql.indexOf('FROM saveinfo') !== -1) return { saveName: 'Test', saveCurrentDate: '1992-04-20', saveUserPromotion: 2 };
+                if (sql.indexOf('FROM promotions') !== -1) return { promotionID: 2, fullName: 'VWE', shortName: 'VWE', basedIn: 'North America', northAmericaPop: 20 };
+                if (sql.indexOf('FROM contracts c JOIN workers') !== -1) return contract || null;
+                return null;
+            },
+            query: function (sql) {
+                if (sql.indexOf('FROM alteregos') !== -1) return rowsByTable.personas || [];
+                if (sql.indexOf('FROM promises') !== -1) return rowsByTable.promises || [];
+                return [];
+            }
+        }
+    };
+}
+
+test('persona reads return native alter egos and the active contract identity', function () {
+    var captured;
+    var api = managementReadApi({ personas: [{ personaId: 77, workerId: 781, name: 'Mankind', dateEligible: 1 }] }, { contractId: 10, workerId: 781, workerName: 'Mick Foley', activeName: 'Cactus Jack', promotionID: 2 });
+    api.database.query = function (sql, params) {
+        if (sql.indexOf('FROM alteregos') !== -1) {
+            captured = { sql: sql, params: params };
+            return [{ personaId: 77, workerId: 781, name: 'Mankind', dateEligible: 1 }];
+        }
+        return [];
+    };
+    var result = domain.personas(api, { contractId: 10 });
+    assert.equal(result.contract.activeName, 'Cactus Jack');
+    assert.equal(result.personas[0].name, 'Mankind');
+    assert.match(captured.sql, /ae\.workerID=\?/);
+    assert.equal(captured.params[3], 781);
+    assert.match(result.note, /global worker name is preserved/);
+});
+
+test('promise reads classify pending and accepted obligations', function () {
+    var api = managementReadApi({ promises: [
+        { promiseId: 1, agreed: 0, expired: 0, passed: 0, type: 'Title Win', decisionEmailId: 9, decisionIsHandled: 0 },
+        { promiseId: 2, agreed: 1, expired: 0, passed: 0, type: 'Match' },
+        { promiseId: 3, agreed: -1, expired: 0, passed: 0, type: 'Push' }
+    ] });
+    var result = domain.promises(api, { includeResolved: true });
+    assert.deepEqual(result.promises.map(function (row) { return row.status; }), ['pending', 'active', 'declined']);
+    assert.deepEqual(result.counts, { pending: 1, active: 1, declined: 1 });
+    assert.equal(result.promises[0].actionable, true);
+});
+
 test('upcoming shows fall back to vw_eventinstance when the event join misses a live show', function () {
     var api = {
         game: { getState: function () { return { promotionId: 2, currentDate: '1992-03-23' }; } },
@@ -128,4 +177,17 @@ test('upcoming shows fall back to vw_eventinstance when the event join misses a 
     var result = domain.upcomingShows(api, { limit: 20 });
     assert.equal(result.shows[0].showId, 347);
     assert.equal(result.shows[0].bookedMinutes, 42);
+});
+
+test('show reads normalize native event importance and segment types', function () {
+    var api = { database: {
+        get: function () { return { showId: 50, importance: 1, promotionID: 2, length: 60 }; },
+        query: function (sql) {
+            if (sql.indexOf('FROM segments') !== -1) return [{ segmentId: 7, type: 'Match', length: 10 }];
+            return [];
+        }
+    } };
+    var result = domain.show(api, { showId: 50 });
+    assert.equal(result.show.importance, 'Unimportant');
+    assert.equal(result.segments[0].type, 'match');
 });

@@ -82,3 +82,5 @@ npm run release:test
 This creates a separately identified `PWS MCP Server TEST` plugin ZIP and the matching Claude Desktop MCPB. Mark the GitHub Release as a prerelease and do not upload `dist/pws-mcp-server` to Steam Workshop. Testers can keep their Workshop subscription, but should disable the Workshop plugin and enable only the TEST plugin while testing.
 
 Claude Code does not install the MCPB. During prerelease testing, its user-level MCP entry must point to `%APPDATA%\ProWrestlingSimulator\plugins\pws-mcp-server-TEST\mcp-server.js`; otherwise Claude Code will continue exposing the older Workshop tool list even while the TEST in-game plugin is enabled.
+
+Complete [PLAYTESTING.md](PLAYTESTING.md) on a backed-up save before publishing or promoting a prerelease.

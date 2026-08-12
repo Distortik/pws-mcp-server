@@ -9,7 +9,7 @@ var segments = require('../src/segments');
 
 function withContext(callback) {
     var original = domain.context;
-    domain.context = function () { return { promotionId: 2 }; };
+    domain.context = function () { return { promotionId: 2, promotion: { fullName: 'Player Promotion' } }; };
     try { callback(); } finally { domain.context = original; }
 }
 
@@ -175,7 +175,7 @@ function stableApi() {
     var state = {
         nextId: 8, stable: null,
         contracts: {
-            10: { contractID: 10, workerID: 1, promotionID: 2, finalised: 1, expired: 0, contractStarted: 1, name: 'One', gimmick: 'None' },
+            10: { contractID: 10, workerID: 1, promotionID: 2, finalised: 1, expired: 0, contractStarted: 1, name: 'One', contractName: 'One', gimmick: 'None', contractPicture: 'One.png', hasMask: 0 },
             20: { contractID: 20, workerID: 2, promotionID: 2, finalised: 1, expired: 0, contractStarted: 1, name: 'Two', gimmick: 'None' },
             30: { contractID: 30, workerID: 3, promotionID: 2, finalised: 1, expired: 0, contractStarted: 1, name: 'Three', gimmick: 'None' }
         }
@@ -187,12 +187,17 @@ function stableApi() {
             get: function (sql, params) {
                 if (sql.indexOf('FROM contracts c LEFT JOIN workers') !== -1) return Object.assign({}, state.contracts[Number(params[0])]);
                 if (sql.indexOf('SELECT contractID,workerID,promotionID,gimmick') !== -1) return Object.assign({}, state.contracts[Number(params[0])]);
+                if (sql.indexOf('FROM alteregos ae LEFT JOIN promotions') !== -1) return Number(params[0]) === 77 ? { personaId: 77, workerID: 1, name: 'The One', preferredGimmick: 'Heel Manager', promotionExclusive: 2, exclusivePromotion: 'Player Promotion', picture: 'The%20One.png', hasMask: 1 } : null;
+                if (sql.indexOf('SELECT contractID,workerID,promotionID,contractName') !== -1) return Object.assign({ activeName: state.contracts[Number(params[0])].contractName }, state.contracts[Number(params[0])]);
                 if (sql.indexOf('SELECT stableID FROM stables') !== -1) return state.stable ? { stableID: state.stable.stableID } : null;
                 if (sql.indexOf('FROM stables WHERE') !== -1) return state.stable ? Object.assign({}, state.stable) : null;
                 if (sql.indexOf('FROM gimmicks WHERE') !== -1) return String(params[0]).toLowerCase() === 'heel manager' ? { name: 'Heel Manager' } : null;
                 return null;
             },
-            query: function (sql) { return sql.indexOf('FROM stableworkers') !== -1 ? members() : []; }
+            query: function (sql) { return sql.indexOf('FROM stableworkers') !== -1 ? members() : []; },
+            execute: function (sql, params) {
+                if (sql.indexOf('UPDATE contracts SET contractPicture') !== -1) state.contracts[Number(params[1])].contractPicture = params[0];
+            }
         },
         actions: {
             createStable: function (opts) {
@@ -202,7 +207,7 @@ function stableApi() {
             addWorkerToStable: function (_stableId, contractId, leader) { state.stable.members.push({ contractID: contractId, isLeader: leader ? 'true' : 'false' }); return { success: true }; },
             removeWorkerFromStable: function (_stableId, contractId) { state.stable.members = state.stable.members.filter(function (member) { return member.contractID !== contractId; }); return { success: true }; },
             dissolveStable: function () { state.stable = null; return { success: true }; },
-            modifyContract: function (opts) { state.contracts[opts.contractId].gimmick = opts.changes.gimmick; return { success: true }; }
+            modifyContract: function (opts) { Object.assign(state.contracts[opts.contractId], opts.changes); return { success: true }; }
         }
     };
 }
@@ -240,6 +245,132 @@ test('sets and verifies a contract gimmick through PWS actions', function () {
     });
 });
 
+test('switches a contract persona without renaming the underlying worker', function () {
+    withContext(function () {
+        var api = stableApi();
+        var preview = actions.setContractPersona(api, { contractId: 10, personaId: 77 });
+        assert.equal(preview.proposed.name, 'The One');
+        assert.equal(preview.proposed.gimmick, 'Heel Manager');
+        assert.equal(preview.proposed.contractPicture, 'The%20One.png');
+        assert.equal(preview.proposed.hasMask, 1);
+        assert.equal(preview.proposed.nativeEligibility.promotionEligible, true);
+        var result = actions.setContractPersona(api, { contractId: 10, personaId: 77, preview: false, confirmed: true });
+        assert.equal(result.after.contractName, 'The One');
+        assert.equal(result.after.gimmick, 'Heel Manager');
+        assert.equal(result.after.contractPicture, 'The%20One.png');
+        assert.equal(result.after.hasMask, 1);
+        var restored = actions.setContractPersona(api, { contractId: 10, name: 'One', gimmick: 'None', picture: 'One.png', hasMask: false, preview: false, confirmed: true });
+        assert.equal(restored.after.contractName, 'One');
+        assert.equal(restored.after.gimmick, 'None');
+        assert.equal(restored.after.contractPicture, 'One.png');
+        assert.equal(restored.after.hasMask, 0);
+        assert.throws(function () { actions.setContractPersona(api, { contractId: 10, personaId: 77, name: 'Conflict' }); }, /not both/);
+    });
+});
+
+test('restores the contract when complete persona presentation verification fails', function () {
+    withContext(function () {
+        var api = stableApi();
+        api.database.execute = function () { /* simulate PWS dropping the requested picture */ };
+        assert.throws(function () {
+            actions.setContractPersona(api, { contractId: 10, personaId: 77, preview: false, confirmed: true });
+        }, /contract was restored/);
+        assert.equal(api._state.contracts[10].contractName, 'One');
+        assert.equal(api._state.contracts[10].gimmick, 'None');
+        assert.equal(api._state.contracts[10].contractPicture, 'One.png');
+        assert.equal(api._state.contracts[10].hasMask, 0);
+    });
+});
+
+test('changes a promotion-exclusive persona to free use and verifies it', function () {
+    withContext(function () {
+        var persona = { personaId: 79, workerId: 781, workerName: 'Mark Calaway', name: 'The Undertaker', promotionExclusive: 19, exclusivePromotion: 'WWF' };
+        var writes = [];
+        var api = { database: {
+            get: function (sql, params) {
+                if (sql.indexOf('FROM alteregos ae') !== -1) return Object.assign({}, persona);
+                if (sql.indexOf('SELECT promotionID,fullName FROM promotions') !== -1 && Number(params[0]) === 19) return { promotionID: 19, fullName: 'WWF' };
+                return null;
+            },
+            execute: function (sql, params) { writes.push([sql, params]); persona.promotionExclusive = params[0]; persona.exclusivePromotion = Number(params[0]) === 19 ? 'WWF' : null; }
+        } };
+        var preview = actions.setPersonaAvailability(api, { personaId: 79, availability: 'free-use' });
+        assert.equal(preview.proposed.promotionExclusive, 0);
+        assert.equal(writes.length, 0);
+        var applied = actions.setPersonaAvailability(api, { personaId: 79, availability: 'free-use', preview: false, confirmed: true });
+        assert.equal(applied.after.promotionExclusive, 0);
+        assert.match(writes[0][0], /UPDATE alteregos SET promotionExclusive/);
+        var restored = actions.setPersonaAvailability(api, { personaId: 79, availability: 'specific-promotion', promotionId: 19, preview: false, confirmed: true });
+        assert.equal(restored.after.promotionExclusive, 19);
+        assert.equal(restored.after.exclusivePromotion, 'WWF');
+    });
+});
+
+function promiseApi(dropEmailUpdate) {
+    var state = {
+        promise: { promiseId: 55, type: 'Title Match', agreed: 0, expired: 0, passed: 0, promotionID: 2, contractId: 10, workerId: 1, workerName: 'Worker' },
+        email: { emailID: 99, workerInvolved1: 1, workerInvolved2: null, hasDecision: 1, decisionIsHandled: 0 },
+        relationship: null,
+        statements: []
+    };
+    var snapshot = null;
+    function restore(value) {
+        state.promise = value.promise; state.email = value.email; state.relationship = value.relationship;
+    }
+    return { _state: state, database: {
+        get: function (sql) {
+            if (sql.indexOf('FROM promises p') !== -1) return Object.assign({}, state.promise);
+            if (sql.indexOf('FROM emails WHERE') !== -1) return Object.assign({}, state.email);
+            if (sql.indexOf('FROM relationships WHERE') !== -1) return state.relationship && Object.assign({}, state.relationship);
+            return null;
+        },
+        execute: function (sql, params) {
+            state.statements.push(sql);
+            if (sql === 'BEGIN IMMEDIATE') { snapshot = JSON.parse(JSON.stringify(state)); return {}; }
+            if (sql === 'COMMIT') { snapshot = null; return {}; }
+            if (sql === 'ROLLBACK') { restore(snapshot); snapshot = null; return {}; }
+            if (sql.indexOf('UPDATE promises SET agreed') !== -1) state.promise.agreed = params[0];
+            else if (sql.indexOf('UPDATE emails SET decisionIsHandled') !== -1 && !dropEmailUpdate) state.email.decisionIsHandled = 1;
+            else if (sql.indexOf('UPDATE relationships SET relationship') !== -1) state.relationship.relationship = params[0];
+            else if (sql.indexOf('INSERT INTO relationships') !== -1) state.relationship = { relationshipID: 500, worker1: params[0], worker2: -1, relationship: params[1] };
+            return {};
+        }
+    } };
+}
+
+test('accepts and declines pending promises with native relationship consequences', function () {
+    withContext(function () {
+        var acceptedApi = promiseApi(false);
+        var preview = actions.respondToPromise(acceptedApi, { promiseId: 55, decision: 'accept' });
+        assert.equal(preview.proposed.status, 'active');
+        assert.deepEqual(preview.proposed.relationshipEffect, { minimum: 5, maximum: 15 });
+        var accepted = actions.respondToPromise(acceptedApi, { promiseId: 55, decision: 'accept', preview: false, confirmed: true });
+        assert.equal(accepted.after.status, 'active');
+        assert.equal(accepted.after.email.decisionIsHandled, 1);
+        assert.ok(accepted.result.relationshipChange >= 5 && accepted.result.relationshipChange <= 15);
+        assert.equal(acceptedApi._state.statements[0], 'BEGIN IMMEDIATE');
+        assert.equal(acceptedApi._state.statements[acceptedApi._state.statements.length - 1], 'COMMIT');
+
+        var declinedApi = promiseApi(false);
+        var declined = actions.respondToPromise(declinedApi, { promiseId: 55, decision: 'decline', preview: false, confirmed: true });
+        assert.equal(declined.after.status, 'declined');
+        assert.ok(declined.result.relationshipChange >= -15 && declined.result.relationshipChange <= -5);
+    });
+});
+
+test('rolls back an incomplete promise response', function () {
+    withContext(function () {
+        var api = promiseApi(true);
+        assert.throws(function () {
+            actions.respondToPromise(api, { promiseId: 55, decision: 'accept', preview: false, confirmed: true });
+        }, /did not persist completely/);
+        assert.equal(api._state.promise.agreed, 0);
+        assert.equal(api._state.email.decisionIsHandled, 0);
+        assert.equal(api._state.relationship, null);
+        assert.equal(api._state.statements[api._state.statements.length - 1], 'ROLLBACK');
+    });
+});
+
 test('creates an event, schedules a show, and verifies cancellation', function () {
     withContext(function () {
         var state = { event: null, show: null };
@@ -253,6 +384,9 @@ test('creates an event, schedules a show, and verifies cancellation', function (
                     if (sql.indexOf('JOIN events') !== -1) return state.show && Object.assign({ promotionID: 2 }, state.show);
                     if (sql.indexOf('FROM eventinstance WHERE instanceID') !== -1) return state.show && Object.assign({}, state.show);
                     return null;
+                },
+                execute: function (sql) {
+                    if (sql.indexOf('UPDATE events SET importance=0') !== -1 && state.event) state.event.importance = 0;
                 }
             },
             actions: {
@@ -263,6 +397,9 @@ test('creates an event, schedules a show, and verifies cancellation', function (
         };
         var created = actions.createEvent(api, { name: 'Special', recurrenceType: 'OneOff', eventLength: 180, preview: false, confirmed: true });
         assert.equal(created.after.eventID, 7);
+        assert.equal(created.after.importance, 'Normal');
+        var houseShow = actions.createEvent(api, { name: 'House Special', recurrenceType: 'OneOff', importance: 'House Show', eventLength: 90, preview: false, confirmed: true });
+        assert.equal(houseShow.after.importance, 'House Show');
         var scheduled = actions.scheduleShow(api, { eventId: 7, airDate: '1992-04-01', venueId: 99, preview: false, confirmed: true });
         assert.equal(scheduled.after.showId, 50);
         var cancelled = actions.cancelShow(api, { showId: 50, preview: false, confirmed: true });

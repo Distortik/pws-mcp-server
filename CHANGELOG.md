@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.0-beta.3 - Unreleased
+
+- Added `pws_get_promises` for outstanding, declined, fulfilled, and expired worker promises with related workers, contracts, titles, and deadlines.
+- Added preview-first `pws_respond_to_promise` for accepting or declining pending requests transactionally with PWS's decision-email and relationship consequences.
+- Added `pws_get_personas` for browsing native PWS alter egos, including preferred presentation data and promotion/date eligibility.
+- Added preview-first `pws_set_contract_persona` for selecting an alter ego or custom ring name without renaming the underlying global worker; native personas apply their preferred gimmick, picture, and mask with verification and rollback, while explicit presentation overrides allow exact restoration.
+- Added preview-first `pws_set_persona_availability` for changing an alter ego definition between free use, the player promotion, or a specified promotion for exact restoration within the loaded save.
+- Fixed contract-scoped persona reads to filter by the contract worker before pagination.
+- Normalized native numeric event importance and show segment types in read results, preserved House Show importance despite PWS's native zero-value fallback, and expanded event-creation verification.
+
 ## 0.4.0-beta.2 - 2026-08-11
 
 - Fixed storyline-attribution diagnostics to normalize escaped ampersands, apostrophes, quotes, and angle brackets before matching history rows.

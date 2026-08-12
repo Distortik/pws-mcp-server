@@ -9,6 +9,14 @@ var REGION_POP_COLUMNS = {
     'Europe': 'europePop'
 };
 
+var EVENT_IMPORTANCE_NAMES = {
+    '0': 'House Show',
+    '1': 'Unimportant',
+    '2': 'Normal',
+    '3': 'High',
+    '4': 'Huge'
+};
+
 function integer(value) {
     var parsed = Number(value);
     return Number.isInteger(parsed) ? parsed : null;
@@ -27,6 +35,12 @@ function clamp(value, fallback, min, max) {
 
 function text(value, length) {
     return value == null ? '' : String(value).trim().slice(0, length || 200);
+}
+
+function importanceName(value) {
+    if (value == null) return null;
+    var key = String(value).trim();
+    return Object.prototype.hasOwnProperty.call(EVENT_IMPORTANCE_NAMES, key) ? EVENT_IMPORTANCE_NAMES[key] : key;
 }
 
 function query(api, sql, params) {
@@ -337,7 +351,7 @@ function upcomingShows(api, options) {
                 showId: showId, date: row.airDate || row.date,
                 name: row.customName || row.eventName || row.name,
                 eventID: row.eventID, length: row.eventLength || row.length,
-                importance: row.importance, brand: row.brand, location: row.location,
+                importance: importanceName(row.importance), brand: row.brand, location: row.location,
                 venueID: row.venueID, bookedMinutes: Number(totals.bookedMinutes || 0), segmentCount: Number(totals.segmentCount || 0)
             };
         });
@@ -370,6 +384,70 @@ function gimmicks(api, options) {
     return { gimmicks: query(api, 'SELECT gimmickID AS gimmickId,name,description,modifiers,dispositionPreference AS disposition FROM gimmicks ' + (filters.length ? 'WHERE ' + filters.join(' AND ') : '') + ' ORDER BY name LIMIT ?', params) };
 }
 
+function personas(api, options) {
+    options = options || {};
+    var ctx = context(api);
+    var workerId = options.workerId == null ? null : integer(options.workerId);
+    var contractId = options.contractId == null ? null : integer(options.contractId);
+    if (options.workerId != null && workerId === null) throw new Error('workerId must be an integer');
+    if (options.contractId != null && contractId === null) throw new Error('contractId must be an integer');
+    var contract = null;
+    if (contractId !== null) {
+        contract = get(api, "SELECT c.contractID AS contractId,c.workerID AS workerId,w.name AS workerName,COALESCE(NULLIF(c.contractName,''),w.name) AS activeName,c.contractName,c.gimmick,c.contractPicture,c.hasMask,c.promotionID FROM contracts c JOIN workers w ON w.workerID=c.workerID WHERE c.contractID=?", [contractId]);
+        if (!contract) throw new Error('Contract not found: ' + contractId);
+        if (Number(contract.promotionID) !== ctx.promotionId) throw new Error('The contract does not belong to the player promotion');
+        if (workerId !== null && Number(workerId) !== Number(contract.workerId)) throw new Error('workerId does not match contractId');
+        workerId = Number(contract.workerId);
+    }
+    var params = [];
+    var filters = [];
+    if (workerId !== null) { filters.push('ae.workerID=?'); params.push(workerId); }
+    if (options.search) { filters.push('(ae.alterEgoName LIKE ? OR w.name LIKE ? OR ae.preferredGimmick LIKE ?)'); var like = '%' + text(options.search, 100) + '%'; params.push(like, like, like); }
+    params.push(clamp(options.limit, 100, 1, 500));
+    var rows = query(api, [
+        'SELECT ae.egoID AS personaId,ae.workerID AS workerId,w.name AS workerName,ae.alterEgoName AS name,',
+        'ae.promotionExclusive,ep.fullName AS exclusivePromotion,CASE WHEN ae.promotionExclusive IS NULL OR ae.promotionExclusive=0 OR ae.promotionExclusive=? THEN 1 ELSE 0 END AS promotionEligible,ae.preferredGimmick,ae.percentUsed,ae.hasMask,ae.picture,ae.minDate,ae.maxDate,',
+        "CASE WHEN (ae.minDate IS NULL OR ae.minDate='' OR date(ae.minDate)<=date(?)) AND (ae.maxDate IS NULL OR ae.maxDate='' OR date(ae.maxDate)>=date(?)) THEN 1 ELSE 0 END AS dateEligible",
+        'FROM alteregos ae JOIN workers w ON w.workerID=ae.workerID LEFT JOIN promotions ep ON ep.promotionID=ae.promotionExclusive' + (filters.length ? ' WHERE ' + filters.join(' AND ') : ''),
+        'ORDER BY ae.workerID,COALESCE(ae.percentUsed,0) DESC,ae.alterEgoName LIMIT ?'
+    ].join(' '), [ctx.promotionId, ctx.currentDate, ctx.currentDate].concat(params));
+    return { game: state(api), contract: contract, personas: rows, note: 'Personas are applied to the promotion contract name; the underlying global worker name is preserved.' };
+}
+
+function promises(api, options) {
+    options = options || {};
+    var ctx = context(api);
+    var filters = ['p.promotionID=?'];
+    var params = [ctx.promotionId];
+    if (options.workerId != null) { filters.push('(c1.workerID=? OR c2.workerID=?)'); params.push(Number(options.workerId), Number(options.workerId)); }
+    if (options.contractId != null) { filters.push('(p.worker1=? OR p.worker2=?)'); params.push(Number(options.contractId), Number(options.contractId)); }
+    if (options.status === 'pending') filters.push('COALESCE(p.agreed,0)=0 AND COALESCE(p.expired,0)=0 AND COALESCE(p.passed,0)=0');
+    else if (options.status === 'active') filters.push('p.agreed=1 AND COALESCE(p.expired,0)=0 AND COALESCE(p.passed,0)=0');
+    else if (options.status === 'declined') filters.push('p.agreed=-1');
+    else if (options.status === 'fulfilled') filters.push('p.passed=1');
+    else if (options.status === 'expired') filters.push('p.expired=1');
+    else if (!options.includeResolved) filters.push('COALESCE(p.agreed,0) IN (0,1) AND COALESCE(p.expired,0)=0 AND COALESCE(p.passed,0)=0');
+    params.push(clamp(options.limit, 100, 1, 500));
+    var rows = query(api, [
+        'SELECT p.promiseID AS promiseId,p.type,p.startDate,p.expiryDate,CAST(julianday(p.expiryDate)-julianday(?) AS INTEGER) AS daysRemaining,p.agreed,p.expired,p.passed,p.promotionID,',
+        'p.worker1 AS contractId,c1.workerID AS workerId,COALESCE(NULLIF(c1.contractName,\'\'),w1.name) AS workerName,',
+        'NULLIF(p.worker2,\'\') AS relatedContractId,c2.workerID AS relatedWorkerId,COALESCE(NULLIF(c2.contractName,\'\'),w2.name) AS relatedWorkerName,',
+        'NULLIF(p.title,\'\') AS titleId,t.name AS titleName,',
+        '(SELECT e.emailID FROM emails e WHERE e.promiseID=p.promiseID ORDER BY e.emailID DESC LIMIT 1) AS decisionEmailId,',
+        '(SELECT e.decisionIsHandled FROM emails e WHERE e.promiseID=p.promiseID ORDER BY e.emailID DESC LIMIT 1) AS decisionIsHandled',
+        'FROM promises p LEFT JOIN contracts c1 ON c1.contractID=p.worker1 LEFT JOIN workers w1 ON w1.workerID=c1.workerID',
+        'LEFT JOIN contracts c2 ON c2.contractID=p.worker2 LEFT JOIN workers w2 ON w2.workerID=c2.workerID',
+        'LEFT JOIN titles t ON t.titleID=p.title WHERE ' + filters.join(' AND '),
+        'ORDER BY CASE WHEN COALESCE(p.agreed,0)=0 THEN 0 ELSE 1 END,p.expiryDate,p.promiseID LIMIT ?'
+    ].join(' '), [ctx.currentDate].concat(params)).map(function (row) {
+        row.status = Number(row.passed) ? 'fulfilled' : Number(row.expired) ? 'expired' : Number(row.agreed) === -1 ? 'declined' : Number(row.agreed) === 1 ? 'active' : 'pending';
+        row.overdue = (row.status === 'pending' || row.status === 'active') && row.daysRemaining != null && Number(row.daysRemaining) < 0;
+        row.actionable = row.status === 'pending' && row.decisionEmailId != null && Number(row.decisionIsHandled || 0) === 0;
+        return row;
+    });
+    return { game: state(api), promises: rows, counts: rows.reduce(function (counts, row) { counts[row.status] = (counts[row.status] || 0) + 1; return counts; }, {}), note: 'Pending promises are requests not yet agreed; active promises were accepted and still need to be fulfilled.' };
+}
+
 function storylineAttributionDiagnostics(api, options) {
     options = options || {};
     var ctx = context(api);
@@ -398,6 +476,7 @@ function show(api, options) {
         "SELECT ei.instanceID AS showId,ei.airDate AS date,COALESCE(NULLIF(ei.customName,''),e.eventName) name,e.eventLength AS length,e.importance,e.brand,ei.complete,ei.isCancelled,ei.location,ei.attendance,ei.score,ei.venueID AS venueId,v.venueName AS venueName,v.capacity AS venueCapacity,v.type AS venueType,e.preferredVenue AS eventDefaultVenueId,p.promotionID,p.fullName AS promotion FROM eventinstance ei JOIN events e ON e.eventID=ei.eventID JOIN promotions p ON p.promotionID=e.promotionID LEFT JOIN venues v ON v.venueID=ei.venueID WHERE ei.instanceID=?",
         [showId]);
     if (!header) throw new Error('Show not found: ' + showId);
+    header.importance = importanceName(header.importance);
     var segments = query(api,
         "SELECT s.segmentID AS segmentId,s.segmentType AS type,s.segmentLength AS length,s.segmentorder AS position,s.segmentName AS name,s.description,s.purpose,s.winType,s.winner,s.winnerName,s.angleType,s.rating,s.isPreshow,s.isMainshow,s.isPostshow,GROUP_CONCAT(CAST(o.opponentSet AS TEXT)||':'||o.contractID||':'||COALESCE(NULLIF(c.contractName,''),w.name),' | ') participants FROM segments s LEFT JOIN opponents o ON o.segmentID=s.segmentID LEFT JOIN contracts c ON c.contractID=o.contractID LEFT JOIN workers w ON w.workerID=COALESCE(o.workerID,c.workerID) WHERE s.showID=? GROUP BY s.segmentID ORDER BY s.isPreshow DESC,s.isMainshow DESC,s.isPostshow DESC,s.segmentorder,s.segmentID",
         [showId]);
@@ -417,6 +496,7 @@ function show(api, options) {
         });
     });
     segments.forEach(function (segment) {
+        segment.type = String(segment.type || '').toLowerCase();
         segment.titles = titlesBySegment[Number(segment.segmentId)] || [];
         segment.titleIds = segment.titles.map(function (title) { return title.titleId; });
     });
@@ -636,6 +716,7 @@ module.exports = {
     context: context,
     contractAdvice: contractAdvice,
     hiring: hiring,
+    importanceName: importanceName,
     integer: integer,
     numeric: numeric,
     overview: overview,
@@ -645,6 +726,8 @@ module.exports = {
     query: query,
     get: get,
     gimmicks: gimmicks,
+    personas: personas,
+    promises: promises,
     roster: roster,
     rosterCount: rosterCount,
     rosterRows: rosterRows,

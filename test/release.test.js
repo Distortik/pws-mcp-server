@@ -12,10 +12,10 @@ test('release metadata agrees on the beta version', function () {
     var plugin = require('../plugin.json');
     var manifest = require('../manifest.json');
     var server = fs.readFileSync(path.join(root, 'mcp-server.js'), 'utf8');
-    assert.equal(packageJson.version, '0.4.0-beta.2');
+    assert.equal(packageJson.version, '0.4.0-beta.3');
     assert.equal(plugin.version, packageJson.version);
     assert.equal(manifest.version, packageJson.version);
-    assert.match(server, /version: '0\.4\.0-beta\.2'/);
+    assert.match(server, /version: '0\.4\.0-beta\.3'/);
     assert.notEqual(packageJson.version.indexOf('-'), -1);
 });
 

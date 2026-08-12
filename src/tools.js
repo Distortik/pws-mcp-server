@@ -106,6 +106,15 @@ var TOOLS = [
     { name: 'pws_get_gimmicks', description: 'Browse PWS gimmicks, requirements, and preferred disposition before assigning one to a contract.', inputSchema: object({
         search: { type: 'string', maxLength: 100 }, disposition: { type: 'string', enum: ['Face', 'Heel', 'None'] }, limit: { type: 'integer', minimum: 1, maximum: 500, default: 100 }
     }), annotations: READ_ONLY },
+    { name: 'pws_get_personas', description: 'BETA: Browse a worker\'s native PWS alter egos/personas, including preferred gimmick, mask, picture, promotion restriction, usage weight, and date eligibility. With contractId, also returns the active contracted identity.', inputSchema: object({
+        workerId: { type: 'integer', minimum: 1 }, contractId: { type: 'integer', minimum: 1 }, search: { type: 'string', maxLength: 100 }, limit: { type: 'integer', minimum: 1, maximum: 500, default: 100 }
+    }), annotations: READ_ONLY },
+    { name: 'pws_get_promises', description: 'BETA: Read player-company worker promise requests and accepted obligations with related contracts, workers, titles, deadlines, and status.', inputSchema: object({
+        workerId: { type: 'integer', minimum: 1 }, contractId: { type: 'integer', minimum: 1 }, status: { type: 'string', enum: ['pending', 'active', 'declined', 'fulfilled', 'expired'] }, includeResolved: { type: 'boolean', default: false }, limit: { type: 'integer', minimum: 1, maximum: 500, default: 100 }
+    }), annotations: READ_ONLY },
+    { name: 'pws_respond_to_promise', description: 'BETA: PREVIEW OR ACCEPT/DECLINE a pending player-company worker promise request. Atomically updates the promise, decision email, and native PWS relationship consequence, then verifies all three. Defaults to preview.', inputSchema: object({
+        promiseId: { type: 'integer', minimum: 1 }, decision: { type: 'string', enum: ['accept', 'decline'] }, preview: { type: 'boolean', default: true }, confirmed: { type: 'boolean' }
+    }, ['promiseId', 'decision']), annotations: WRITE },
     { name: 'pws_get_booking_context', description: 'Get everything needed to book a show intelligently: existing card, eligible roster, titles, storylines, recent matches, runtime, and company preferences.', inputSchema: object({ showId: { type: 'integer', description: 'Defaults to the next unfinished show.' } }), annotations: READ_ONLY },
     { name: 'pws_plan_show', description: 'Generate a complete dry-run card using roster ranking, alignment, active storylines, availability, fatigue-by-usage, brand, and runtime. This never changes the save.', inputSchema: object({
         showId: { type: 'integer', description: 'Defaults to the next unfinished show.' }, minutes: { type: 'integer', minimum: 10, maximum: 600 },
@@ -175,6 +184,15 @@ var TOOLS = [
     { name: 'pws_set_contract_gimmick', description: 'BETA: PREVIEW OR SET the gimmick on an active player-company contract through PWS contract modification. Verifies persistence. Defaults to preview.', inputSchema: object({
         contractId: { type: 'integer', minimum: 1 }, gimmick: { type: 'string', minLength: 1, maxLength: 100 }, preview: { type: 'boolean', default: true }, confirmed: { type: 'boolean' }
     }, ['contractId', 'gimmick']), annotations: WRITE },
+    { name: 'pws_set_contract_persona', description: 'BETA: PREVIEW OR SWITCH an active worker\'s contract identity to a native PWS alter ego, applying its preferred gimmick, picture, and mask when present; supplied presentation fields override those defaults and allow exact restoration. A custom ring name preserves unspecified presentation fields. The global worker identity is never renamed. Defaults to preview.', inputSchema: object({
+        contractId: { type: 'integer', minimum: 1 }, personaId: { type: 'integer', minimum: 1 }, name: { type: 'string', minLength: 1, maxLength: 120 }, gimmick: { type: 'string', minLength: 1, maxLength: 100 },
+        picture: { anyOf: [{ type: 'string', maxLength: 500 }, { type: 'null' }], description: 'Optional exact contract picture override; use the preview before-state to restore it.' },
+        hasMask: { type: 'boolean', description: 'Optional exact contract mask override; use the preview before-state to restore it.' },
+        preview: { type: 'boolean', default: true }, confirmed: { type: 'boolean' }
+    }, ['contractId']), annotations: WRITE },
+    { name: 'pws_set_persona_availability', description: 'BETA: PREVIEW OR CHANGE a native alter ego definition between free use (promotionExclusive=0), the player promotion, or a specified promotion for exact restoration. This changes availability globally within the loaded save, not merely one contract. Defaults to preview.', inputSchema: object({
+        personaId: { type: 'integer', minimum: 1 }, availability: { type: 'string', enum: ['free-use', 'player-promotion', 'specific-promotion'] }, promotionId: { type: 'integer', minimum: 1, description: 'Required only for specific-promotion; use the original promotionExclusive value to restore a previous restriction.' }, preview: { type: 'boolean', default: true }, confirmed: { type: 'boolean' }
+    }, ['personaId', 'availability']), annotations: WRITE },
     { name: 'pws_execute_action', description: 'ADVANCED SAVE ACTION for PWS operations that do not yet have a purpose-built verified tool. Requires confirmed=true. Supported actions: create_storyline, sign_worker, award_title, update_worker_attribute (sandbox only), create_news_item, create_email.', inputSchema: object({
         action: { type: 'string', enum: ['create_storyline', 'sign_worker', 'award_title', 'update_worker_attribute', 'create_news_item', 'create_email'] },
         arguments: { type: 'object', description: 'Action-specific arguments. sign_worker requires workerId, promotionId, contractType, and role; it also accepts exclusive, wages, contractLength, push, gimmick, contractName, and brand.' }, confirmed: { type: 'boolean', const: true }
@@ -187,10 +205,10 @@ var ROUTES = {
     pws_company_overview: 'company.overview', pws_get_roster: 'roster.list', pws_get_worker: 'game.worker',
     pws_get_worker_contracts: 'game.contracts', pws_analyze_hiring: 'hiring.analyze', pws_contract_advice: 'contracts.advise',
     pws_get_upcoming_shows: 'shows.upcoming', pws_get_show: 'shows.get', pws_get_venues: 'venues.list', pws_get_titles: 'game.titles',
-    pws_get_storylines: 'game.storylines', pws_diagnose_storyline_attribution: 'storylines.diagnoseAttribution', pws_get_stables: 'stables.list', pws_get_gimmicks: 'gimmicks.list', pws_get_booking_context: 'booking.context', pws_plan_show: 'booking.plan',
+    pws_get_storylines: 'game.storylines', pws_diagnose_storyline_attribution: 'storylines.diagnoseAttribution', pws_get_stables: 'stables.list', pws_get_gimmicks: 'gimmicks.list', pws_get_personas: 'personas.list', pws_get_promises: 'promises.list', pws_respond_to_promise: 'promises.respond', pws_get_booking_context: 'booking.context', pws_plan_show: 'booking.plan',
     pws_validate_show_plan: 'booking.validate', pws_apply_show_plan: 'booking.apply', pws_update_segment: 'booking.updateSegment',
     pws_remove_segment: 'booking.removeSegment', pws_set_show_venue: 'shows.setVenue', pws_create_event: 'events.create', pws_schedule_show: 'shows.schedule', pws_cancel_show: 'shows.cancel', pws_end_storyline: 'storylines.end', pws_add_storyline_worker: 'storylines.addWorker',
-    pws_remove_storyline_worker: 'storylines.removeWorker', pws_release_worker: 'contracts.release', pws_set_contract_gimmick: 'contracts.setGimmick', pws_vacate_title: 'titles.vacate',
+    pws_remove_storyline_worker: 'storylines.removeWorker', pws_release_worker: 'contracts.release', pws_set_contract_gimmick: 'contracts.setGimmick', pws_set_contract_persona: 'contracts.setPersona', pws_set_persona_availability: 'personas.setAvailability', pws_vacate_title: 'titles.vacate',
     pws_create_stable: 'stables.create', pws_dissolve_stable: 'stables.dissolve', pws_add_stable_worker: 'stables.addWorker', pws_remove_stable_worker: 'stables.removeWorker', pws_execute_action: 'actions.execute',
     pws_get_audit_log: 'actions.audit'
 };

@@ -10,6 +10,7 @@ test/
 index.js
 plugin.json
 README.md
+PLAYTESTING.md
 RELEASING.md
 STEAM_WORKSHOP_DESCRIPTION.txt
 src/booking.js

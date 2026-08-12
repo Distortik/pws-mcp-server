@@ -69,7 +69,7 @@ function validateStoryline(api, storylineId) {
 }
 
 function validateContract(api, contractId) {
-    var contract = domain.get(api, "SELECT c.contractID,c.workerID,c.promotionID,c.finalised,c.expired,c.contractStarted,COALESCE(NULLIF(c.contractName,''),w.name) AS name FROM contracts c LEFT JOIN workers w ON w.workerID=c.workerID WHERE c.contractID=?", [contractId]);
+    var contract = domain.get(api, "SELECT c.contractID,c.workerID,c.promotionID,c.finalised,c.expired,c.contractStarted,w.name AS workerName,c.contractName,COALESCE(NULLIF(c.contractName,''),w.name) AS name,c.gimmick,c.contractPicture,c.hasMask FROM contracts c LEFT JOIN workers w ON w.workerID=c.workerID WHERE c.contractID=?", [contractId]);
     if (!contract) throw new Error('Contract not found: ' + contractId);
     if (Number(contract.promotionID) !== context(api).promotionId) throw new Error('The contract does not belong to the player promotion');
     if (!Number(contract.finalised) || Number(contract.expired) || !Number(contract.contractStarted)) throw new Error('The contract is not active');
@@ -182,8 +182,167 @@ function setContractGimmick(api, options) {
     });
 }
 
+function setContractPersona(api, options) {
+    options = input(options, ['contractId', 'personaId', 'name', 'gimmick', 'picture', 'hasMask'], 'pws_set_contract_persona');
+    var contractId = integer(options.contractId, 'contractId');
+    var before = validateContract(api, contractId);
+    var persona = null;
+    if (options.personaId != null) {
+        var personaId = integer(options.personaId, 'personaId');
+        persona = domain.get(api, 'SELECT ae.egoID AS personaId,ae.workerID,ae.alterEgoName AS name,ae.promotionExclusive,p.fullName AS exclusivePromotion,ae.preferredGimmick,ae.percentUsed,ae.hasMask,ae.picture,ae.minDate,ae.maxDate FROM alteregos ae LEFT JOIN promotions p ON p.promotionID=ae.promotionExclusive WHERE ae.egoID=?', [personaId]);
+        if (!persona) throw new Error('Persona not found: ' + personaId);
+        if (Number(persona.workerID) !== Number(before.workerID)) throw new Error('The persona belongs to a different worker');
+    }
+    if (persona && options.name != null) throw new Error('Use personaId or name, not both');
+    var name = String(persona ? persona.name : (options.name == null ? '' : options.name)).trim();
+    if (!name) throw new Error('personaId or name is required');
+    if (name.length > 120) throw new Error('name cannot exceed 120 characters');
+    var preferredGimmick = persona ? String(persona.preferredGimmick || '').trim() : '';
+    var gimmick = options.gimmick == null ? (preferredGimmick ? validateGimmick(api, preferredGimmick) : null) : validateGimmick(api, options.gimmick);
+    var explicitPicture = Object.prototype.hasOwnProperty.call(options, 'picture');
+    var pictureRequested = explicitPicture || Boolean(persona && persona.picture);
+    var picture = persona && persona.picture ? String(persona.picture) : before.contractPicture;
+    if (explicitPicture) {
+        picture = options.picture == null ? null : String(options.picture).trim();
+        if (picture !== null && picture.length > 500) throw new Error('picture cannot exceed 500 characters');
+    }
+    var explicitMask = Object.prototype.hasOwnProperty.call(options, 'hasMask');
+    var nativeMask = persona && persona.hasMask != null && persona.hasMask !== '';
+    var maskRequested = explicitMask || nativeMask;
+    var hasMask = nativeMask ? (Number(persona.hasMask) ? 1 : 0) : Number(before.hasMask || 0);
+    if (explicitMask) hasMask = options.hasMask === true ? 1 : 0;
+    var changes = { contractName: name };
+    if (gimmick !== null) changes.gimmick = gimmick;
+    if (maskRequested) changes.hasMask = hasMask;
+    var ctx = context(api);
+    var proposed = {
+        contractId: contractId, personaId: persona ? Number(persona.personaId) : null,
+        name: name, gimmick: gimmick === null ? before.gimmick : gimmick,
+        contractPicture: pictureRequested ? picture : before.contractPicture,
+        hasMask: maskRequested ? hasMask : before.hasMask,
+        nativeEligibility: persona ? {
+            promotionEligible: !Number(persona.promotionExclusive || 0) || Number(persona.promotionExclusive) === ctx.promotionId,
+            dateEligible: (!persona.minDate || persona.minDate <= ctx.currentDate) && (!persona.maxDate || persona.maxDate >= ctx.currentDate),
+            promotionExclusive: Number(persona.promotionExclusive || 0), exclusivePromotion: persona.exclusivePromotion || null,
+            minDate: persona.minDate || null, maxDate: persona.maxDate || null
+        } : null
+    };
+    function rollback() {
+        var restore = { contractName: before.contractName, gimmick: before.gimmick, hasMask: before.hasMask };
+        requireAction(api, 'modifyContract').call(api.actions, { contractId: contractId, changes: restore });
+        if (pictureRequested && api.database && typeof api.database.execute === 'function') api.database.execute('UPDATE contracts SET contractPicture=? WHERE contractID=?', [before.contractPicture, contractId]);
+    }
+    return mutation(options, 'contract.setPersona', { api: api, before: before, proposed: proposed, audit: { contractId: contractId, persona: persona, proposed: proposed, before: before } }, function () {
+        var modify = requireAction(api, 'modifyContract');
+        if (pictureRequested && (!api.database || typeof api.database.execute !== 'function')) throw new Error('This PWS version has not granted the plugin its required narrow database-write capability for persona pictures');
+        var result = modify.call(api.actions, { contractId: contractId, changes: changes });
+        if (result && result.success === false) return result;
+        if (pictureRequested) {
+            try { api.database.execute('UPDATE contracts SET contractPicture=? WHERE contractID=?', [picture, contractId]); }
+            catch (error) { rollback(); throw error; }
+        }
+        return result;
+    }, function () {
+        var after = domain.get(api, "SELECT c.contractID,c.workerID,c.promotionID,w.name AS workerName,c.contractName,COALESCE(NULLIF(c.contractName,''),w.name) AS activeName,c.gimmick,c.contractPicture,c.hasMask FROM contracts c LEFT JOIN workers w ON w.workerID=c.workerID WHERE c.contractID=?", [contractId]);
+        var correct = after && after.contractName === name &&
+            (gimmick === null || after.gimmick === gimmick) &&
+            (!pictureRequested || after.contractPicture === picture) &&
+            (!maskRequested || Number(after.hasMask || 0) === hasMask);
+        if (correct) return { success: true, after: after };
+        rollback();
+        return { success: false, error: 'complete persona presentation was not persisted; the contract was restored', after: after };
+    });
+}
+
+function setPersonaAvailability(api, options) {
+    options = input(options, ['personaId', 'availability', 'promotionId'], 'pws_set_persona_availability');
+    var personaId = integer(options.personaId, 'personaId');
+    var availability = String(options.availability || '');
+    if (['free-use', 'player-promotion', 'specific-promotion'].indexOf(availability) === -1) throw new Error('availability must be free-use, player-promotion, or specific-promotion');
+    var ctx = context(api);
+    var before = domain.get(api, "SELECT ae.egoID AS personaId,ae.workerID AS workerId,w.name AS workerName,ae.alterEgoName AS name,ae.promotionExclusive,p.fullName AS exclusivePromotion FROM alteregos ae JOIN workers w ON w.workerID=ae.workerID LEFT JOIN promotions p ON p.promotionID=ae.promotionExclusive WHERE ae.egoID=?", [personaId]);
+    if (!before) throw new Error('Persona not found: ' + personaId);
+    if (availability !== 'specific-promotion' && options.promotionId != null) throw new Error('promotionId is only valid with availability=specific-promotion');
+    if (availability === 'specific-promotion' && options.promotionId == null) throw new Error('promotionId is required with availability=specific-promotion');
+    var targetPromotionId = availability === 'free-use' ? 0 : availability === 'player-promotion' ? ctx.promotionId : integer(options.promotionId, 'promotionId');
+    var targetPromotion = targetPromotionId ? domain.get(api, 'SELECT promotionID,fullName FROM promotions WHERE promotionID=?', [targetPromotionId]) : null;
+    if (targetPromotionId && !targetPromotion) throw new Error('Promotion not found: ' + targetPromotionId);
+    var proposed = { personaId: personaId, name: before.name, availability: availability, promotionExclusive: targetPromotionId, exclusivePromotion: targetPromotion ? targetPromotion.fullName : null };
+    if (Number(before.promotionExclusive || 0) === targetPromotionId) throw new Error('The persona already has the requested availability');
+    var duplicate = domain.get(api, "SELECT egoID AS personaId FROM alteregos WHERE workerID=? AND alterEgoName=? COLLATE NOCASE AND COALESCE(promotionExclusive,0)=? AND egoID<>? LIMIT 1", [before.workerId, before.name, targetPromotionId, personaId]);
+    if (duplicate) throw new Error('An equivalent persona already has the requested availability: ' + duplicate.personaId);
+    return mutation(options, 'persona.setAvailability', { api: api, before: before, proposed: proposed, audit: { personaId: personaId, availability: availability, promotionExclusive: targetPromotionId, before: before } }, function () {
+        if (!api.database || typeof api.database.execute !== 'function') throw new Error('This PWS version has not granted the plugin its required narrow database-write capability');
+        api.database.execute('UPDATE alteregos SET promotionExclusive=? WHERE egoID=?', [targetPromotionId, personaId]);
+        return { success: true };
+    }, function () {
+        var after = domain.get(api, "SELECT ae.egoID AS personaId,ae.workerID AS workerId,w.name AS workerName,ae.alterEgoName AS name,ae.promotionExclusive,p.fullName AS exclusivePromotion FROM alteregos ae JOIN workers w ON w.workerID=ae.workerID LEFT JOIN promotions p ON p.promotionID=ae.promotionExclusive WHERE ae.egoID=?", [personaId]);
+        if (after && Number(after.promotionExclusive || 0) === targetPromotionId) return { success: true, after: after };
+        api.database.execute('UPDATE alteregos SET promotionExclusive=? WHERE egoID=?', [Number(before.promotionExclusive || 0), personaId]);
+        return { success: false, error: 'persona availability was not persisted; the original restriction was restored', after: after };
+    });
+}
+
+function promiseResponseState(api, promiseId) {
+    var promise = domain.get(api, "SELECT p.promiseID AS promiseId,p.type,p.startDate,p.expiryDate,p.agreed,p.expired,p.passed,p.promotionID,p.worker1 AS contractId,c.workerID AS workerId,COALESCE(NULLIF(c.contractName,''),w.name) AS workerName,NULLIF(p.worker2,'') AS relatedContractId,NULLIF(p.title,'') AS titleId FROM promises p LEFT JOIN contracts c ON c.contractID=p.worker1 LEFT JOIN workers w ON w.workerID=c.workerID WHERE p.promiseID=?", [promiseId]);
+    if (!promise) return null;
+    promise.email = domain.get(api, 'SELECT emailID,workerInvolved1,workerInvolved2,hasDecision,decisionIsHandled FROM emails WHERE promiseID=? ORDER BY emailID DESC LIMIT 1', [promiseId]);
+    promise.userRelationship = promise.workerId == null ? null : domain.get(api, 'SELECT relationshipID,worker1,worker2,relationship FROM relationships WHERE (worker1=? AND worker2=-1) OR (worker1=-1 AND worker2=?) LIMIT 1', [promise.workerId, promise.workerId]);
+    promise.status = Number(promise.passed) ? 'fulfilled' : Number(promise.expired) ? 'expired' : Number(promise.agreed) === -1 ? 'declined' : Number(promise.agreed) === 1 ? 'active' : 'pending';
+    return promise;
+}
+
+function respondToPromise(api, options) {
+    options = input(options, ['promiseId', 'decision'], 'pws_respond_to_promise');
+    var promiseId = integer(options.promiseId, 'promiseId');
+    var decision = String(options.decision || '');
+    if (['accept', 'decline'].indexOf(decision) === -1) throw new Error('decision must be accept or decline');
+    var before = promiseResponseState(api, promiseId);
+    if (!before) throw new Error('Promise not found: ' + promiseId);
+    if (Number(before.promotionID) !== context(api).promotionId) throw new Error('The promise does not belong to the player promotion');
+    if (before.status !== 'pending') throw new Error('Only a pending promise request can be accepted or declined');
+    if (!before.email || Number(before.email.hasDecision) !== 1 || Number(before.email.decisionIsHandled || 0) === 1) throw new Error('The promise does not have an outstanding decision email');
+    if (Number(before.email.workerInvolved1) !== Number(before.workerId)) throw new Error('The promise email does not match the requesting worker');
+    var proposed = {
+        promiseId: promiseId, decision: decision, status: decision === 'accept' ? 'active' : 'declined',
+        emailId: Number(before.email.emailID), relationshipEffect: { minimum: decision === 'accept' ? 5 : -15, maximum: decision === 'accept' ? 15 : -5 }
+    };
+    if (options.preview !== false) return { success: true, status: 'preview', action: 'promise.respond', before: before, proposed: proposed };
+    if (options.confirmed !== true) throw new Error('Refusing to change the save: use preview first, then set preview=false and confirmed=true');
+    if (!api.database || typeof api.database.execute !== 'function') throw new Error('This PWS version has not granted the plugin its required narrow database-write capability');
+    var magnitude = 5 + Math.floor(Math.random() * 11);
+    var requestedRelationshipChange = decision === 'accept' ? magnitude : -magnitude;
+    var agreed = decision === 'accept' ? 1 : -1;
+    var after;
+    api.database.execute('BEGIN IMMEDIATE');
+    try {
+        var current = promiseResponseState(api, promiseId);
+        if (!current || current.status !== 'pending' || !current.email || Number(current.email.decisionIsHandled || 0) === 1) throw new Error('The promise decision changed after preview; review it again');
+        api.database.execute('UPDATE promises SET agreed=? WHERE promiseID=?', [agreed, promiseId]);
+        api.database.execute('UPDATE emails SET decisionIsHandled=1 WHERE emailID=?', [Number(current.email.emailID)]);
+        var oldRelationship = current.userRelationship ? Number(current.userRelationship.relationship || 0) : 0;
+        var newRelationship = Math.max(-100, Math.min(100, oldRelationship + requestedRelationshipChange));
+        if (current.userRelationship) api.database.execute('UPDATE relationships SET relationship=? WHERE relationshipID=?', [newRelationship, Number(current.userRelationship.relationshipID)]);
+        else api.database.execute('INSERT INTO relationships (worker1,worker2,relationship) VALUES (?, -1, ?)', [Number(current.workerId), newRelationship]);
+        after = promiseResponseState(api, promiseId);
+        var correctStatus = after && after.status === proposed.status;
+        var correctEmail = after && after.email && Number(after.email.decisionIsHandled) === 1;
+        var correctRelationship = after && after.userRelationship && Number(after.userRelationship.relationship) === newRelationship;
+        if (!correctStatus || !correctEmail || !correctRelationship) throw new Error('Promise response did not persist completely');
+        api.database.execute('COMMIT');
+    } catch (error) {
+        try { api.database.execute('ROLLBACK'); } catch (_) { /* return the original error */ }
+        throw error;
+    }
+    var actualRelationshipChange = Number(after.userRelationship.relationship) - Number(before.userRelationship ? before.userRelationship.relationship || 0 : 0);
+    var entry = audit.record(api, 'promise.respond', { promiseId: promiseId, decision: decision, workerId: Number(before.workerId), emailId: Number(before.email.emailID), relationshipChange: actualRelationshipChange, before: before });
+    return { success: true, status: 'applied', action: 'promise.respond', before: before, after: after, result: { decision: decision, relationshipChange: actualRelationshipChange }, verification: { success: true, after: after }, audit: entry };
+}
+
 function event(api, eventId) {
-    return domain.get(api, 'SELECT eventID,eventName,promotionID,prestige,recurrenceType,recurrenceMonth,recurrenceWeek,brand,eventLength,importance,inactive,preferredVenue FROM events WHERE eventID=?', [eventId]);
+    var row = domain.get(api, 'SELECT eventID,eventName,promotionID,prestige,recurrenceType,recurrenceMonth,recurrenceWeek,brand,eventLength,importance,inactive,preferredVenue FROM events WHERE eventID=?', [eventId]);
+    if (row) row.importance = domain.importanceName(row.importance);
+    return row;
 }
 
 function createEvent(api, options) {
@@ -209,11 +368,18 @@ function createEvent(api, options) {
     var proposed = { promotionId: ctx.promotionId, name: name, recurrenceType: recurrenceType, recurrenceMonth: month, recurrenceWeek: week, prestige: prestige, importance: importance, eventLength: length };
     if (options.brand != null) proposed.brand = integer(options.brand, 'brand');
     return mutation(options, 'event.create', { api: api, before: null, proposed: proposed, audit: { proposed: proposed } }, function () {
-        return requireAction(api, 'createEvent').call(api.actions, proposed);
+        if (importance === 'House Show' && (!api.database || typeof api.database.execute !== 'function')) throw new Error('This PWS version requires the plugin database-write capability to preserve House Show importance');
+        var result = requireAction(api, 'createEvent').call(api.actions, proposed);
+        if (result && result.success !== false && importance === 'House Show') api.database.execute('UPDATE events SET importance=0 WHERE eventID=?', [Number(result.eventId)]);
+        return result;
     }, function () {
         var row = domain.get(api, 'SELECT eventID FROM events WHERE promotionID=? AND eventName=? ORDER BY eventID DESC LIMIT 1', [ctx.promotionId, name]);
         var after = row ? event(api, Number(row.eventID)) : null;
-        return after && Number(after.eventLength) === length && after.recurrenceType === recurrenceType ? { success: true, after: after } : { success: false, error: 'event was not persisted as requested', after: after };
+        var correct = after && after.eventName === name && Number(after.eventLength) === length && after.recurrenceType === recurrenceType &&
+            Number(after.prestige) === prestige && after.importance === importance &&
+            (month === null || Number(after.recurrenceMonth) === month) && (week === null || Number(after.recurrenceWeek) === week) &&
+            (proposed.brand == null || Number(after.brand) === proposed.brand);
+        return correct ? { success: true, after: after } : { success: false, error: 'event was not persisted as requested', after: after };
     });
 }
 
@@ -339,4 +505,4 @@ function setShowVenue(api, options) {
     });
 }
 
-module.exports = { cancelShow: cancelShow, changeStableMember: changeStableMember, changeStorylineMember: changeStorylineMember, createEvent: createEvent, createStable: createStable, dissolveStable: dissolveStable, endStoryline: endStoryline, listStables: listStables, releaseWorker: releaseWorker, removeSegment: removeSegment, scheduleShow: scheduleShow, setContractGimmick: setContractGimmick, setShowVenue: setShowVenue, stable: stable, vacateTitle: vacateTitle, validateGimmick: validateGimmick };
+module.exports = { cancelShow: cancelShow, changeStableMember: changeStableMember, changeStorylineMember: changeStorylineMember, createEvent: createEvent, createStable: createStable, dissolveStable: dissolveStable, endStoryline: endStoryline, listStables: listStables, releaseWorker: releaseWorker, removeSegment: removeSegment, respondToPromise: respondToPromise, scheduleShow: scheduleShow, setContractGimmick: setContractGimmick, setContractPersona: setContractPersona, setPersonaAvailability: setPersonaAvailability, setShowVenue: setShowVenue, stable: stable, vacateTitle: vacateTitle, validateGimmick: validateGimmick };
