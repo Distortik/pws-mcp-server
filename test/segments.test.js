@@ -19,6 +19,9 @@ function fakeApi(options) {
         20: { contractID: 20, workerID: 2, promotionID: 2, name: 'Challenger', type: 'Wrestler', gender: 'Male', injuryType: '', isSuspended: 0, suspended: 0, onTimeOff: 0 },
         30: { contractID: 30, workerID: 3, promotionID: 2, name: 'Third', type: 'Wrestler', gender: 'Male', injuryType: '', isSuspended: 0, suspended: 0, onTimeOff: 0 }
     };
+    Object.keys(options.workerTypes || {}).forEach(function (contractId) {
+        contracts[contractId].type = options.workerTypes[contractId];
+    });
     var titles = {
         101: { titleID: 101, promotionID: 2, name: 'World Title', type: 'Singles', inactive: 0, brand: null, genderLimits: 'Male', defendable: 1, currentChampion: 1, currentChampion2: null, currentChampion3: null, defences: 5 },
         102: { titleID: 102, promotionID: 2, name: 'Vacant Cup', type: 'Singles', inactive: 0, brand: null, genderLimits: 'Open', defendable: 1, currentChampion: null, currentChampion2: null, currentChampion3: null, defences: 0 }
@@ -164,6 +167,20 @@ test('rejects unknown and segment-incompatible update fields', function () {
         var api = fakeApi();
         assert.throws(function () { segments.updateSegment(api, { segmentId: 7, changes: { titleId: 101 } }); }, /unsupported field "titleId"/);
         assert.throws(function () { segments.updateSegment(api, { segmentId: 7, changes: { angleType: 'Promo' } }); }, /unsupported field "angleType"/);
+    });
+});
+
+test('allows occasional wrestlers in match edits while rejecting angle-only worker types', function () {
+    withContext(function () {
+        var occasional = segments.updateSegment(fakeApi({ workerTypes: { 30: 'Occasional Wrestler' } }), {
+            segmentId: 7, changes: { participants: [[10], [30]] }
+        });
+        assert.deepEqual(occasional.proposed.participants, [[10], [30]]);
+        assert.throws(function () {
+            segments.updateSegment(fakeApi({ workerTypes: { 30: 'Staff' } }), {
+                segmentId: 7, changes: { participants: [[10], [30]] }
+            });
+        }, /Third is not a wrestler/);
     });
 });
 

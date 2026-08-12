@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.0-beta.5 - 2026-08-12
+
+- Replaced the hand-written JSON-lines stdin loop with the official MCP SDK server and stdio transport while preserving the existing tools, resources, prompts, and PWS version-pair checks.
+- Added real-client regression coverage that completes MCP initialization and lists the tool, resource, and prompt catalogues through the official SDK client transport.
+- Bundled the MCP server and SDK into a self-contained Node.js file for Workshop, manual, TEST, Claude Code, Codex, and MCPB use without shipping `node_modules`.
+- Rebuilt MCPB packaging around a minimal validated staging directory so the installed extension contains the exact same standalone server that passed transport tests.
+- Generated and shipped third-party license notices for every dependency included in the standalone bundle.
+- Fixed B14 by allowing both `Wrestler` and `Occasional Wrestler` in match-plan validation and transactional segment edits while continuing to reject angle-only worker types.
+- Kept the beta narrow: B14 match eligibility is the only game-facing behavior change, and no PWS persistence or save-mutation code changed from beta.4.
+- Regular Claude Desktop Home-chat validation on Windows remains the final beta.5 acceptance check before this compatibility issue is considered resolved.
+
 ## 0.4.0-beta.4 - 2026-08-12
 
 > **Known issue discovered after publication:** on Claude Desktop for Windows, the beta.4 MCPB installs and launches but regular Home chat cancels its MCP initialization after 60 seconds. Claude Code and Codex direct-path connections remain functional. A focused beta.5 compatibility fix is required before the final 0.4.0 release.

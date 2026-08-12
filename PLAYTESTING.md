@@ -1,16 +1,16 @@
 # Beta playtesting
 
-Use this checklist for `0.4.0-beta.4`. Test on a copied or backed-up save. Do not enable the Workshop and TEST versions of the plugin together.
+Use this checklist for `0.4.0-beta.5`. Beta.5 changes the MCP client transport and packaging and fixes B14 match eligibility for `Occasional Wrestler`; any save-changing regression checks should still use a copied or backed-up save. Do not enable the Workshop and TEST versions of the plugin together.
 
 ## Install the matching pair
 
 1. Back up the target PWS save.
 2. Disable the Workshop version of PWS MCP Server.
-3. Extract `pws-mcp-server-TEST-plugin-v0.4.0-beta.4.zip` under `%APPDATA%\ProWrestlingSimulator\plugins` and enable only **PWS MCP Server TEST**.
-4. Install `pws-mcp-server-v0.4.0-beta.4.mcpb` in Claude Desktop and restart it.
+3. Extract `pws-mcp-server-TEST-plugin-v0.4.0-beta.5.zip` under `%APPDATA%\ProWrestlingSimulator\plugins` and enable only **PWS MCP Server TEST**.
+4. Install `pws-mcp-server-v0.4.0-beta.5.mcpb` in Claude Desktop and restart it.
 5. For Claude Code, point the user-level MCP entry to `%APPDATA%\ProWrestlingSimulator\plugins\pws-mcp-server-TEST\mcp-server.js`.
-6. Confirm `pws_get_state` reports the intended save, player promotion, and `0.4.0-beta.4` tool set.
-7. If a client reports a version mismatch, update/reselect the matching in-game plugin and client server, then restart both; beta.4 rejects mismatched pairs before running tools.
+6. Confirm `pws_get_state` reports the intended save, player promotion, and `0.4.0-beta.5` tool set.
+7. If a client reports a version mismatch, update/reselect the matching in-game plugin and client server, then restart both; beta.5 rejects mismatched pairs before running tools.
 
 ## Read-only checks
 
@@ -20,6 +20,7 @@ Use this checklist for `0.4.0-beta.4`. Test on a copied or backed-up save. Do no
 - Run `pws_get_personas` for Mark Calaway or Mick Foley. Check promotion names, boolean promotion/date eligibility and mask flags, preferred gimmick, picture, and dates.
 - Run `pws_get_stables`, `pws_get_upcoming_shows`, `pws_get_venues`, and `pws_diagnose_storyline_attribution`.
 - Run `pws_get_show` on a booked show. Confirm `participants` contains grouped contract IDs, `opponentDetails` contains names/roles, and ringside/subject arrays match the card.
+- On an unfinished disposable show, validate—but do not apply—a match containing an active `Occasional Wrestler` and a normal `Wrestler`; confirm validation accepts both. Confirm an angle-only type such as `Staff` remains rejected as a match participant.
 
 ## Persona checks
 
@@ -73,7 +74,7 @@ For every operation, inspect the preview before applying it and confirm the PWS 
 - Exercise release and title-vacation previews without applying them unless the save is disposable.
 - Confirm raw `pws_query` remains read-only and rejects writes or stacked statements.
 
-Run the automated live suite after the beta.4 TEST plugin is loaded:
+Run the automated live suite after the beta.5 TEST plugin is loaded:
 
 ```powershell
 npm.cmd run test:live
@@ -93,5 +94,5 @@ Beta playtesting passes when:
 - persona changes preserve the global worker identity and restore cleanly;
 - the Workshop plugin can remain disabled while the TEST plugin and matching MCPB expose the same version;
 - all unexpected behavior is recorded with the tool input, returned error/result, relevant IDs, and whether PWS was reloaded.
-- the matching MCPB completes initialization in a regular Claude Desktop Home conversation and exposes the same version/tool catalogue as direct Claude Code and Codex connections; beta.4 currently fails this check and requires beta.5.
+- the matching beta.5 MCPB completes initialization in a regular Claude Desktop Home conversation and exposes the same version/tool catalogue as direct Claude Code and Codex connections;
 - Claude Code and Codex path setup is tested through the documented copy/paste assistant request as well as the explicit CLI commands, so users are not required to locate or edit configuration manually.

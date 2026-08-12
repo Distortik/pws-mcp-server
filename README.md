@@ -37,9 +37,9 @@ Node.js 18 or newer is still required for Codex, Claude Code, and other clients 
 
 ## Known Claude Desktop issue
 
-The `0.4.0-beta.4` MCPB currently installs, enables, and launches on Claude Desktop for Windows, but regular **Home** chats do not receive its tools. Claude sends the MCP `initialize` request, waits 60 seconds, and disconnects before tool registration completes. Direct Claude Code and Codex connections continue to work, so this is being treated as a focused MCPB/Claude Desktop compatibility blocker for `0.4.0-beta.5` rather than a PWS bridge or save-data failure.
+The `0.4.0-beta.4` MCPB installs, enables, and launches on Claude Desktop for Windows, but regular **Home** chats do not receive its tools. Claude sends the MCP `initialize` request, waits 60 seconds, and disconnects before tool registration completes. Direct Claude Code and Codex connections continue to work, confirming this is an MCPB/Claude Desktop compatibility issue rather than a PWS bridge or save-data failure.
 
-Until beta.5 is available, use Claude Code (including Claude Desktop's **Code** tab) or Codex with the direct `mcp-server.js` path. You do not have to find or edit the configuration manually: paste the setup request under [Connect Claude Code](#connect-claude-code) or [Connect Codex](#connect-codex) into that client and ask it to configure and verify the path for you.
+The `0.4.0-beta.5` candidate replaces the hand-written stdin layer with the official MCP SDK transport and passes automated initialization against both its source and self-contained packaged server. A successful regular Claude Desktop Home-chat test on Windows is still required before the issue is closed. Until beta.5 is published and confirmed, use Claude Code (including Claude Desktop's **Code** tab) or Codex with the direct `mcp-server.js` path. You do not have to find or edit the configuration manually: paste the setup request under [Connect Claude Code](#connect-claude-code) or [Connect Codex](#connect-codex) into that client and ask it to configure and verify the path for you.
 
 ## Claude Desktop and Claude Code are separate
 
@@ -47,7 +47,7 @@ Until beta.5 is available, use Claude Code (including Claude Desktop's **Code** 
 - **Claude Code** ignores the MCPB and runs the exact `mcp-server.js` path stored in its MCP configuration. Inspect that path with `claude mcp get pro-wrestling-sim`.
 - Enabling a Workshop or TEST plugin inside PWS does not automatically repoint Claude Code at the matching server file.
 - After installing an MCPB or changing Claude Code's MCP path, fully restart the corresponding Claude client so it reloads the tool list.
-- Workshop and TEST installs use stable folder names, so Claude Code and Codex paths do not change between versions. Once configured correctly, replace/deploy the files in that folder and restart the client; the beta.4 server also reports an explicit error if its version does not match the running in-game plugin.
+- Workshop and TEST installs use stable folder names, so Claude Code and Codex paths do not change between versions. Once configured correctly, replace/deploy the files in that folder and restart the client; beta servers also report an explicit error if their version does not match the running in-game plugin.
 
 ## Install the PWS plugin
 
@@ -65,16 +65,18 @@ The plugin works in the background and does not add an in-game page.
 
 Use this only when you are not installing through Steam Workshop.
 
-1. Download the repository ZIP from GitHub and extract it.
-2. Rename the extracted folder to `pws-mcp-server`.
-3. Copy it to `%APPDATA%\ProWrestlingSimulator\plugins`.
-4. Restart PWS, enable the plugin, and load a save.
+1. Open the matching [GitHub release](https://github.com/Distortik/pws-mcp-server/releases).
+2. Download and extract `pws-mcp-server-plugin-vVERSION.zip`. For a beta playtest, use the separately named TEST plugin ZIP from that prerelease.
+3. Copy the extracted plugin folder to `%APPDATA%\ProWrestlingSimulator\plugins` without changing its included folder name.
+4. Restart PWS, enable only that plugin build, and load a save.
+
+Use the packaged release asset, not GitHub's automatic repository source ZIP. The release asset contains the self-contained MCP server used by direct-path clients.
 
 ## Connect Claude Desktop
 
 Claude Desktop uses the one-click MCPB release. Do not edit `claude_desktop_config.json`.
 
-> **Current beta limitation:** regular Home-chat MCPB initialization is blocked by the issue above. The installation steps are retained for beta.5 retesting; use Claude Code/Code or Codex as the temporary working path.
+> **Beta.5 acceptance check:** the new SDK-based MCPB must be confirmed in a regular Home conversation on Claude Desktop for Windows. Use Claude Code/Code or Codex as the working fallback until that live check passes.
 
 **Account requirement:** The Code tab uses Claude Code and requires an eligible paid Claude plan, or pay-as-you-go Claude API billing.
 
@@ -83,9 +85,9 @@ Claude Desktop uses the one-click MCPB release. Do not edit `claude_desktop_conf
 3. In Claude Desktop, open **Settings > Extensions > Advanced settings**.
 4. Select **Install Extension** and choose the downloaded `.mcpb` file.
 5. Start PWS, enable the plugin, and load a save.
-6. Open the **Code** tab in Claude Desktop, start a new conversation, and confirm that **Pro Wrestling Sim** is enabled.
+6. Start a new **Home** conversation and confirm that **Pro Wrestling Sim** is enabled. If the beta.5 acceptance check has not passed on your installation, use the **Code** tab fallback below.
 
-Use the **Code** tab, not the **Home** tab. Home conversations do not use MCP servers configured in Claude Code.
+The MCPB is for regular **Home** conversations. The **Code** tab uses Claude Code's separate MCP configuration and remains the direct-path fallback.
 
 The MCPB installs only the Claude-side connection. The in-game plugin must still be installed through Steam Workshop or manually.
 
@@ -179,7 +181,7 @@ Keep PWS open with a save loaded, then ask:
 
 > Connect to Pro Wrestling Sim and tell me the loaded save, current date, player promotion, company size, and cash balance.
 
-For beta.4, ask this from Claude Desktop's **Code** tab or from standalone Claude Code/Codex. Regular Home-chat MCPB support is pending the beta.5 compatibility fix.
+For the beta.5 acceptance test, ask this from a regular Claude Desktop **Home** conversation. You can also run it from Claude Code/Code or Codex to verify the direct-path connection independently.
 
 If the answer contains information from your save, setup is complete.
 
@@ -194,6 +196,8 @@ If the answer contains information from your save, setup is complete.
 ## Booking API notes
 
 Use `titleIds: number[]` to put championships on the line in a match. This is the only supported championship field; singular `titleId` and other unknown segment fields are rejected. Validation checks that each title is active, belongs to the player promotion, fits the show brand and match team size, and includes every reigning champion unless the title is vacant. Multiple titles are supported.
+
+Match participants may have PWS worker type `Wrestler` or `Occasional Wrestler`. Angle-only types such as `Staff`, `Personality`, `Referee`, and `Announcer` remain ineligible for matches.
 
 `pws_apply_show_plan` re-reads every created segment and verifies its participants, winner, runtime, title associations, and other requested booking fields. If verification fails, it reports failure and removes the new segments instead of returning a false success.
 
@@ -230,7 +234,7 @@ Start PWS, confirm the plugin is enabled, and load a save. If it was already ope
 
 ### Claude Desktop is not connected or has outdated tools
 
-The beta.4 MCPB currently times out during initialization in regular Home chats on Claude Desktop for Windows. Use the **Code** tab or standalone Claude Code/Codex with the direct server path while beta.5 is developed. If retesting an MCPB, confirm **Pro Wrestling Sim** is enabled, install the matching newest package, fully restart Claude Desktop, and start a new conversation. Never share `%APPDATA%\ProWrestlingSimulator\mcp\pws-mcp-runtime.json`; it contains a temporary local access token.
+The beta.4 MCPB times out during initialization in regular Home chats on Claude Desktop for Windows. Beta.5 replaces its transport with the official SDK and must be retested in Home chat. Install the matching newest package, fully restart Claude Desktop, start a new Home conversation, and confirm **Pro Wrestling Sim** is enabled. Use the **Code** tab or standalone Claude Code/Codex with the direct server path as a fallback. Never share `%APPDATA%\ProWrestlingSimulator\mcp\pws-mcp-runtime.json`; it contains a temporary local access token.
 
 ### Claude Code is not connected or has outdated tools
 

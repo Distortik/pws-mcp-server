@@ -194,7 +194,7 @@ function validateParticipants(value, contracts, minimumGroups, options) {
         var ids = validateContractIds(group, 'participants[' + groupIndex + ']', contracts);
         if (!ids.length) throw new Error('participants[' + groupIndex + '] cannot be empty');
         ids.forEach(function (id) {
-            if (options.requireWrestlers && contracts[id].type && String(contracts[id].type).toLowerCase() !== 'wrestler') throw new Error((contracts[id].name || ('Contract ' + id)) + ' is not a wrestler and cannot be a match participant');
+            if (options.requireWrestlers && !domain.canParticipateInMatch(contracts[id].type)) throw new Error((contracts[id].name || ('Contract ' + id)) + ' is not a wrestler and cannot be a match participant');
             if (seen[id]) throw new Error('participants contains duplicate contract ' + id);
             seen[id] = true;
         });

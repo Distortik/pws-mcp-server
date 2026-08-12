@@ -3,12 +3,14 @@
 
 var fs = require('fs');
 var http = require('http');
-var readline = require('readline');
+var Server = require('@modelcontextprotocol/sdk/server/index.js').Server;
+var StdioServerTransport = require('@modelcontextprotocol/sdk/server/stdio.js').StdioServerTransport;
+var mcpTypes = require('@modelcontextprotocol/sdk/types.js');
 var definitions = require('./src/tools');
 var runtime = require('./src/runtime');
 
-var SERVER = { name: 'pws-mcp-server', version: '0.4.0-beta.4' };
-var PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'];
+var SERVER = { name: 'pws-mcp-server', version: '0.4.0-beta.5' };
+var PROTOCOLS = mcpTypes.SUPPORTED_PROTOCOL_VERSIONS.slice();
 var INSTRUCTIONS = 'Use PWS search tools to resolve names to IDs before acting. Read company and booking context before giving management advice. Show plans are drafts: explain major choices and obtain explicit user approval before applying a plan or calling any save-changing action. Prefer purpose-built tools over raw SQL. Never claim a save change succeeded unless the tool result says success=true.';
 
 function runtimeConfig() {
@@ -111,24 +113,42 @@ async function handle(message) {
     throw Object.assign(new Error('Method not found: ' + message.method), { code: -32601 });
 }
 
-function write(message) { process.stdout.write(JSON.stringify(message) + '\n'); }
+function createMcpServer() {
+    var server = new Server(SERVER, {
+        capabilities: {
+            tools: { listChanged: false },
+            resources: { subscribe: false, listChanged: false },
+            prompts: { listChanged: false }
+        },
+        instructions: INSTRUCTIONS
+    });
 
-function start() {
-    var input = readline.createInterface({ input: process.stdin, crlfDelay: Infinity });
-    input.on('line', async function (line) {
-        if (!line.trim()) return;
-        var message;
-        try { message = JSON.parse(line); }
-        catch (_) { write({ jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } }); return; }
-        try {
-            var result = await handle(message);
-            if (message.id !== undefined && result !== null) write({ jsonrpc: '2.0', id: message.id, result: result });
-        } catch (error) {
-            if (message.id !== undefined) write({ jsonrpc: '2.0', id: message.id, error: { code: error.code || -32603, message: error.message } });
-        }
+    [
+        mcpTypes.ListToolsRequestSchema,
+        mcpTypes.CallToolRequestSchema,
+        mcpTypes.ListResourcesRequestSchema,
+        mcpTypes.ReadResourceRequestSchema,
+        mcpTypes.ListPromptsRequestSchema,
+        mcpTypes.GetPromptRequestSchema
+    ].forEach(function (schema) {
+        server.setRequestHandler(schema, handle);
+    });
+
+    return server;
+}
+
+async function start() {
+    var server = createMcpServer();
+    var transport = new StdioServerTransport();
+    await server.connect(transport);
+    return { server: server, transport: transport };
+}
+
+if (require.main === module) {
+    start().catch(function (error) {
+        console.error('PWS MCP server failed to start: ' + error.message);
+        process.exitCode = 1;
     });
 }
 
-if (require.main === module) start();
-
-module.exports = { assertRuntimeVersion: assertRuntimeVersion, ensureRuntimeVersion: ensureRuntimeVersion, handle: handle, resourceRead: resourceRead, rpc: rpc, start: start, toolCall: toolCall, TOOLS: definitions.TOOLS };
+module.exports = { assertRuntimeVersion: assertRuntimeVersion, createMcpServer: createMcpServer, ensureRuntimeVersion: ensureRuntimeVersion, handle: handle, resourceRead: resourceRead, rpc: rpc, start: start, toolCall: toolCall, TOOLS: definitions.TOOLS };

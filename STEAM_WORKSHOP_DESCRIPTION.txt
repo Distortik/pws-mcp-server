@@ -6,7 +6,7 @@ Ask your AI assistant to inspect your save, plan shows, check workers and storyl
 
 [quote][b]Known Claude Desktop issue[/b]
 
-The 0.4.0-beta.4 MCPB currently installs and launches on Claude Desktop for Windows, but regular Home chats cancel its connection after a 60-second initialization timeout. Claude Code, Claude Desktop's Code tab, and Codex direct-path connections remain usable. A focused 0.4.0-beta.5 compatibility fix is planned before the final 0.4.0 release.
+The 0.4.0-beta.4 MCPB installs and launches on Claude Desktop for Windows, but regular Home chats cancel its connection after a 60-second initialization timeout. Claude Code, Claude Desktop's Code tab, and Codex direct-path connections remain usable. The focused 0.4.0-beta.5 candidate now uses the official MCP SDK transport and passes automated client initialization; a regular Home-chat test on Windows is still required before the fix is considered complete.
 [/quote]
 
 [h2]Highlights[/h2]
@@ -30,7 +30,7 @@ The 0.4.0-beta.4 MCPB currently installs and launches on Claude Desktop for Wind
 
 [b]Claude Desktop[/b]
 
-Download and install the matching [code].mcpb[/code] file from the [url=https://github.com/Distortik/pws-mcp-server/releases]GitHub release[/url], then restart Claude Desktop. Regular Home-chat use is currently affected by the beta issue above; use Code or Codex temporarily.
+Download and install the matching [code].mcpb[/code] file from the [url=https://github.com/Distortik/pws-mcp-server/releases]GitHub release[/url], then restart Claude Desktop. Beta.5 must still pass its live Home-chat acceptance check; use Code or Codex as the temporary fallback.
 
 [b]Important:[/b] Steam updates only the in-game plugin. It does not update Claude Desktop's [code].mcpb[/code] file.
 

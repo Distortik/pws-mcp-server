@@ -46,18 +46,21 @@ function replaceDirectoryContents(source, target) {
     });
 }
 
-function deploy() {
+async function deploy() {
     var target = targetDirectory();
     assertSafeTarget(target);
     if (isPwsRunning()) throw new Error('Close Pro Wrestling Sim before deploying the plugin.');
 
-    workshop.build();
+    await workshop.build();
     fs.mkdirSync(path.dirname(target), { recursive: true });
     replaceDirectoryContents(workshop.outputDirectory, target);
     console.log('Clean plugin deployed to: ' + target);
 }
 
-if (require.main === module) deploy();
+if (require.main === module) deploy().catch(function (error) {
+    console.error(error.stack || error.message);
+    process.exitCode = 1;
+});
 
 module.exports = {
     deploy: deploy,

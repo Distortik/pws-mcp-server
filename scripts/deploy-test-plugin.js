@@ -46,12 +46,12 @@ function identifyAsTestBuild(target) {
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
 }
 
-function deploy() {
+async function deploy() {
     var target = targetDirectory();
     assertSafeTarget(target);
     if (isPwsRunning()) throw new Error('Close Pro Wrestling Sim before deploying the TEST plugin.');
 
-    workshop.build();
+    await workshop.build();
     if (fs.existsSync(target)) fs.rmSync(target, { recursive: true, force: true });
     fs.mkdirSync(path.dirname(target), { recursive: true });
     fs.cpSync(workshop.outputDirectory, target, { recursive: true });
@@ -62,7 +62,10 @@ function deploy() {
     return target;
 }
 
-if (require.main === module) deploy();
+if (require.main === module) deploy().catch(function (error) {
+    console.error(error.stack || error.message);
+    process.exitCode = 1;
+});
 
 module.exports = {
     TEST_FOLDER: TEST_FOLDER,

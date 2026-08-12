@@ -39,8 +39,8 @@ function assertVersions() {
     if (!match || match[1] !== version) throw new Error('mcp-server.js version does not match package.json');
 }
 
-function prepareTestPlugin() {
-    workshop.build();
+async function prepareTestPlugin() {
+    await workshop.build();
     workshop.verify();
 
     fs.rmSync(testDirectory, { recursive: true, force: true });
@@ -70,15 +70,22 @@ function buildPluginZip() {
     return zipPath;
 }
 
-assertVersions();
-prepareTestPlugin();
-var pluginZip = buildPluginZip();
-run(process.execPath, [path.join(root, 'scripts', 'build-mcpb.js')]);
+async function main() {
+    assertVersions();
+    await prepareTestPlugin();
+    var pluginZip = buildPluginZip();
+    run(process.execPath, [path.join(root, 'scripts', 'build-mcpb.js')]);
 
-var mcpb = path.join(outputDirectory, 'pws-mcp-server-v' + version + '.mcpb');
-if (!fs.existsSync(mcpb)) throw new Error('MCPB output is missing: ' + mcpb);
+    var mcpb = path.join(outputDirectory, 'pws-mcp-server-v' + version + '.mcpb');
+    if (!fs.existsSync(mcpb)) throw new Error('MCPB output is missing: ' + mcpb);
 
-console.log('\nGitHub prerelease v' + version + ' is ready:');
-console.log('  TEST PWS plugin: ' + pluginZip);
-console.log('  Claude Desktop:  ' + mcpb);
-console.log('Do not upload dist/pws-mcp-server to Steam Workshop for this prerelease.');
+    console.log('\nGitHub prerelease v' + version + ' is ready:');
+    console.log('  TEST PWS plugin: ' + pluginZip);
+    console.log('  Claude Desktop:  ' + mcpb);
+    console.log('Do not upload dist/pws-mcp-server to Steam Workshop for this prerelease.');
+}
+
+main().catch(function (error) {
+    console.error(error.stack || error.message);
+    process.exitCode = 1;
+});

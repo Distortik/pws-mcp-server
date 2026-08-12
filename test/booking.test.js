@@ -111,6 +111,22 @@ test('rejects unsupported singular titleId instead of silently ignoring it', fun
     });
 });
 
+test('allows occasional wrestlers in matches while rejecting angle-only worker types', function () {
+    withDomainStubs(function () {
+        domain.rosterRows = function () { return [
+            { contractID: 10, workerID: 1, name: 'Occasional', type: 'Occasional Wrestler', injuryType: '', isInRehab: 0, isSuspended: 0, contractSuspended: 0, onTimeOff: 0 },
+            { contractID: 20, workerID: 2, name: 'Wrestler', type: 'Wrestler', injuryType: '', isInRehab: 0, isSuspended: 0, contractSuspended: 0, onTimeOff: 0 },
+            { contractID: 30, workerID: 3, name: 'Personality', type: 'Personality', injuryType: '', isInRehab: 0, isSuspended: 0, contractSuspended: 0, onTimeOff: 0 }
+        ]; };
+        assert.doesNotThrow(function () {
+            booking.validatePlan(makeBookingApi(), { showId: 50, segments: [{ type: 'match', participants: [[10], [20]] }] });
+        });
+        assert.throws(function () {
+            booking.validatePlan(makeBookingApi(), { showId: 50, segments: [{ type: 'match', participants: [[30], [20]] }] });
+        }, /Personality is not a wrestler/);
+    });
+});
+
 test('validates and persists multiple championship associations', function () {
     withDomainStubs(function () {
         var titleRows = {

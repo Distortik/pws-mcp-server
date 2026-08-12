@@ -36,6 +36,11 @@ function boolean(value) {
     return Boolean(value);
 }
 
+function canParticipateInMatch(type) {
+    var normalized = type == null ? '' : String(type).trim().toLowerCase();
+    return !normalized || normalized === 'wrestler' || normalized === 'occasional wrestler';
+}
+
 function clamp(value, fallback, min, max) {
     var parsed = integer(value);
     if (parsed === null) return fallback;
@@ -773,6 +778,7 @@ module.exports = {
     addDays: addDays,
     ageAt: ageAt,
     boolean: boolean,
+    canParticipateInMatch: canParticipateInMatch,
     catalog: catalog,
     clamp: clamp,
     context: context,

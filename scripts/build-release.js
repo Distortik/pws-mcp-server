@@ -52,15 +52,22 @@ function quotePowerShell(value) {
     return "'" + String(value).replace(/'/g, "''") + "'";
 }
 
-assertVersions();
-workshop.build();
-workshop.verify();
-var pluginZip = buildPluginZip();
-run(process.execPath, [path.join(root, 'scripts', 'build-mcpb.js')]);
+async function main() {
+    assertVersions();
+    await workshop.build();
+    workshop.verify();
+    var pluginZip = buildPluginZip();
+    run(process.execPath, [path.join(root, 'scripts', 'build-mcpb.js')]);
 
-var mcpb = path.join(outputDirectory, 'pws-mcp-server-v' + version + '.mcpb');
-if (!fs.existsSync(mcpb)) throw new Error('MCPB output is missing: ' + mcpb);
+    var mcpb = path.join(outputDirectory, 'pws-mcp-server-v' + version + '.mcpb');
+    if (!fs.existsSync(mcpb)) throw new Error('MCPB output is missing: ' + mcpb);
 
-console.log('\nGitHub Release v' + version + ' is ready:');
-console.log('  Manual PWS plugin: ' + pluginZip);
-console.log('  Claude Desktop:    ' + mcpb);
+    console.log('\nGitHub Release v' + version + ' is ready:');
+    console.log('  Manual PWS plugin: ' + pluginZip);
+    console.log('  Claude Desktop:    ' + mcpb);
+}
+
+main().catch(function (error) {
+    console.error(error.stack || error.message);
+    process.exitCode = 1;
+});

@@ -1,6 +1,6 @@
 [h1]Known Issue: Claude Desktop MCPB Initialization Timeout[/h1]
 
-[quote][b]Status: confirmed in 0.4.0-beta.4 on Windows; focused beta.5 fix planned.[/b][/quote]
+[quote][b]Status: confirmed in 0.4.0-beta.4 on Windows; beta.5 transport fix implemented and awaiting a live Home-chat acceptance test.[/b][/quote]
 
 [h2]What happens[/h2]
 
@@ -29,14 +29,17 @@ Approve the user-configuration change when prompted, restart that client, start 
 
 Workshop and TEST plugin folder names remain stable across version updates, so the correctly configured path should not need to change every time. The client only needs to be restarted after updated files are deployed.
 
-[h2]What beta.5 will change[/h2]
+[h2]What beta.5 changes[/h2]
 
 [list]
-[*]Replace or harden the current hand-written stdio compatibility layer using the official MCP SDK transport.
-[*]Add an automated initialization and tool-catalogue test using a real MCP client transport.
-[*]Install and test the beta.5 MCPB in a regular Claude Desktop Home conversation.
-[*]Re-run the complete automated, live-save, version-pair, and packaging gates before 0.4.0.
+[*]Replaces the hand-written stdio layer with the official MCP SDK server and transport.
+[*]Bundles that server into a self-contained file shared by the Workshop, direct-path clients, and MCPB.
+[*]Passes automated initialization and catalogue tests through the official MCP client, including outside the repository without [code]node_modules[/code].
+[*]Still requires installation and confirmation in a regular Claude Desktop Home conversation on Windows.
+[*]Will re-run the complete automated, live-save, version-pair, and packaging gates before 0.4.0.
 [/list]
+
+The beta.5 source server, standalone distribution, and unpacked MCPB server all complete the official-client handshake in automated testing and expose all 46 tools. The remaining check is Claude Desktop's own Windows Home-chat extension host.
 
 [h2]Reporting another result[/h2]
 

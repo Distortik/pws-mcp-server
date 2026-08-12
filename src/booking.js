@@ -241,7 +241,7 @@ function validatePlan(api, options) {
                 var worker = byContract[contractId];
                 if (!worker) throw new Error('Contract ' + id + ' is not active at the player promotion');
                 if (worker.injuryType || worker.isInRehab || worker.isSuspended || worker.contractSuspended || worker.onTimeOff) throw new Error(worker.name + ' is unavailable');
-                if (segment.type === 'match' && worker.type && String(worker.type).toLowerCase() !== 'wrestler') throw new Error(worker.name + ' is not a wrestler and cannot be a match participant');
+                if (segment.type === 'match' && !domain.canParticipateInMatch(worker.type)) throw new Error(worker.name + ' is not a wrestler and cannot be a match participant');
                 return contractId;
             });
         });

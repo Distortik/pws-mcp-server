@@ -72,11 +72,29 @@ These require validated PWS action contracts or carefully established database i
 
 ### Beta.5 Claude Desktop compatibility gate
 
-- [Planned] Replace or harden the hand-written stdio layer using the official MCP SDK transport while preserving the existing tool/resource/prompt behavior.
-- [Planned] Add an automated initialization and tool-catalogue regression test using a real MCP client transport.
-- [Planned] Install a matching beta.5 MCPB and confirm regular Claude Desktop Home chat receives PWS tools, not only Claude Code/Code and Codex.
-- [Planned] Re-run all automated, live read-only, version-pair, and production packaging gates before promoting to `0.4.0`.
+- [Implemented in 0.4.0-beta.5] Replace the hand-written stdio layer with the official MCP SDK server and transport while preserving existing tool/resource/prompt behavior and version-pair safety.
+- [Passed] Official MCP client initialization and catalogue reads against both the source server and the self-contained Workshop/MCPB server, including a copy outside the repository with no `node_modules`.
+- [Implemented in 0.4.0-beta.5] Build Workshop and MCPB distributions from the same self-contained bundled server and validate the MCPB manifest from a minimal staging directory.
+- [Passed] Beta.5 syntax checks and all 71 automated tests, including official-client transport coverage and both B14 match-validation paths.
+- [Implemented in 0.4.0-beta.5] Fix backlog item B14 so `Occasional Wrestler` is match-eligible in new show plans and segment edits while `Staff`, `Personality`, `Referee`, and `Announcer` remain ineligible.
+- [Pending live client check] Install the matching beta.5 MCPB and confirm regular Claude Desktop Home chat receives PWS tools, not only Claude Code/Code and Codex.
+- [Pending after TEST deployment] Confirm the beta.5 client/plugin version pair and repeat the live read-only bridge checks; beta.5 does not change any save operations.
+- [Planned for 0.4.0 promotion] Re-run the complete automated, live read-only, version-pair, and production packaging gates.
 - [Documented workaround] Claude Code and Codex users can paste a setup request into the client and let it locate, configure, and verify the stable Workshop/TEST `mcp-server.js` path instead of editing configuration manually.
+
+### Remaining backlog after the beta.5 candidate
+
+The Claude memory backlog was reconciled with the implementation and live-test record on 12 August 2026. The current status is:
+
+- [Open] **B12:** calibrate company-size tiers against the game's actual thresholds.
+- [Open] **B13:** evaluate worker availability against a future show's air date.
+- [Partial] **B10:** stable reads normalize `isLeader`, but mixed native persistence and leader-state verification still need hardening.
+- [Partial] **B11:** approval guidance is explicit, but confirmed writes are not yet cryptographically tied to the exact preview the user approved.
+- [Fixed in beta.5; live check pending] **B14:** allow `Occasional Wrestler` in both match-validation paths.
+- [Shipped and live-verified] **F9** worker-promise responses and **F15** contract-scoped personas/ring names.
+- [Future features] **F17** brands/titles, **F13** tag teams, **F14** worker-type visibility/default filtering, **F16** cash-aware hiring budgets, **F12** callable server information, **F10** network/TV management, **F11** incoming rival offers, **F6** contract negotiations, **F4** tournaments, **F14b** movesets, and purpose-built replacements for remaining generic write actions.
+
+Unless beta.5 live testing exposes a release blocker, 0.4.0 should remain focused on client compatibility, B12/B13 correctness, and targeted B10/B11 safety hardening. The larger management features should follow 0.4.0.
 
 ### Storyline attribution ground truth
 
