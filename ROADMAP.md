@@ -84,7 +84,7 @@ These require validated PWS action contracts or carefully established database i
 
 ### Remaining backlog after the beta.5 candidate
 
-The Claude memory backlog was reconciled with the implementation and live-test record on 12 August 2026. The current status is:
+The version-controlled [backlog](BACKLOG.md) was reconciled with the implementation and live-test record on 12 August 2026. The current status is:
 
 - [Open] **B12:** calibrate company-size tiers against the game's actual thresholds.
 - [Open] **B13:** evaluate worker availability against a future show's air date.
