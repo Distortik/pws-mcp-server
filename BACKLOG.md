@@ -50,6 +50,26 @@ Server instructions, schemas, and tools require preview-first changes and explic
 
 Create, rename, archive/retire, and configure brands and championships. Title and brand image fields appear to store filenames whose actual image bytes are managed outside the save database, so image handling needs separate investigation.
 
+### F18 — Promotion popularity consistency and management
+
+Expose regional popularity alongside continental popularity, warn when the two systems materially disagree, and investigate safe popularity editing. A new CareerMode promotion had North American continental popularity 50 while every `promotionRegionalPopularity` row was zero, a state the established AI promotions did not exhibit and which can distort company size, attendance, and local-market analysis.
+
+### F19 — Signing terms, perks, and negotiation-layer awareness
+
+Correct and document the generic `sign_worker` contract: the current tool advertises `wages`, while PWS expects `wagePerMonth` and `wagePerAppearance`; `contractLength` is measured in days; and important contract perks are not exposed by the official action. Also decide how clearly the MCP should warn when direct signing bypasses a UI-only negotiation mod such as Dynamic Negotiations.
+
+**Next work:** fix the misleading argument description or translate the compatibility alias, add exact term verification, document day units, and distinguish MCP/PWS API limitations from supported terms before promoting generic signing to a purpose-built tool.
+
+### F20 — Brand and event commentary-team defaults
+
+Add preview-first management of `announcer1` through `announcer4` on brands and event series. Segment-level announcers work, but they must currently be repeated on every segment and do not configure the promotion's intended default booth.
+
+### F21 — Multi-person entrance and elimination order
+
+Expose and validate PWS's `segments.entranceOrder` and `segments.eliminationOrder` for Rumbles and other ordered multi-person matches. The current booking tools can guarantee a winner but cannot specify an entrance number, elimination sequence, final two, or last eliminated worker.
+
+**Next work:** establish the exact native JSON written by PWS, then add fields to show-plan validation, application, segment editing, reads, and post-save verification.
+
 ### F13 — Tag-team management
 
 Create, rename, disband, and edit promotion tag teams and their members, with ownership checks and exact post-save verification.
@@ -101,6 +121,14 @@ Replace the remaining advanced generic writes with preview-first, ownership-awar
 - championship awards;
 - news creation;
 - email creation.
+
+## Known workflow constraints
+
+### Non-defendable prizes cannot be attached to matches
+
+`The Immortal Crown - Women` is stored by PWS with `defendable = 0`. The match validator correctly refuses to attach a non-defendable championship or prize to a match, so the Crown cannot be won as a title association in the Women's Rumble.
+
+**Current workflow:** book and validate the Rumble without the Crown in `titleIds`, run the match, then award the Crown to the winner through `award_title`. This is a native title-state constraint rather than a validator defect. A future purpose-built championship-award tool should make this post-match workflow preview-first, ownership-aware, and exactly verified.
 
 ## Recently closed
 
