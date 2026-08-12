@@ -94,6 +94,16 @@ The MCP handshake and manifests expose the version, but models do not always rec
 
 **Wanted:** a lightweight `pws_get_server_info` or `pws_version` tool that works without a loaded save and reports the client server version, expected in-game plugin version, transport, and connection/version-pair state.
 
+### F22 — Optional community plugin interoperability — foundation started
+
+Add opt-in interoperability with separately installed maintained forks of Investments Manager, Plugin Features, Booker Career Mode, Hire Local Worker, and Inner Circle. These plugins must not become MCP dependencies or be bundled into the MCP package.
+
+**Foundation:** the five installed upstream versions were imported unchanged into a separate local `pws-community-plugins` repository, with exact source hashes, manifest metadata, the owner's relayed permission, baseline syntax checks, and an initial integration protocol. Plugin Features is the planned common launcher/settings hub.
+
+**First fork fixes implemented, awaiting copied-save live validation:** Investments Manager 8.0.1 stops recreating revoked `General / All Shows` deals, keeps new network show access explicit, verifies manual deal persistence, requires real country/region IDs for new owned venues, prevents duplicate active venue names, hydrates existing tracked venue labels, and scopes transactional spending to the active promotion instead of rounding every promotion's balance.
+
+**Next work:** add a versioned capability registry and sanitized read-only snapshots first. Reject stale save/promotion data and expose only static, reviewed MCP tools. Optional writes come later and must remain plugin-owned, preview-bound, allowlisted, revalidated, and read back after persistence. Do not scrape another plugin's private `localStorage` or expose arbitrary callbacks, JavaScript, or SQL.
+
 ### F10 — Network and TV-deal management
 
 Read available networks, regional reach, current deals, and show assignments; preview and safely offer, accept, end, or change a deal where PWS exposes validated actions.

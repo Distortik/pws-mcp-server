@@ -23,6 +23,7 @@ This is a development roadmap rather than a guarantee that every candidate below
 [code]
 APPROVAL RECEIPTS            [□□□□□□□□□□] Planned
 CALLABLE SERVER INFO         [□□□□□□□□□□] Planned
+OPTIONAL PLUGIN INTEGRATION  [■□□□□□□□□□] Foundation started
 ROSTER & HIRING ACCURACY     [□□□□□□□□□□] Planned
 POPULARITY CONSISTENCY       [□□□□□□□□□□] Planned
 COMMENTARY-TEAM DEFAULTS     [□□□□□□□□□□] Planned
@@ -56,6 +57,21 @@ A lightweight server-information tool is planned to report:
 [/list]
 
 This should make update and connection troubleshooting easier for Claude Desktop, Claude Code, Codex, and other compatible clients.
+
+[h2]Priority: optional community plugin interoperability[/h2]
+
+The original owner has granted permission to maintain forks of Investments Manager, Plugin Features, Booker Career Mode, Hire Local Worker, and Inner Circle. These forks are being set up as a separate project and will remain independently installable; they will not be bundled with or required by PWS MCP Server.
+
+The planned first phase is safe discovery and read-only integration:
+
+[list]
+[*]Let compatible installed plugins identify themselves and their protocol version.
+[*]Expose sanitized, save-scoped information such as investments, booker progress, eligible local workers, and Inner Circle assignments.
+[*]Turn Plugin Features into a dynamic launcher and settings hub so maintained forks can register without another hard-coded update.
+[*]Continue to work normally when none of the optional plugins is installed.
+[/list]
+
+Optional plugin writes will only follow after the plugin owns an exact preview, apply-time validation, persisted read-back, and stale-save protection. The MCP will not scrape private plugin storage or expose arbitrary plugin code.
 
 [h2]Priority: roster, hiring, and popularity accuracy[/h2]
 
