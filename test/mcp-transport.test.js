@@ -11,11 +11,11 @@ var workshop = require('../scripts/build-workshop');
 
 var root = path.resolve(__dirname, '..');
 
-async function verifyTransport(serverPath, cwd) {
+async function verifyTransport(serverPath, cwd, loadThroughWrapper) {
     var stderr = '';
     var transport = new StdioClientTransport({
         command: process.execPath,
-        args: [serverPath],
+        args: loadThroughWrapper ? ['-e', 'require(' + JSON.stringify(serverPath) + ')'] : [serverPath],
         cwd: cwd,
         stderr: 'pipe'
     });
@@ -52,9 +52,12 @@ test('standalone Workshop server completes initialization without node_modules',
     assert.match(notices, /fast-uri .* \(BSD-3-Clause\)/);
     var temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'pws-mcp-beta5-'));
     var standalone = path.join(temporary, 'mcp-server.js');
+    var entry = path.join(temporary, 'mcpb-entry.js');
     try {
         fs.copyFileSync(path.join(workshop.outputDirectory, 'mcp-server.js'), standalone);
+        fs.copyFileSync(path.join(workshop.outputDirectory, 'mcpb-entry.js'), entry);
         await verifyTransport(standalone, temporary);
+        await verifyTransport(entry, temporary, true);
     } finally {
         fs.rmSync(temporary, { recursive: true, force: true });
     }

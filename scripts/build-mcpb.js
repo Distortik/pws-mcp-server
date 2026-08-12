@@ -41,6 +41,7 @@ async function prepareStage() {
     fs.rmSync(stageDirectory, { recursive: true, force: true });
     fs.mkdirSync(stageDirectory, { recursive: true });
     copyRequired(manifestPath, path.join(stageDirectory, 'manifest.json'));
+    copyRequired(path.join(workshop.outputDirectory, 'mcpb-entry.js'), path.join(stageDirectory, 'mcpb-entry.js'));
     copyRequired(path.join(workshop.outputDirectory, 'mcp-server.js'), path.join(stageDirectory, 'mcp-server.js'));
     copyRequired(path.join(workshop.outputDirectory, 'THIRD_PARTY_NOTICES.txt'), path.join(stageDirectory, 'THIRD_PARTY_NOTICES.txt'));
     documentationFiles.forEach(function (relative) {

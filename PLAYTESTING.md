@@ -2,6 +2,13 @@
 
 Use this checklist for `0.4.0-beta.5`. Beta.5 changes the MCP client transport and packaging and fixes B14 match eligibility for `Occasional Wrestler`; any save-changing regression checks should still use a copied or backed-up save. Do not enable the Workshop and TEST versions of the plugin together.
 
+## Beta.5 acceptance record
+
+- All 71 automated tests passed, including direct and wrapper-loaded official-client initialization.
+- The matching beta.5 TEST plugin passed all 13 non-mutating live bridge checks against VWE1.
+- A new Claude Desktop Home conversation on Windows loaded the Pro Wrestling Sim integration and returned the live VWE1 state.
+- B14 passed a live dry-run validation using Wendi Richter (`Occasional Wrestler`) and Debbie Combs (`Wrestler`); no segment was created and the save was not changed.
+
 ## Install the matching pair
 
 1. Back up the target PWS save.

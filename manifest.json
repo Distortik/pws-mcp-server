@@ -19,11 +19,11 @@
   "support": "https://github.com/Distortik/pws-mcp-server/issues",
   "server": {
     "type": "node",
-    "entry_point": "mcp-server.js",
+    "entry_point": "mcpb-entry.js",
     "mcp_config": {
       "command": "node",
       "args": [
-        "${__dirname}/mcp-server.js"
+        "${__dirname}/mcpb-entry.js"
       ],
       "env": {}
     }

@@ -13,6 +13,7 @@ var runtimeFiles = [
     'NOTICE',
     'THIRD_PARTY_NOTICES.txt',
     'index.js',
+    'mcpb-entry.js',
     'mcp-server.js',
     'plugin.json',
     'src/audit.js',

@@ -4,17 +4,17 @@ This is the version-controlled source of truth for open PWS MCP Server defects, 
 
 Status last reconciled: **12 August 2026**  
 Repository candidate: **0.4.0-beta.5**  
-Latest fully live-validated save-operation build: **0.4.0-beta.4**
+Latest fully live-validated build: **0.4.0-beta.5** (save-mutation behavior remains inherited from beta.4)
 
-Beta.5 changes the MCP transport and packaging layer and fixes B14. All 71 automated tests pass. Regular Claude Desktop Home-chat testing and the matching beta.5 MCPB/TEST-plugin live version-pair check are still pending.
+Beta.5 changes the MCP transport and packaging layer and fixes B14. All 71 automated tests, 13 non-mutating live bridge checks, the Windows Claude Desktop Home-chat check, and a live B14 dry-run validation pass.
 
 ## Release recommendation
 
-Unless beta.5 live testing exposes a blocker, keep 0.4.0 focused on:
+Keep the remaining 0.4.0 work focused on:
 
-1. Claude Desktop Home compatibility and final package validation.
-2. B12 and B13 correctness.
-3. Targeted B10 and B11 safety hardening.
+1. B12 and B13 correctness.
+2. Targeted B10 and B11 safety hardening.
+3. Final production package validation and smoke testing.
 
 The larger management features should follow 0.4.0 rather than reopening the release scope.
 
@@ -43,18 +43,6 @@ Public stable reads normalize native `"1"`, `"0"`, `"true"`, and `"false"` value
 Server instructions, schemas, and tools require preview-first changes and explicit user approval. A client can nevertheless submit a bare `confirmed: true`; the server cannot prove that the user approved the exact preview being applied.
 
 **Next work:** evaluate short-lived preview receipts containing the operation and target-state digest, then require the matching receipt during apply without making normal use cumbersome.
-
-### Claude Desktop Home compatibility — live acceptance pending
-
-Beta.4's MCPB launched in Claude Desktop for Windows but regular Home chats cancelled initialization after 60 seconds. Beta.5 replaces the manual stdio loop with the official MCP SDK transport, ships a self-contained server, and passes official-client initialization and catalogue tests outside the repository.
-
-**Acceptance gate:** install the beta.5 MCPB in Claude Desktop on Windows, fully restart the app, start a regular Home conversation, and confirm it receives the complete PWS tool catalogue.
-
-### B14 — Fixed in beta.5; live version-pair check pending
-
-Both match-validation paths now accept `Wrestler` and `Occasional Wrestler` while rejecting `Staff`, `Personality`, `Referee`, and `Announcer`. Automated coverage passes for both new show plans and existing segment edits.
-
-**Remaining gate:** repeat the read-only live bridge/version-pair checks with the matching beta.5 TEST plugin and MCPB. A natural or disposable show with both worker types can provide an additional live validation when available.
 
 ## Features waiting to be implemented
 
@@ -115,6 +103,14 @@ Replace the remaining advanced generic writes with preview-first, ownership-awar
 - email creation.
 
 ## Recently closed
+
+### Claude Desktop Home compatibility
+
+Resolved in beta.5. Beta.4's MCPB launched on Claude Desktop for Windows but regular Home chats cancelled initialization after 60 seconds. Beta.5 now uses the official MCP SDK transport and a dedicated entry point that starts when Claude's Node UtilityProcess wrapper loads it. A new Windows Home conversation exposed the PWS integration and returned the live VWE1 state.
+
+### B14 — Occasional Wrestler match validation
+
+Fixed and live-validated in beta.5. Both match-validation paths accept `Wrestler` and `Occasional Wrestler` while rejecting `Staff`, `Personality`, `Referee`, and `Announcer`. Automated tests cover new show plans and existing segment edits. A live dry-run validation accepted Wendi Richter against Debbie Combs on VWE1 without creating a segment.
 
 ### F15 — Personas and contract ring names
 

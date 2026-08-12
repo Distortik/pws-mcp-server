@@ -2,7 +2,7 @@
 
 [h2]PWS MCP Server Roadmap[/h2]
 
-This roadmap shows the current state of PWS MCP Server 0.4.0. The beta feature and live-save operation tests are complete. A Claude Desktop MCPB initialization issue discovered after beta.4 now requires a focused beta.5 compatibility fix before production release.
+This roadmap shows the current state of PWS MCP Server 0.4.0. The beta feature, live-save operation, and Claude Desktop compatibility test phases are complete. The remaining work is focused release hardening and production packaging.
 
 [h2]Release path[/h2]
 
@@ -33,7 +33,7 @@ PERSONAS & RING NAMES        [■■■■■■■■■■] Implemented and te
 WORKER PROMISE RESPONSES     [■■■■■■■■■■] Implemented and tested
 STORYLINE DIAGNOSTICS        [■■■■■■■■■■] Implemented and validated
 SAVE SAFETY & LIVE TESTING   [■■■■■■■■■■] Beta gate passed
-CLAUDE DESKTOP MCPB         [■■■■■■■■■□] Beta.5 live check pending
+CLAUDE DESKTOP MCPB         [■■■■■■■■■■] Fixed and live-tested
 GENERIC ACTION REPLACEMENT   [■■■■■■□□□□] In progress
 TOURNAMENT MANAGEMENT        [□□□□□□□□□□] Planned after 0.4.0
 CONTRACT NEGOTIATIONS        [□□□□□□□□□□] Planned after 0.4.0
@@ -96,21 +96,22 @@ This supports cases such as selecting The Undertaker, biker Undertaker, Mankind,
 
 After the beta.4 live-save gate passed, regular Claude Desktop Home-chat testing exposed a separate client compatibility blocker on Windows. The MCPB installs, enables, and launches, but Claude Desktop cancels its MCP initialization after 60 seconds before exposing the tools. The identical server responds immediately when invoked directly, and Claude Code plus Codex continue to work.
 
-Beta.5 replaces the hand-written stdio layer with the official MCP SDK transport, packages the same self-contained server for Workshop/direct-path and MCPB use, and passes official-client initialization and catalogue tests. Regular Claude Desktop Home chat must still expose the matching PWS tools on Windows before 0.4.0 can ship.
+Beta.5 replaces the hand-written stdio layer with the official MCP SDK transport and packages the same self-contained server for Workshop/direct-path and MCPB use. The first live attempt exposed a second startup condition: Claude Desktop loads the Node entry point through its UtilityProcess wrapper. A dedicated MCPB entry point fixed that condition, and a fresh Windows Home conversation then exposed the PWS integration and returned the live VWE1 state.
 
-[h2]Beta.5 automated results[/h2]
+[h2]Beta.5 test results[/h2]
 
 [list]
 [*]All 71 automated tests passed.
-[*]The official MCP client initialized both the source server and a standalone packaged copy without [code]node_modules[/code].
+[*]The official MCP client initialized the source server, a standalone packaged copy without [code]node_modules[/code], and the wrapper-loaded MCPB entry point.
 [*]The complete catalogue of 46 PWS tools, three resources, and three prompts was returned through the official transport.
 [*]The TEST plugin ZIP and minimal self-contained MCPB built successfully with manifest validation and bundled third-party license notices.
-[*]Backlog item B14 is fixed: Occasional Wrestlers are accepted by both match validation paths while angle-only worker types remain rejected.
+[*]All 13 non-mutating live bridge checks passed with the matching beta.5 TEST plugin on VWE1.
+[*]Backlog item B14 is fixed and live-validated: a dry-run match plan accepted Wendi Richter as an Occasional Wrestler without creating a segment, while angle-only worker types remain rejected.
+[*]A new Claude Desktop Home conversation on Windows loaded the Pro Wrestling Sim integration and returned the correct VWE1 state.
 [*]No PWS persistence or save-mutation code changed from the already live-validated beta.4 build.
-[*]Regular Claude Desktop Home chat and the matching beta.5 in-game version pair remain the two live acceptance checks.
 [/list]
 
-[quote][b]Temporary user-friendly workaround[/b]
+[quote][b]Direct-path setup alternative[/b]
 
 Use Claude Code, Claude Desktop's Code tab, or Codex with the direct [code]mcp-server.js[/code] path. You do not have to edit configuration or guess the Steam library manually. Paste this request into Claude Code or Codex:
 
@@ -120,8 +121,8 @@ Locate the installed PWS MCP Server [code]mcp-server.js[/code] for the build I a
 [h2]What remains before 0.4.0[/h2]
 
 [list]
-[*]Complete the live Claude Desktop Home-chat acceptance check for the focused beta.5 compatibility fix.
-[*]Confirm a regular Claude Desktop Home conversation initializes the MCPB and receives the complete tool catalogue.
+[*]Resolve or safely calibrate the remaining B12 company-size and B13 future-show availability correctness issues.
+[*]Complete targeted B10 stable-leader verification and B11 approval-flow hardening decisions.
 [*]Build and inspect the production Workshop package and matching Claude Desktop MCPB.
 [*]Install the production package separately and run a final connection and save-read smoke test.
 [*]Publish the Workshop update, matching GitHub release, installation notes, and full changelog.
@@ -165,7 +166,7 @@ Beta builds remain separate from the production Workshop item. The Workshop vers
 
 Steam updates only the in-game PWS plugin.
 
-Claude Desktop users must also install the matching [code].mcpb[/code] from the [url=https://github.com/Distortik/pws-mcp-server/releases]GitHub release[/url] and restart Claude Desktop. Installing a newer package with the same extension identity normally upgrades the existing installation; uninstalling first should only be needed as a fallback. Beta.4 remains blocked in regular Home chat; beta.5 is awaiting its live Windows acceptance check.
+Claude Desktop users must also install the matching [code].mcpb[/code] from the [url=https://github.com/Distortik/pws-mcp-server/releases]GitHub release[/url] and restart Claude Desktop. Installing a newer package with the same extension identity normally upgrades the existing installation; uninstalling first should only be needed as a fallback. Beta.4 remains incompatible with regular Home chat; beta.5 fixes and live-verifies that path.
 
 Claude Code and Codex users can keep their MCP configuration pointed at the stable Workshop plugin folder. They can paste the setup request above into the client and ask it to locate, configure, and verify that path automatically instead of editing settings manually. Restart the client after an update so it reloads the current server and tool catalogue.
 

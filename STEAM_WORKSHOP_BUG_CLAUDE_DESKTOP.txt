@@ -1,12 +1,12 @@
-[h1]Known Issue: Claude Desktop MCPB Initialization Timeout[/h1]
+[h1]Resolved: Claude Desktop MCPB Initialization Timeout[/h1]
 
-[quote][b]Status: confirmed in 0.4.0-beta.4 on Windows; beta.5 transport fix implemented and awaiting a live Home-chat acceptance test.[/b][/quote]
+[quote][b]Status: fixed and live-verified in 0.4.0-beta.5 on Claude Desktop for Windows.[/b][/quote]
 
 [h2]What happens[/h2]
 
-The PWS MCP Server MCPB installs, appears enabled, and launches in Claude Desktop, but regular Home chats do not receive its tools. Claude Desktop sends the MCP initialization request, waits 60 seconds, and disconnects the extension before tool registration completes.
+The 0.4.0-beta.4 PWS MCP Server MCPB installed, appeared enabled, and launched in Claude Desktop, but regular Home chats did not receive its tools. Claude Desktop sent the MCP initialization request, waited 60 seconds, and disconnected the extension before tool registration completed.
 
-[h2]What still works[/h2]
+[h2]What was unaffected[/h2]
 
 [list]
 [*]The in-game PWS bridge and beta.4 save tools.
@@ -15,9 +15,9 @@ The PWS MCP Server MCPB installs, appears enabled, and launches in Claude Deskto
 [*]Codex using the direct [code]mcp-server.js[/code] path.
 [/list]
 
-The installed beta.4 server is byte-for-byte identical to the tested build and responds immediately when the same initialization request is replayed directly. This isolates the current blocker to regular Claude Desktop MCPB/stdio compatibility rather than PWS save access.
+The installed beta.4 server was byte-for-byte identical to the tested build and responded immediately when the same initialization request was replayed directly. This isolated the blocker to regular Claude Desktop MCPB startup rather than PWS save access.
 
-[h2]Temporary setup without manual path editing[/h2]
+[h2]Alternative direct-path setup without manual editing[/h2]
 
 You can ask Claude Code or Codex to find and configure the correct path for you. Paste this request into the client you want to use:
 
@@ -35,11 +35,12 @@ Workshop and TEST plugin folder names remain stable across version updates, so t
 [*]Replaces the hand-written stdio layer with the official MCP SDK server and transport.
 [*]Bundles that server into a self-contained file shared by the Workshop, direct-path clients, and MCPB.
 [*]Passes automated initialization and catalogue tests through the official MCP client, including outside the repository without [code]node_modules[/code].
-[*]Still requires installation and confirmation in a regular Claude Desktop Home conversation on Windows.
-[*]Will re-run the complete automated, live-save, version-pair, and packaging gates before 0.4.0.
+[*]Uses a dedicated MCPB entry point that starts correctly when Claude Desktop loads it through its Node UtilityProcess wrapper.
+[*]Passed installation and confirmation in a fresh Claude Desktop Home conversation on Windows.
+[*]Passed the matching beta.5 in-game version-pair and live read-only bridge checks.
 [/list]
 
-The beta.5 source server, standalone distribution, and unpacked MCPB server all complete the official-client handshake in automated testing and expose all 46 tools. The remaining check is Claude Desktop's own Windows Home-chat extension host.
+The beta.5 source server, standalone distribution, wrapper-loaded MCPB entry point, and Claude Desktop Home extension host all complete initialization. The successful Home conversation called the PWS integration and returned the loaded VWE1 state.
 
 [h2]Reporting another result[/h2]
 
