@@ -48,6 +48,37 @@ test('advanced promotion size matches PWS regional aggregation rules', function 
     assert.equal(domain.advancedPromotionSize([{ popularity: 60, countryName: 'US', continent: 'North America' }]), 'Continental');
 });
 
+test('state falls back to gameworld when the game state omits advanced popularity mode', function () {
+    var api = {
+        game: { getState: function () { return { promotionId: 2, currentDate: '1992-01-01' }; } },
+        database: {
+            get: function (sql) {
+                if (sql.indexOf('FROM saveinfo') !== -1) return { saveName: 'Advanced', saveCurrentDate: '1992-01-01', saveUserPromotion: 2 };
+                if (sql.indexOf('FROM gameworld') !== -1) return { advancedPopularityMode: 1 };
+                if (sql.indexOf('FROM promotions') !== -1) return { promotionID: 2, fullName: 'VWE', basedIn: 'North America', northAmericaPop: 11 };
+                return null;
+            },
+            query: function (sql) {
+                if (sql.indexOf('promotionRegionalPopularity') !== -1) return [{ popularity: 25, countryName: 'United States', continent: 'North America' }];
+                return [];
+            }
+        }
+    };
+    var result = domain.state(api);
+    assert.equal(result.size, 'Regional');
+    assert.equal(result.sizeMethod, 'regional popularity');
+});
+
+test('future availability follows PWS return-date clearing rules', function () {
+    var recovered = { injuryType: 'Sprain', injuryHealDate: '1992-01-31', isInRehab: 1, rehabReturnDate: '1992-02-01' };
+    assert.equal(domain.isAvailableOn(recovered, '1992-02-01'), true);
+    var suspended = { suspended: 1, suspensionEndDate: '1992-02-02' };
+    assert.equal(domain.isAvailableOn(suspended, '1992-02-01'), false);
+    assert.equal(domain.unavailabilityAt(suspended, '1992-02-01')[0].reason, 'contractSuspension');
+    assert.equal(domain.isAvailableOn(suspended, '1992-02-02'), true);
+    assert.equal(domain.isAvailableOn({ onTimeOff: 1, timeOffEndDate: '' }, '1992-12-31'), false);
+});
+
 test('state resolves the player promotion when the PWS state helper omits it', function () {
     var api = {
         game: { getState: function () { return { currentDate: '1992-01-11' }; } },

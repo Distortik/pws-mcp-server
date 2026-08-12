@@ -22,6 +22,9 @@ function fakeApi(options) {
     Object.keys(options.workerTypes || {}).forEach(function (contractId) {
         contracts[contractId].type = options.workerTypes[contractId];
     });
+    Object.keys(options.contractChanges || {}).forEach(function (contractId) {
+        Object.assign(contracts[contractId], options.contractChanges[contractId]);
+    });
     var titles = {
         101: { titleID: 101, promotionID: 2, name: 'World Title', type: 'Singles', inactive: 0, brand: null, genderLimits: 'Male', defendable: 1, currentChampion: 1, currentChampion2: null, currentChampion3: null, defences: 5 },
         102: { titleID: 102, promotionID: 2, name: 'Vacant Cup', type: 'Singles', inactive: 0, brand: null, genderLimits: 'Open', defendable: 1, currentChampion: null, currentChampion2: null, currentChampion3: null, defences: 0 }
@@ -62,7 +65,7 @@ function fakeApi(options) {
             get: function (sql, params) {
                 if (sql.indexOf('FROM titles WHERE titleID=?') !== -1) return titles[Number(params[0])] || null;
                 if (sql.indexOf('FROM segments s JOIN eventinstance') !== -1 && Number(params[0]) === 7) {
-                    return Object.assign({}, state.segment, { complete: 0, isCancelled: 0, promotionID: 2, showBrand: null });
+                    return Object.assign({}, state.segment, { complete: 0, isCancelled: 0, promotionID: 2, showBrand: null, showDate: options.showDate || '1992-01-01' });
                 }
                 return null;
             },
@@ -195,6 +198,22 @@ test('allows occasional wrestlers in match edits while rejecting angle-only work
                 segmentId: 7, changes: { participants: [[10], [30]] }
             });
         }, /Third is not a wrestler/);
+    });
+});
+
+test('validates edited participants against the show date', function () {
+    withContext(function () {
+        var recovered = segments.updateSegment(fakeApi({
+            showDate: '1992-02-01',
+            contractChanges: { 30: { injuryType: 'Sprain', injuryHealDate: '1992-02-01' } }
+        }), { segmentId: 7, changes: { participants: [[10], [30]] } });
+        assert.deepEqual(recovered.proposed.participants, [[10], [30]]);
+        assert.throws(function () {
+            segments.updateSegment(fakeApi({
+                showDate: '1992-01-31',
+                contractChanges: { 30: { injuryType: 'Sprain', injuryHealDate: '1992-02-01' } }
+            }), { segmentId: 7, changes: { participants: [[10], [30]] } });
+        }, /Third is unavailable on 1992-01-31 \(injury until 1992-02-01\)/);
     });
 });
 

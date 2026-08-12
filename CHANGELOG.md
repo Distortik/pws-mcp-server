@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.0 - 2026-08-13
+
+> Release gate passed. The TEST deployment, live read-only suite, focused B10/B12/B13 checks, production package inspection, and installed Claude Desktop Home-chat smoke test all pass.
+
+- Added preview-first, ownership-aware, persisted-result-verified management for stables, stable membership, contract gimmicks and personas, persona availability, worker promises, event series, scheduled shows, venues, storylines, releases, title vacations, and transactional segment edits.
+- Added contract-scoped wrestler personas and custom ring names without changing the worker's global identity, including native gimmick/picture/mask selection, date-policy safeguards, promotion-specific/free-use availability changes, and exact restoration.
+- Added complete show planning and validation with structured participants, multiple championships, ringside workers, announcers, referees, agents, angle subjects, safe rollbacks, and the beta.5 angle-group show-start hotfix.
+- Added management dashboards, roster/hiring/contract analysis, gimmick discovery, promise reads/responses, stable reads, venue discovery, show reads, and storyline-attribution diagnostics.
+- Added the official MCP SDK stdio transport and a self-contained MCPB entry point verified in a regular Claude Desktop Home conversation on Windows; Claude Code and Codex continue to use the stable direct server path.
+- Fixed advanced-popularity company sizing when PWS omits the mode from its runtime state by reading `gameworld.advancedPopularityMode`; live VWE1 data confirms the corrected Regional calibration point.
+- Fixed future-show availability for new plans and existing-segment edits by evaluating injury, rehab, worker suspension, contract suspension, and time-off return dates against the show's air date.
+- Strengthened stable-member verification so a requested leader flag must persist, not merely the membership row.
+- Corrected generic `sign_worker` terms: canonical monthly/appearance wages, compatible `wages` translation, day-based contract lengths, normalized types/gimmicks, and exact readback verification of requested supported terms.
+- Passed syntax validation, all 79 automated tests, all 13 live read-only bridge checks, corrected Regional sizing, live injury/rehab date-boundary checks, reversible stable-leader persistence/cleanup, and an installed 0.4.0 MCPB connection/state read in a fresh Claude Desktop Home conversation. B11 preview receipts are explicitly deferred as a broader post-0.4.0 protocol change; current writes still default to preview, require explicit confirmation, revalidate at apply time, and verify persistence.
+
 ## 0.4.0-beta.5 - 2026-08-12
 
 - Hotfix: normalized every MCP-created or MCP-edited angle beat to persist `group1`, `group2`, and `group3` arrays, including empty unused groups. This prevents PWS show startup from crashing when a promo omits `group2`.

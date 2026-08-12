@@ -72,6 +72,32 @@ function addDays(value, days) {
     return date.toISOString().slice(0, 10);
 }
 
+function dateOnOrBefore(value, targetDate) {
+    var left = new Date(String(value || '') + 'T00:00:00Z');
+    var right = new Date(String(targetDate || '') + 'T00:00:00Z');
+    return !Number.isNaN(left.getTime()) && !Number.isNaN(right.getTime()) && left.getTime() <= right.getTime();
+}
+
+function unavailabilityAt(row, targetDate) {
+    row = row || {};
+    var reasons = [];
+    function active(flag, reason, returnDate, detail) {
+        if (!boolean(flag)) return;
+        if (returnDate && dateOnOrBefore(returnDate, targetDate)) return;
+        reasons.push({ reason: reason, detail: detail || null, returnDate: returnDate || null });
+    }
+    active(Boolean(row.injuryType), 'injury', row.injuryHealDate, row.injuryType);
+    active(row.isInRehab, 'rehab', row.rehabReturnDate);
+    active(row.isSuspended, 'workerSuspension', row.suspensionReturnDate);
+    active(row.contractSuspended != null ? row.contractSuspended : row.suspended, 'contractSuspension', row.contractSuspensionEndDate || row.suspensionEndDate);
+    active(row.onTimeOff, 'timeOff', row.timeOffEndDate);
+    return reasons;
+}
+
+function isAvailableOn(row, targetDate) {
+    return unavailabilityAt(row, targetDate).length === 0;
+}
+
 function ageAt(birthDate, currentDate) {
     var birth = new Date(String(birthDate || '') + 'T00:00:00Z');
     var current = new Date(String(currentDate || '') + 'T00:00:00Z');
@@ -130,13 +156,15 @@ function advancedPromotionSize(rows) {
 function context(api) {
     var state = api.game.getState() || {};
     var save = get(api, 'SELECT saveName, saveCurrentDate, saveUserPromotion FROM saveinfo LIMIT 1') || {};
+    var world = state.advancedPopularityMode == null ? (get(api, 'SELECT advancedPopularityMode FROM gameworld LIMIT 1') || {}) : {};
     var promotionId = integer(state.promotionId || state.promotionID || state.saveUserPromotion || save.saveUserPromotion);
     if (promotionId === null) throw new Error('No PWS save or player promotion is loaded');
     var promotion = get(api,
         'SELECT promotionID, fullName, shortName, basedIn, basedInCountry, basedInRegion, style, prestige, money, northAmericaPop, southAmericaPop, europePop, asiaPop, oceaniaPop, africaPop, womensDivision, entToWresRatio, angleToWresRatio, storylinesExpected, preferredWeeklyEvents, preferredMonthlyEvents FROM promotions WHERE promotionID = ?',
         [promotionId]);
     if (!promotion) throw new Error('The player promotion could not be found');
-    var advancedMode = Number(state.advancedPopularityMode || 0) === 1;
+    var advancedModeValue = state.advancedPopularityMode != null ? state.advancedPopularityMode : world.advancedPopularityMode;
+    var advancedMode = Number(advancedModeValue || 0) === 1;
     var size = promotionSize(promotion);
     if (advancedMode) {
         var regionalRows = query(api, 'SELECT prp.popularity,c.countryName,c.continent FROM promotionRegionalPopularity prp JOIN regions r ON r.regionID=prp.regionID JOIN countries c ON c.countryID=r.regionParent WHERE prp.promotionID=?', [promotionId]);
@@ -264,7 +292,7 @@ function rosterRows(api, ctx, options) {
         'WHERE ei.complete=1 AND ei.airDate>=? GROUP BY o.contractID)',
         "SELECT c.contractID, c.workerID, COALESCE(NULLIF(c.contractName,''),w.name) name, w.type, w.gender, w.birthDate, w.style, w.basedIn,",
         'c.role AS alignment, c.push, c.brand, c.contractType, c.exclusive, c.expiryDate, c.wagePerMonth, c.wagePerAppearance, c.contractLength, c.momentum, c.morale, c.lastAppearance,',
-        'c.suspended AS contractSuspended, c.onTimeOff, w.status, w.injuryType, w.injuryHealDate, w.isSuspended,w.suspensionReturnDate,w.canDoAngles,',
+        'c.suspended AS contractSuspended, c.suspensionEndDate AS contractSuspensionEndDate, c.onTimeOff, c.timeOffEndDate, w.status, w.injuryType, w.injuryHealDate, w.isSuspended,w.suspensionReturnDate,w.canDoAngles,',
         'w.wrestlingSkill, w.entertainment, w.starPower, w.stamina, w.psychology, w.safety, w.potential, w.tagExpert, w.marketingDream, w.injuryProne,w.isInRehab,w.rehabReturnDate,',
         'w.' + ctx.popularityColumn + ' AS marketPopularity, COALESCE(u.appearances,0) appearances, COALESCE(u.matches,0) matches, COALESCE(u.angles,0) angles, u.lastBooked',
         'FROM contracts c JOIN workers w ON w.workerID=c.workerID LEFT JOIN usage u ON u.contractID=c.contractID',
@@ -282,12 +310,14 @@ function normalizeRoster(row, currentDate) {
     result.contractId = integer(row.contractID);
     result.workerId = integer(row.workerID);
     result.age = ageAt(row.birthDate, currentDate);
-    result.available = !row.injuryType && !row.isInRehab && !row.isSuspended && !row.contractSuspended && !row.onTimeOff;
-    result.unavailabilityReasons = [];
-    if (row.injuryType) result.unavailabilityReasons.push({ reason: 'injury', detail: row.injuryType, returnDate: row.injuryHealDate || null });
-    if (row.isInRehab) result.unavailabilityReasons.push({ reason: 'rehab', returnDate: row.rehabReturnDate || null });
-    if (row.isSuspended || row.contractSuspended) result.unavailabilityReasons.push({ reason: 'suspension', returnDate: row.suspensionReturnDate || null });
-    if (row.onTimeOff) result.unavailabilityReasons.push({ reason: 'timeOff', returnDate: null });
+    result.unavailabilityReasons = unavailabilityAt(row, currentDate).map(function (item) {
+        return {
+            reason: item.reason === 'workerSuspension' || item.reason === 'contractSuspension' ? 'suspension' : item.reason,
+            detail: item.detail,
+            returnDate: item.returnDate
+        };
+    });
+    result.available = result.unavailabilityReasons.length === 0;
     result.appearances = integer(row.appearances) || 0;
     result.matches = integer(row.matches) || 0;
     result.angles = integer(row.angles) || 0;
@@ -787,6 +817,7 @@ module.exports = {
     importanceName: importanceName,
     integer: integer,
     numeric: numeric,
+    isAvailableOn: isAvailableOn,
     overview: overview,
     popularityTier: popularityTier,
     promotionSize: promotionSize,
@@ -805,6 +836,7 @@ module.exports = {
     storylines: storylines,
     storylineAttributionDiagnostics: storylineAttributionDiagnostics,
     titles: titles,
+    unavailabilityAt: unavailabilityAt,
     upcomingShows: upcomingShows,
     venues: venues,
     workerProfile: workerProfile

@@ -7,8 +7,8 @@ var domain = require('../src/domain');
 
 function withDomainStubs(callback) {
     var originals = { show: domain.show, context: domain.context, rosterRows: domain.rosterRows };
-    domain.show = function () { return { show: { showId: 50, promotionID: 2, length: 60, complete: 0, isCancelled: 0 }, bookedMinutes: 0, segments: [] }; };
-    domain.context = function () { return { promotionId: 2 }; };
+    domain.show = function () { return { show: { showId: 50, promotionID: 2, date: '1992-02-01', length: 60, complete: 0, isCancelled: 0 }, bookedMinutes: 0, segments: [] }; };
+    domain.context = function () { return { promotionId: 2, currentDate: '1992-01-01' }; };
     domain.rosterRows = function () { return [
         { contractID: 10, workerID: 1, name: 'Face', injuryType: '', isSuspended: 0, contractSuspended: 0, onTimeOff: 0 },
         { contractID: 20, workerID: 2, name: 'Heel', injuryType: '', isSuspended: 0, contractSuspended: 0, onTimeOff: 0 },
@@ -124,6 +124,25 @@ test('allows occasional wrestlers in matches while rejecting angle-only worker t
         assert.throws(function () {
             booking.validatePlan(makeBookingApi(), { showId: 50, segments: [{ type: 'match', participants: [[30], [20]] }] });
         }, /Personality is not a wrestler/);
+    });
+});
+
+test('validates availability against the future show date', function () {
+    withDomainStubs(function () {
+        domain.rosterRows = function () { return [
+            { contractID: 10, workerID: 1, name: 'Recovered', type: 'Wrestler', injuryType: 'Sprain', injuryHealDate: '1992-02-01' },
+            { contractID: 20, workerID: 2, name: 'Available', type: 'Wrestler' }
+        ]; };
+        assert.doesNotThrow(function () {
+            booking.validatePlan(makeBookingApi(), { showId: 50, segments: [{ type: 'match', participants: [[10], [20]] }] });
+        });
+        domain.rosterRows = function () { return [
+            { contractID: 10, workerID: 1, name: 'Still Injured', type: 'Wrestler', injuryType: 'Sprain', injuryHealDate: '1992-02-02' },
+            { contractID: 20, workerID: 2, name: 'Available', type: 'Wrestler' }
+        ]; };
+        assert.throws(function () {
+            booking.validatePlan(makeBookingApi(), { showId: 50, segments: [{ type: 'match', participants: [[10], [20]] }] });
+        }, /Still Injured is unavailable on 1992-02-01.*until 1992-02-02/);
     });
 });
 

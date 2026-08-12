@@ -32,14 +32,42 @@ test('dispatch routes actions through the validated game API', function () {
 test('sign_worker validates and canonicalizes a database-specific gimmick', function () {
     var received;
     var api = {
-        database: { get: function (sql, params) { return sql.indexOf('FROM gimmicks WHERE') !== -1 && String(params[0]).toLowerCase() === 'arrogant' ? { name: 'Arrogant' } : null; } },
+        database: { get: function (sql, params) {
+            if (sql.indexOf('FROM gimmicks WHERE') !== -1) return String(params[0]).toLowerCase() === 'arrogant' ? { name: 'Arrogant' } : null;
+            if (sql.indexOf('FROM contracts WHERE') !== -1 && Number(params[0]) === 7) return {
+                contractID: 7, workerID: received.workerId, promotionID: received.promotionId, contractType: received.contractType,
+                exclusive: received.exclusive ? 1 : 0, role: received.role, wagePerMonth: received.wagePerMonth || 0,
+                wagePerAppearance: received.wagePerAppearance || 0, contractLength: received.contractLength == null ? 365 : received.contractLength,
+                push: received.push || 'Midcarder', gimmick: received.gimmick || 'None', contractName: received.contractName || 'Worker',
+                brand: received.brand || null, finalised: 1, expired: 0, contractStarted: 1
+            };
+            return null;
+        } },
         actions: { signWorker: function (value) { received = value; return { success: true, contractId: 7 }; } }
     };
-    bridge.dispatch(api, { method: 'actions.execute', params: { action: 'sign_worker', arguments: { workerId: 1, promotionId: 2, contractType: 'PPA', role: 'Wrestler', gimmick: 'arrogant' }, confirmed: true } });
+    var result = bridge.dispatch(api, { method: 'actions.execute', params: { action: 'sign_worker', arguments: { workerId: 1, promotionId: 2, contractType: 'PPA', role: 'Wrestler', gimmick: 'arrogant', wages: 750, contractLength: 365 }, confirmed: true } });
     assert.equal(received.gimmick, 'Arrogant');
+    assert.equal(received.wagePerAppearance, 750);
+    assert.equal(received.wagePerMonth, undefined);
+    assert.equal(received.wages, undefined);
+    assert.equal(result.verification.success, true);
+    assert.equal(result.after.contractLengthDays, 365);
     assert.throws(function () {
         bridge.dispatch(api, { method: 'actions.execute', params: { action: 'sign_worker', arguments: { workerId: 1, promotionId: 2, contractType: 'PPA', role: 'Wrestler', gimmick: 'Missing' }, confirmed: true } });
     }, /Gimmick not found/);
+});
+
+test('sign_worker reports requested-term persistence failures', function () {
+    var api = {
+        database: { get: function (sql) {
+            if (sql.indexOf('FROM contracts WHERE') !== -1) return { contractID: 9, workerID: 1, promotionID: 2, contractType: 'Written', exclusive: 0, role: 'Wrestler', wagePerMonth: 0, wagePerAppearance: 0, contractLength: 35, finalised: 1, expired: 0, contractStarted: 1 };
+            return null;
+        } },
+        actions: { signWorker: function () { return { success: true, contractId: 9 }; } }
+    };
+    var result = bridge.dispatch(api, { method: 'actions.execute', params: { action: 'sign_worker', arguments: { workerId: 1, promotionId: 2, contractType: 'Written', role: 'Wrestler', wagePerMonth: 5000, contractLength: 365 }, confirmed: true } });
+    assert.equal(result.success, false);
+    assert.deepEqual(result.verification.mismatches.map(function (item) { return item.field; }), ['wagePerMonth', 'contractLength']);
 });
 
 test('dispatch refuses unconfirmed save changes', function () {

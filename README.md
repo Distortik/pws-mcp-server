@@ -39,9 +39,9 @@ Node.js 18 or newer is still required for Codex, Claude Code, and other clients 
 
 The `0.4.0-beta.4` MCPB installs, enables, and launches on Claude Desktop for Windows, but regular **Home** chats do not receive its tools. Claude sends the MCP `initialize` request, waits 60 seconds, and disconnects before tool registration completes. Direct Claude Code and Codex connections continue to work, confirming this is an MCPB/Claude Desktop compatibility issue rather than a PWS bridge or save-data failure.
 
-This is fixed in `0.4.0-beta.5`. Beta.5 uses the official MCP SDK transport plus a dedicated entry point that starts correctly when Claude Desktop loads the extension through its Node UtilityProcess wrapper. A fresh Windows Home conversation exposed the PWS integration and returned the live VWE1 state. Claude Code, the Code tab, and Codex remain supported through the direct `mcp-server.js` path.
+This was fixed in `0.4.0-beta.5` and is included in `0.4.0`. The current server uses the official MCP SDK transport plus a dedicated entry point that starts correctly when Claude Desktop loads the extension through its Node UtilityProcess wrapper. A fresh Windows Home conversation exposed the PWS integration and returned the live VWE1 state. Claude Code, the Code tab, and Codex remain supported through the direct `mcp-server.js` path.
 
-The current beta.5 assets also include an in-place booking hotfix: MCP-created and MCP-edited angle beats always persist all three PWS group arrays. This prevents single-person promos and other angles with unused groups from blocking show startup.
+The release also includes the beta.5 booking hotfix: MCP-created and MCP-edited angle beats always persist all three PWS group arrays. This prevents single-person promos and other angles with unused groups from blocking show startup.
 
 ## Claude Desktop and Claude Code are separate
 
@@ -78,7 +78,7 @@ Use the packaged release asset, not GitHub's automatic repository source ZIP. Th
 
 Claude Desktop uses the one-click MCPB release. Do not edit `claude_desktop_config.json`.
 
-> **Beta.5 compatibility result:** the MCPB passed a regular Home-chat connection and live state read on Claude Desktop for Windows.
+> **0.4.0 compatibility result:** its MCPB transport passed a regular Home-chat connection and live state read on Claude Desktop for Windows during the beta.5 release gate.
 
 **Account requirement:** The Code tab uses Claude Code and requires an eligible paid Claude plan, or pay-as-you-go Claude API billing.
 
@@ -207,13 +207,15 @@ Match participants may have PWS worker type `Wrestler` or `Occasional Wrestler`.
 
 Purpose-built tools are also available for removing a segment, setting an unfinished show's venue (with an optional recurring-event default), ending a storyline, adding or removing a storyline worker, releasing a worker, and vacating a championship. These operations preview by default, validate that the target belongs to the player company, require `preview: false` and `confirmed: true`, and re-read the save before reporting success. The advanced generic action tool no longer exposes these operations.
 
-Large rosters can be read page-by-page with `offset` and `limit`; use `lean: true` for a compact booking-oriented response. Availability excludes workers in rehab as well as injured, suspended, and time-off workers. Storyline reads accept `storylineId` and `lean: true` for inexpensive heat/status checks.
+Large rosters can be read page-by-page with `offset` and `limit`; use `lean: true` for a compact booking-oriented response. Availability excludes workers in rehab as well as injured, suspended, and time-off workers. Show planning and segment edits compare return dates with the target show's air date, so someone who recovers by a future show can be booked while missing or later return dates remain unavailable. Storyline reads accept `storylineId` and `lean: true` for inexpensive heat/status checks.
 
 Use `pws_get_venues` to find a suitable building by geography and capacity. `pws_get_show` includes the assigned venue, capacity, type, recurring-event default, structured participant groups, opponent details, ringside workers, and angle subjects. If storyline progress appears to be missing after simulation, `pws_diagnose_storyline_attribution` reports recent in-lifetime segments that contained two or more storyline members but have no entity-normalized matching history row.
 
-The 0.4.0 beta adds preview-first tools for stable creation and membership, contract gimmicks and personas, worker promises, event-series creation/archiving, show scheduling, and show cancellation. Use `pws_get_personas` to browse a worker's native PWS alter egos and inspect their preferred gimmick, picture, mask, promotion restriction, and valid dates. `pws_set_contract_persona` changes only the player-company contract identity, so selecting Mankind or setting a custom ring name does not rename Mick Foley globally; selecting a native persona also applies its available preferred gimmick, picture, and mask as one verified presentation change. Optional picture and mask overrides allow the complete before-state returned by a preview to be restored exactly. Promotion-ineligible personas must first be made available with `pws_set_persona_availability`. Date-ineligible personas are rejected by default and require `allowDateOverride=true` for explicit creative-sandbox use; neither operation changes `minDate` or `maxDate`. PWS still supports one active presentation per contract at a time; it does not currently expose simultaneous per-match persona selection. `pws_set_event_active` safely archives or restores an event series without deleting its show history and blocks archiving while unfinished non-cancelled shows remain. Gimmicks are database-specific: use `pws_get_gimmicks` before assignment. `pws_get_promises` lists requests and obligations by deadline, while `pws_respond_to_promise` previews and transactionally applies the native accept/decline result, handled-email flag, and worker relationship effect. Keep beta builds as the separate TEST plugin; do not replace the production Workshop plugin until live-save testing is complete.
+Version 0.4.0 adds preview-first tools for stable creation and membership, contract gimmicks and personas, worker promises, event-series creation/archiving, show scheduling, and show cancellation. Use `pws_get_personas` to browse a worker's native PWS alter egos and inspect their preferred gimmick, picture, mask, promotion restriction, and valid dates. `pws_set_contract_persona` changes only the player-company contract identity, so selecting Mankind or setting a custom ring name does not rename Mick Foley globally; selecting a native persona also applies its available preferred gimmick, picture, and mask as one verified presentation change. Optional picture and mask overrides allow the complete before-state returned by a preview to be restored exactly. Promotion-ineligible personas must first be made available with `pws_set_persona_availability`. Date-ineligible personas are rejected by default and require `allowDateOverride=true` for explicit creative-sandbox use; neither operation changes `minDate` or `maxDate`. PWS still supports one active presentation per contract at a time; it does not currently expose simultaneous per-match persona selection. `pws_set_event_active` safely archives or restores an event series without deleting its show history and blocks archiving while unfinished non-cancelled shows remain. Gimmicks are database-specific: use `pws_get_gimmicks` before assignment. `pws_get_promises` lists requests and obligations by deadline, while `pws_respond_to_promise` previews and transactionally applies the native accept/decline result, handled-email flag, and worker relationship effect.
 
-Use [PLAYTESTING.md](PLAYTESTING.md) as the release gate for a 0.4.0 prerelease. Current defects, partial fixes, and future features are tracked in [BACKLOG.md](BACKLOG.md); release direction and completed beta gates remain in [ROADMAP.md](ROADMAP.md).
+The advanced `sign_worker` action accepts `wagePerMonth`, `wagePerAppearance`, and a day-based `contractLength` (`-1` means indefinite). The older numeric `wages` alias remains compatible and maps to monthly pay for Written contracts or appearance pay otherwise. Successful signings are read back and every explicitly requested supported term is verified. This remains an advanced confirmed action because PWS's official action does not expose every negotiation perk; full offers, counters, renewals, and negotiation-layer awareness are planned after 0.4.0.
+
+Use [PLAYTESTING.md](PLAYTESTING.md) for release-candidate and regression testing. Current defects, deferred safety work, and future features are tracked in [BACKLOG.md](BACKLOG.md); release direction and completed beta gates remain in [ROADMAP.md](ROADMAP.md).
 
 ## Safety
 
@@ -236,7 +238,7 @@ Start PWS, confirm the plugin is enabled, and load a save. If it was already ope
 
 ### Claude Desktop is not connected or has outdated tools
 
-Beta.4 times out during initialization in regular Home chats on Claude Desktop for Windows; beta.5 fixes that compatibility issue. Install the matching newest package, fully restart Claude Desktop, start a new Home conversation, and confirm **Pro Wrestling Sim** is enabled. If the tools remain absent, verify the installed extension version and inspect Claude Desktop's per-extension log before reinstalling. Never share `%APPDATA%\ProWrestlingSimulator\mcp\pws-mcp-runtime.json`; it contains a temporary local access token.
+Beta.4 timed out during initialization in regular Home chats on Claude Desktop for Windows; beta.5 and 0.4.0 include the compatibility fix. Install the matching newest package, fully restart Claude Desktop, start a new Home conversation, and confirm **Pro Wrestling Sim** is enabled. If the tools remain absent, verify the installed extension version and inspect Claude Desktop's per-extension log before reinstalling. Never share `%APPDATA%\ProWrestlingSimulator\mcp\pws-mcp-runtime.json`; it contains a temporary local access token.
 
 ### Claude Code is not connected or has outdated tools
 
@@ -264,7 +266,8 @@ PWS validates game actions. Ask the assistant to explain the returned error and 
 
 - Pro Wrestling Sim and its plugin API are Windows-only.
 - Contract renewals remain advisory until PWS exposes a validated renewal action.
-- Signing workers, creating storylines, and awarding titles still use the advanced confirmed-action interface until their complete PWS input contracts can be validated and exposed as purpose-built preview tools.
+- Signing workers, creating storylines, and awarding titles still use the advanced confirmed-action interface until their complete PWS input contracts can be exposed as purpose-built preview tools. Signing validates and verifies the supported core terms, but PWS does not expose every negotiation perk through that action.
+- Confirmed writes are not yet tied to a short-lived cryptographic preview receipt. Tools still default to preview, require explicit approval, revalidate the live target during apply, and verify the persisted result; receipt-based confirmation is deferred until after 0.4.0.
 - Privately distributed MCPB updates must be downloaded and installed again from a newer GitHub Release.
 
 ## License

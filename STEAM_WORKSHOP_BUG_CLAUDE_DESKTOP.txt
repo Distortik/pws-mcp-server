@@ -1,6 +1,6 @@
 [h1]Resolved: Claude Desktop MCPB Initialization Timeout[/h1]
 
-[quote][b]Status: fixed and live-verified in 0.4.0-beta.5 on Claude Desktop for Windows.[/b][/quote]
+[quote][b]Status: fixed in 0.4.0-beta.5 and included in 0.4.0. The production MCPB is live-verified on Claude Desktop for Windows.[/b][/quote]
 
 [h2]What happens[/h2]
 

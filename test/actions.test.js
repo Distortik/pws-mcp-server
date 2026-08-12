@@ -236,6 +236,20 @@ test('adds, removes, and dissolves stable membership safely', function () {
     });
 });
 
+test('rejects a stable member addition when the requested leader flag is lost', function () {
+    withContext(function () {
+        var api = stableApi();
+        actions.createStable(api, { name: 'The Group', contractIds: [10, 20], preview: false, confirmed: true });
+        api.actions.addWorkerToStable = function (_stableId, contractId) {
+            api._state.stable.members.push({ contractID: contractId, isLeader: 'false' });
+            return { success: true };
+        };
+        assert.throws(function () {
+            actions.changeStableMember(api, { stableId: 8, contractId: 30, isLeader: true, preview: false, confirmed: true }, true);
+        }, /Post-action verification failed/);
+    });
+});
+
 test('sets and verifies a contract gimmick through PWS actions', function () {
     withContext(function () {
         var api = stableApi();

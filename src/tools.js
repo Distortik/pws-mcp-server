@@ -199,7 +199,7 @@ var TOOLS = [
     }, ['personaId', 'availability']), annotations: WRITE },
     { name: 'pws_execute_action', description: 'ADVANCED SAVE ACTION for PWS operations that do not yet have a purpose-built verified tool. Requires confirmed=true. Supported actions: create_storyline, sign_worker, award_title, update_worker_attribute (sandbox only), create_news_item, create_email.', inputSchema: object({
         action: { type: 'string', enum: ['create_storyline', 'sign_worker', 'award_title', 'update_worker_attribute', 'create_news_item', 'create_email'] },
-        arguments: { type: 'object', description: 'Action-specific arguments. sign_worker requires workerId, promotionId, contractType, and role; it also accepts exclusive, wages, contractLength, push, gimmick, contractName, and brand.' }, confirmed: { type: 'boolean', const: true }
+        arguments: { type: 'object', description: 'Action-specific arguments. sign_worker requires workerId, promotionId, contractType (Written, Handshake, or PPA), and role. Use wagePerMonth and wagePerAppearance for pay; the deprecated numeric wages alias maps to monthly pay for Written contracts and appearance pay otherwise. contractLength is DAYS (-1 means indefinite), not months or years. Optional fields: exclusive, push, gimmick, contractName, and brand. Successful signings are read back and their exact requested terms are verified.' }, confirmed: { type: 'boolean', const: true }
     }, ['action', 'arguments', 'confirmed']), annotations: WRITE },
     { name: 'pws_get_audit_log', description: 'Get the PWS action audit log for this plugin.', inputSchema: object(), annotations: READ_ONLY }
 ];

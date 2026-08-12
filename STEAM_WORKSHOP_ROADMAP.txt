@@ -1,8 +1,8 @@
-[h1]PWS MCP Server Roadmap — Beta.5 and the Final Steps Toward 0.4.0[/h1]
+[h1]PWS MCP Server Roadmap — 0.4.0 Release Ready[/h1]
 
 [h2]PWS MCP Server Roadmap[/h2]
 
-This roadmap shows the current state of PWS MCP Server 0.4.0. The beta feature, live-save operation, and Claude Desktop compatibility test phases are complete. The remaining work is focused release hardening and production packaging.
+This roadmap shows the current state of PWS MCP Server 0.4.0. The beta feature, live-save operation, Claude Desktop compatibility, production packaging, and installed MCPB smoke-test phases are complete. The release gate has passed; publication is the only remaining step.
 
 [h2]Release path[/h2]
 
@@ -19,7 +19,7 @@ This roadmap shows the current state of PWS MCP Server 0.4.0. The beta feature, 
    |
    +-- 0.4.0-beta.5 — Claude Desktop MCPB compatibility
    |
-   +-- 0.4.0 — Next production Workshop release
+   +-- 0.4.0 — Release gate passed
 [/code]
 
 [h2]Progress overview[/h2]
@@ -34,6 +34,7 @@ WORKER PROMISE RESPONSES     [■■■■■■■■■■] Implemented and te
 STORYLINE DIAGNOSTICS        [■■■■■■■■■■] Implemented and validated
 SAVE SAFETY & LIVE TESTING   [■■■■■■■■■■] Beta gate passed
 CLAUDE DESKTOP MCPB         [■■■■■■■■■■] Fixed and live-tested
+RELEASE-CANDIDATE HARDENING [■■■■■■■■■■] Implemented and live-tested
 GENERIC ACTION REPLACEMENT   [■■■■■■□□□□] In progress
 TOURNAMENT MANAGEMENT        [□□□□□□□□□□] Planned after 0.4.0
 CONTRACT NEGOTIATIONS        [□□□□□□□□□□] Planned after 0.4.0
@@ -121,12 +122,10 @@ Locate the installed PWS MCP Server [code]mcp-server.js[/code] for the build I a
 [h2]What remains before 0.4.0[/h2]
 
 [list]
-[*]Resolve or safely calibrate the remaining B12 company-size and B13 future-show availability correctness issues.
-[*]Complete targeted B10 stable-leader verification and B11 approval-flow hardening decisions.
-[*]Build and inspect the production Workshop package and matching Claude Desktop MCPB.
-[*]Install the production package separately and run a final connection and save-read smoke test.
 [*]Publish the Workshop update, matching GitHub release, installation notes, and full changelog.
 [/list]
+
+The release fixes the known B12 mode-detection mismatch by reading advanced-popularity mode from PWS's [code]gameworld[/code] data, evaluates worker return dates against a future show's actual air date, verifies stable leader state after adding a member, and corrects/reads back supported generic worker-signing terms. All 79 automated tests and all 13 live read-only checks pass. VWE1 now reports Regional correctly, its injury/rehab boundary checks pass, and a reversible leader add/remove persisted and cleaned up exactly. The installed 0.4.0 MCPB also connected from a fresh Claude Desktop Home conversation and returned the correct live state. Receipt-bound confirmations are deferred as a broader post-0.4.0 protocol change; previews, explicit confirmation, apply-time revalidation, and post-save verification remain in place.
 
 Tournament management, complete contract negotiations, incoming rival-offer responses, and network or TV-deal management are valuable future features, but they are no longer being treated as blockers for 0.4.0.
 
@@ -160,7 +159,7 @@ Claude Desktop beta.5 compatibility test
 Production 0.4.0 package and smoke test
 [/code]
 
-Beta builds remain separate from the production Workshop item. The Workshop version will stay on stable 0.3.0 until the production 0.4.0 package passes its final smoke test.
+Beta and release-candidate builds remain separate from the production Workshop item. The Workshop version will stay on stable 0.3.0 until the production 0.4.0 package passes its final smoke test.
 
 [h2]Client update reminder[/h2]
 

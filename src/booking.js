@@ -36,7 +36,9 @@ function bookingContext(api, options) {
     }
     var card = domain.show(api, { showId: showId });
     if (Number(card.show.promotionID) !== ctx.promotionId) throw new Error('The show does not belong to the player promotion');
-    var rows = domain.rosterRows(api, ctx, { availableOnly: true, limit: 500 });
+    var rows = domain.rosterRows(api, ctx, { limit: 500 }).filter(function (row) {
+        return domain.isAvailableOn(row, card.show.date || ctx.currentDate);
+    });
     var roster = rows.map(function (row) {
         return {
             contractId: Number(row.contractID), workerId: Number(row.workerID), name: row.name,
@@ -240,7 +242,11 @@ function validatePlan(api, options) {
                 var contractId = Number(id);
                 var worker = byContract[contractId];
                 if (!worker) throw new Error('Contract ' + id + ' is not active at the player promotion');
-                if (worker.injuryType || worker.isInRehab || worker.isSuspended || worker.contractSuspended || worker.onTimeOff) throw new Error(worker.name + ' is unavailable');
+                var unavailable = domain.unavailabilityAt(worker, card.show.date || ctx.currentDate);
+                if (unavailable.length) {
+                    var first = unavailable[0];
+                    throw new Error(worker.name + ' is unavailable on ' + (card.show.date || ctx.currentDate) + ' (' + first.reason + (first.returnDate ? ' until ' + first.returnDate : '') + ')');
+                }
                 if (segment.type === 'match' && !domain.canParticipateInMatch(worker.type)) throw new Error(worker.name + ' is not a wrestler and cannot be a match participant');
                 return contractId;
             });

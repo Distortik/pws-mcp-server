@@ -89,15 +89,94 @@ function readOnlyQuery(api, params) {
     return api.database.query('SELECT * FROM (' + sql + ') AS pws_mcp_result LIMIT ?', values.concat([maxRows]));
 }
 
+function actionInteger(value, label, minimum) {
+    var parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed < minimum) throw new Error(label + ' must be an integer of at least ' + minimum);
+    return parsed;
+}
+
+function actionMoney(value, label) {
+    var parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) throw new Error(label + ' must be a non-negative number');
+    return parsed;
+}
+
+function normalizeSignWorkerArguments(api, input) {
+    var args = Object.assign({}, input || {});
+    args.workerId = actionInteger(args.workerId, 'workerId', 1);
+    args.promotionId = actionInteger(args.promotionId, 'promotionId', 1);
+    var contractTypes = { written: 'Written', handshake: 'Handshake', ppa: 'PPA' };
+    var contractType = contractTypes[String(args.contractType || '').trim().toLowerCase()];
+    if (!contractType) throw new Error('contractType must be Written, Handshake, or PPA');
+    args.contractType = contractType;
+    if (!String(args.role || '').trim()) throw new Error('role is required');
+    args.role = String(args.role).trim();
+    args.exclusive = args.exclusive === true;
+
+    if (args.wages != null) {
+        if (args.wagePerMonth != null || args.wagePerAppearance != null) throw new Error('Use wages or the canonical wagePerMonth/wagePerAppearance fields, not both');
+        if (contractType === 'Written') args.wagePerMonth = actionMoney(args.wages, 'wages');
+        else args.wagePerAppearance = actionMoney(args.wages, 'wages');
+        delete args.wages;
+    }
+    if (args.wagePerMonth != null) args.wagePerMonth = actionMoney(args.wagePerMonth, 'wagePerMonth');
+    if (args.wagePerAppearance != null) args.wagePerAppearance = actionMoney(args.wagePerAppearance, 'wagePerAppearance');
+    if (args.contractLength != null) {
+        args.contractLength = actionInteger(args.contractLength, 'contractLength', -1);
+        if (args.contractLength === 0) throw new Error('contractLength is measured in days and must be -1 for indefinite or at least 1');
+    }
+    if (args.brand != null) args.brand = actionInteger(args.brand, 'brand', 1);
+    if (args.gimmick != null) args.gimmick = purposeBuiltActions.validateGimmick(api, args.gimmick);
+    return args;
+}
+
+function verifySignedContract(api, args, result) {
+    if (!result || result.success !== true) return result;
+    var contractId = Number(result.contractId);
+    if (!Number.isInteger(contractId) || contractId < 1) return { success: false, error: 'PWS reported a successful signing without a valid contractId', actionResult: result };
+    var row = domain.get(api, [
+        'SELECT contractID,workerID,promotionID,contractType,exclusive,role,wagePerMonth,wagePerAppearance,',
+        'contractLength,push,gimmick,contractName,brand,finalised,expired,contractStarted',
+        'FROM contracts WHERE contractID=?'
+    ].join(' '), [contractId]);
+    if (!row) return { success: false, error: 'PWS reported a successful signing but the contract was not persisted', contractId: contractId };
+    var expected = {
+        workerID: args.workerId, promotionID: args.promotionId, contractType: args.contractType,
+        exclusive: args.exclusive ? 1 : 0, role: args.role
+    };
+    ['wagePerMonth', 'wagePerAppearance', 'contractLength', 'push', 'gimmick', 'contractName', 'brand'].forEach(function (field) {
+        if (args[field] != null) expected[field] = args[field];
+    });
+    var numericFields = { workerID: true, promotionID: true, exclusive: true, wagePerMonth: true, wagePerAppearance: true, contractLength: true, brand: true };
+    var mismatches = Object.keys(expected).filter(function (field) {
+        return numericFields[field] ? Number(row[field]) !== Number(expected[field]) : String(row[field] == null ? '' : row[field]) !== String(expected[field]);
+    }).map(function (field) { return { field: field, requested: expected[field], persisted: row[field] }; });
+    ['finalised', 'contractStarted'].forEach(function (field) {
+        if (Number(row[field]) !== 1) mismatches.push({ field: field, requested: 1, persisted: row[field] });
+    });
+    if (Number(row.expired || 0) !== 0) mismatches.push({ field: 'expired', requested: 0, persisted: row.expired });
+    var after = {
+        contractId: Number(row.contractID), workerId: Number(row.workerID), promotionId: Number(row.promotionID),
+        contractType: row.contractType, exclusive: Number(row.exclusive || 0) === 1, role: row.role,
+        wagePerMonth: Number(row.wagePerMonth || 0), wagePerAppearance: Number(row.wagePerAppearance || 0),
+        contractLengthDays: row.contractLength == null ? null : Number(row.contractLength), push: row.push,
+        gimmick: row.gimmick, contractName: row.contractName, brand: row.brand == null || row.brand === '' ? null : Number(row.brand)
+    };
+    if (mismatches.length) return { success: false, error: 'The signed contract did not persist the requested terms', contractId: contractId, after: after, verification: { success: false, mismatches: mismatches } };
+    return Object.assign({}, result, { after: after, verification: { success: true, checkedFields: Object.keys(expected).concat(['finalised', 'contractStarted', 'expired']) } });
+}
+
 function invokeAction(api, name, args) {
     var definition = ACTIONS[name];
     if (!definition) throw new Error('Unsupported action: ' + name);
     var fn = api.actions[definition[0]];
     if (typeof fn !== 'function') throw new Error('Action is unavailable in this PWS version: ' + name);
     args = args || {};
-    if (name === 'sign_worker' && args.gimmick != null) args.gimmick = purposeBuiltActions.validateGimmick(api, args.gimmick);
+    if (name === 'sign_worker') args = normalizeSignWorkerArguments(api, args);
     switch (definition[1]) {
-    case 'object': return fn.call(api.actions, args);
+    case 'object':
+        var result = fn.call(api.actions, args);
+        return name === 'sign_worker' ? verifySignedContract(api, args, result) : result;
     case 'id': return fn.call(api.actions, Number(args.id));
     case 'pair': return fn.call(api.actions, Number(args.storylineId), Number(args.contractId));
     case 'vacate': return fn.call(api.actions, Number(args.titleId), args.reason);

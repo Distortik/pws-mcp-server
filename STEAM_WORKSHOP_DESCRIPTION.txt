@@ -4,11 +4,11 @@
 
 Ask your AI assistant to inspect your save, plan shows, check workers and storylines, validate bookings, and perform supported changes through preview-first tools.
 
-[quote][b]Claude Desktop beta.5 compatibility fix[/b]
+[quote][b]0.4.0 release[/b]
 
-The 0.4.0-beta.4 MCPB timed out during initialization in regular Claude Desktop Home chats on Windows. This is fixed in 0.4.0-beta.5 with the official MCP SDK transport and a dedicated Claude Desktop entry point. Beta.5 passed a fresh Home-chat connection and live PWS state read on Windows. Claude Code, Claude Desktop's Code tab, and Codex direct-path connections remain supported too.
+Version 0.4.0 adds wrestler personas and contract ring names, worker promise responses, stables, gimmicks, event/show scheduling, transactional segment editing, structured show reads, and stronger live-save verification. The full beta and release-candidate gates passed 79 automated tests plus live bridge, restart-persistence, visual, and reversible mutation checks.
 
-The current beta.5 files also hotfix MCP-created angles that omitted an unused worker group and could stop PWS from starting the show. New cards and later angle edits now save the complete native beat shape. Replace both beta.5 release assets with the corrected files.
+The release uses the official MCP SDK transport and a dedicated Claude Desktop entry point. It also includes the beta.5 hotfix for MCP-created angles whose missing unused group could stop a show from starting. Claude Desktop Home, Claude Code, Claude Desktop's Code tab, and Codex direct-path connections are supported.
 [/quote]
 
 [h2]Highlights[/h2]
@@ -17,6 +17,8 @@ The current beta.5 files also hotfix MCP-created angles that omitted an unused w
 [*]Browse companies, workers, contracts, titles, teams, stables, storylines, venues, events, and shows
 [*]Build and validate complete show plans, including matches, angles, titles, ringside workers, referees, agents, and announcers
 [*]Manage storylines, contracts, gimmicks, stables, venues, event series, and scheduled shows
+[*]Select native wrestler personas or custom contract ring names without renaming the worker globally
+[*]Read and respond safely to worker promises
 [*]Preview supported save changes before applying them, then verify the result
 [*]Diagnose booking availability and storyline attribution problems
 [/list]
@@ -72,7 +74,7 @@ If the game is running with a save loaded, the assistant should return the curre
 [*]A preview is [b]not[/b] permission to apply a change.
 [*]The assistant should use [code]confirmed: true[/code] only after you approve that exact preview.
 [*]Requests to inspect, check, test, or verify do not authorize persistent save changes or creative booking decisions.
-[*]Back up important saves before testing beta features.
+[*]Back up important saves before using save-changing features.
 [/list]
 
 [h2]Optional mod integrations[/h2]

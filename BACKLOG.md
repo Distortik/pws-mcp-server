@@ -2,47 +2,49 @@
 
 This is the version-controlled source of truth for open PWS MCP Server defects, safety work, and feature requests. `ROADMAP.md` describes release direction; this file tracks the concrete work still waiting.
 
-Status last reconciled: **12 August 2026**  
-Repository candidate: **0.4.0-beta.5**  
-Latest fully live-validated build: **0.4.0-beta.5 hotfix**
+Status last reconciled: **13 August 2026**
+Repository candidate: **0.4.0 release-ready**
+Latest fully live-validated build: **0.4.0**
 
-Beta.5 changes the MCP transport and packaging layer and fixes B14 and B15. All 73 automated tests, 13 non-mutating live bridge checks, the Windows Claude Desktop Home-chat check, a live B14 dry-run, and the affected B15 CareerMode show-start path pass.
+Version 0.4.0 fixes B10, B12, B13, and the generic-signing portion of F19. All 79 automated tests and all 13 live read-only bridge checks pass. VWE1 confirmed the corrected Regional company size, real injury/rehab date boundaries, current-show rejection details, stable-leader persistence, and exact stable cleanup. The installed production MCPB also passed a fresh Claude Desktop Home-chat connection and live state read.
 
 ## Release recommendation
 
-Keep the remaining 0.4.0 work focused on:
+The 0.4.0 release gate is complete. Remaining release work is publication only:
 
-1. B12 and B13 correctness.
-2. Targeted B10 and B11 safety hardening.
-3. Final production package validation and smoke testing.
+1. Commit and push the release-ready source and documentation.
+2. Publish the production ZIP/MCPB in the GitHub 0.4.0 release.
+3. Publish the matching Steam Workshop update and description/roadmap text.
 
 The larger management features should follow 0.4.0 rather than reopening the release scope.
 
-## Open correctness and safety work
+## Release-candidate fixes validated for release
 
-### B12 — Company-size tier differs from the game
+### B12 — Company-size tier differs from the game — fixed and live-validated
 
-`pws_get_state` correctly derives size from continental popularity instead of prestige, but its thresholds still disagree with the in-game tier at a known calibration point: the game reported Regional when the promotion's maximum continental popularity was 11.
+The mismatch came from mode detection, not the tier thresholds. VWE1 stores `advancedPopularityMode = 1` in `gameworld`, while the runtime state helper omitted that flag. The MCP therefore used continental popularity and returned Local even though a regional-popularity row had reached 20 and PWS correctly displayed Regional.
 
-**Next work:** establish the game's actual Local/Regional/Cult/National/Continental calculation and add boundary tests before changing the public result.
+**Validated fix:** fall back to `gameworld.advancedPopularityMode`, use PWS's regional aggregation rules in advanced mode, and retain boundary tests for both popularity systems. The deployed candidate now reports VWE1 as Regional with `sizeMethod = regional popularity`, matching its advanced-mode flag and maximum regional value of 20.
 
-### B13 — Future-show availability uses the current date
+### B13 — Future-show availability uses the current date — fixed and validated
 
-Show-plan validation currently relies on a worker's present unavailable flags. A worker injured today can be rejected even when their heal date is before the show's air date.
+Show planning and segment edits now evaluate injury, rehab, worker suspension, contract suspension, and time off against the target show's `airDate`. A return date on or before the show date makes the worker eligible, matching PWS's date-transition clearing rules; a missing or invalid return date remains unavailable conservatively.
 
-**Next work:** validate injuries, rehab, suspensions, and time off against the target show's `airDate`, while preserving conservative handling when PWS exposes no reliable return date.
+**Validation:** automated coverage passes for new show plans and edits to existing segments. Live VWE1 checks confirmed all expected date columns, returned Megumi Kudo's 28 May injury date in a current-show rejection, and evaluated both Kudo and Terry Gordy as unavailable the day before return and available on the return date.
 
-### B10 — Stable leader persistence is only partially normalized
+### B10 — Stable leader persistence is only partially normalized — fixed and live-validated
 
-Public stable reads normalize native `"1"`, `"0"`, `"true"`, and `"false"` values to JSON booleans. PWS's official stable actions can still leave mixed string representations in `stableworkers.isLeader`, and add-member verification currently proves membership but not every requested leader-state transition.
+Public stable reads continue to normalize native `"1"`, `"0"`, `"true"`, and `"false"` values to JSON booleans. Add-member verification now also requires the persisted normalized leader flag to match the requested value; membership alone can no longer produce a false success.
 
-**Next work:** strengthen post-action verification and determine whether numeric persistence can be requested through the official PWS action contract. Treat the mixed stored form as an upstream limitation if it cannot.
+PWS's official action may still store a mixed native representation, but that is harmless to the public result and is treated as an upstream storage detail rather than a release blocker. Live testing added Randy Savage to The Superstar Agency as a leader, verified the normalized persisted `true` value, removed him, and confirmed the original four-member state was restored.
 
-### B11 — Confirmation is not tied to an exact preview
+## Deferred safety work
+
+### B11 — Confirmation is not tied to an exact preview — deferred after 0.4.0
 
 Server instructions, schemas, and tools require preview-first changes and explicit user approval. A client can nevertheless submit a bare `confirmed: true`; the server cannot prove that the user approved the exact preview being applied.
 
-**Next work:** evaluate short-lived preview receipts containing the operation and target-state digest, then require the matching receipt during apply without making normal use cumbersome.
+Adding short-lived preview receipts would change every purpose-built write schema, clients' two-step workflow, and the live regression runner. That cross-cutting protocol change is intentionally deferred until after 0.4.0 rather than introduced after the completed beta save-safety gate. Current tools still default to preview, require explicit confirmation, revalidate current ownership/state during apply, and verify persistence before success.
 
 ## Features waiting to be implemented
 
@@ -54,11 +56,11 @@ Create, rename, archive/retire, and configure brands and championships. Title an
 
 Expose regional popularity alongside continental popularity, warn when the two systems materially disagree, and investigate safe popularity editing. A new CareerMode promotion had North American continental popularity 50 while every `promotionRegionalPopularity` row was zero, a state the established AI promotions did not exhibit and which can distort company size, attendance, and local-market analysis.
 
-### F19 — Signing terms, perks, and negotiation-layer awareness
+### F19 — Signing terms, perks, and negotiation-layer awareness — generic path corrected
 
 Correct and document the generic `sign_worker` contract: the current tool advertises `wages`, while PWS expects `wagePerMonth` and `wagePerAppearance`; `contractLength` is measured in days; and important contract perks are not exposed by the official action. Also decide how clearly the MCP should warn when direct signing bypasses a UI-only negotiation mod such as Dynamic Negotiations.
 
-**Next work:** fix the misleading argument description or translate the compatibility alias, add exact term verification, document day units, and distinguish MCP/PWS API limitations from supported terms before promoting generic signing to a purpose-built tool.
+**0.4.0 candidate:** the generic action now accepts the canonical wage fields, translates the deprecated numeric `wages` alias according to contract type, validates day-based length values, canonicalizes the contract type and gimmick, and reads the new contract back to verify every explicitly requested supported term plus its active state. A purpose-built preview-first signing/negotiation tool and unsupported perks remain future work.
 
 ### F20 — Brand and event commentary-team defaults
 

@@ -20,12 +20,12 @@ async function verifyTransport(serverPath, cwd, loadThroughWrapper) {
         stderr: 'pipe'
     });
     if (transport.stderr) transport.stderr.on('data', function (chunk) { stderr += chunk.toString('utf8'); });
-    var client = new Client({ name: 'pws-beta5-regression', version: '1.0.0' }, { capabilities: {} });
+    var client = new Client({ name: 'pws-040-regression', version: '1.0.0' }, { capabilities: {} });
 
     try {
         await client.connect(transport);
         assert.equal(client.getServerVersion().name, 'pws-mcp-server');
-        assert.equal(client.getServerVersion().version, '0.4.0-beta.5');
+        assert.equal(client.getServerVersion().version, '0.4.0');
         var tools = await client.listTools();
         assert.ok(tools.tools.length >= 19);
         assert.ok(tools.tools.some(function (tool) { return tool.name === 'pws_set_contract_persona'; }));
@@ -50,7 +50,7 @@ test('standalone Workshop server completes initialization without node_modules',
     var notices = fs.readFileSync(path.join(workshop.outputDirectory, 'THIRD_PARTY_NOTICES.txt'), 'utf8');
     assert.match(notices, /@modelcontextprotocol\/sdk 1\.30\.0 \(MIT\)/);
     assert.match(notices, /fast-uri .* \(BSD-3-Clause\)/);
-    var temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'pws-mcp-beta5-'));
+    var temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'pws-mcp-040-'));
     var standalone = path.join(temporary, 'mcp-server.js');
     var entry = path.join(temporary, 'mcpb-entry.js');
     try {

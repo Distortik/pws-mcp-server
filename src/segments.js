@@ -80,7 +80,7 @@ function parseBeats(value) {
 function readSegment(api, segmentId) {
     segmentId = requiredInteger(segmentId, 'segmentId', 1);
     var row = domain.get(api, [
-        'SELECT s.*,ei.complete,ei.isCancelled,e.promotionID,e.brand AS showBrand',
+        'SELECT s.*,ei.complete,ei.isCancelled,ei.airDate AS showDate,e.promotionID,e.brand AS showBrand',
         'FROM segments s JOIN eventinstance ei ON ei.instanceID=s.showID',
         'JOIN events e ON e.eventID=ei.eventID WHERE s.segmentID=?'
     ].join(' '), [segmentId]);
@@ -118,6 +118,7 @@ function readSegment(api, segmentId) {
     var result = {
         segmentId: Number(row.segmentID),
         showId: Number(row.showID),
+        showDate: row.showDate || null,
         type: type,
         segmentLength: Number(row.segmentLength || 0),
         segmentPosition: Number(row.segmentorder || 0),
@@ -164,8 +165,8 @@ function readSegment(api, segmentId) {
 
 function contractMap(api, promotionId) {
     var rows = domain.query(api, [
-        'SELECT c.contractID,c.workerID,c.promotionID,c.brand,c.suspended,c.onTimeOff,w.name,w.type,w.gender,',
-        'w.injuryType,w.isSuspended FROM contracts c JOIN workers w ON w.workerID=c.workerID',
+        'SELECT c.contractID,c.workerID,c.promotionID,c.brand,c.suspended,c.suspensionEndDate,c.onTimeOff,c.timeOffEndDate,w.name,w.type,w.gender,',
+        'w.injuryType,w.injuryHealDate,w.isInRehab,w.rehabReturnDate,w.isSuspended,w.suspensionReturnDate FROM contracts c JOIN workers w ON w.workerID=c.workerID',
         'WHERE c.promotionID=? AND c.finalised=1 AND c.expired=0 AND c.contractStarted=1'
     ].join(' '), [promotionId]);
     var result = {};
@@ -179,8 +180,10 @@ function validateContractIds(values, label, contracts, options) {
     ids.forEach(function (id) {
         var contract = contracts[id];
         if (!contract) throw new Error('Contract ' + id + ' is not active at the player promotion');
-        if (options.requireAvailable !== false && (contract.injuryType || contract.isSuspended || contract.suspended || contract.onTimeOff)) {
-            throw new Error((contract.name || ('Contract ' + id)) + ' is unavailable');
+        var unavailable = options.requireAvailable === false ? [] : domain.unavailabilityAt(contract, options.targetDate);
+        if (unavailable.length) {
+            var first = unavailable[0];
+            throw new Error((contract.name || ('Contract ' + id)) + ' is unavailable' + (options.targetDate ? ' on ' + options.targetDate : '') + ' (' + first.reason + (first.returnDate ? ' until ' + first.returnDate : '') + ')');
         }
     });
     return ids;
@@ -191,7 +194,7 @@ function validateParticipants(value, contracts, minimumGroups, options) {
     if (!Array.isArray(value) || value.length < minimumGroups) throw new Error('participants must contain at least ' + minimumGroups + ' non-empty group' + (minimumGroups === 1 ? '' : 's'));
     var seen = {};
     return value.map(function (group, groupIndex) {
-        var ids = validateContractIds(group, 'participants[' + groupIndex + ']', contracts);
+        var ids = validateContractIds(group, 'participants[' + groupIndex + ']', contracts, options);
         if (!ids.length) throw new Error('participants[' + groupIndex + '] cannot be empty');
         ids.forEach(function (id) {
             if (options.requireWrestlers && !domain.canParticipateInMatch(contracts[id].type)) throw new Error((contracts[id].name || ('Contract ' + id)) + ' is not a wrestler and cannot be a match participant');
@@ -327,7 +330,7 @@ function normalizeUpdate(api, before, changes) {
     if (before.complete || before.isCancelled) throw new Error('The segment is on a completed or cancelled show');
     var contracts = contractMap(api, context.promotionId);
     var desired = clone(before);
-    var participants = has(changes, 'participants') ? validateParticipants(changes.participants, contracts, type === 'match' ? 2 : 1, { requireWrestlers: type === 'match' }) : desired.participants;
+    var participants = has(changes, 'participants') ? validateParticipants(changes.participants, contracts, type === 'match' ? 2 : 1, { requireWrestlers: type === 'match', targetDate: before.showDate }) : desired.participants;
     desired.participants = participants;
     if (has(changes, 'segmentLength')) {
         desired.segmentLength = requiredInteger(changes.segmentLength, 'segmentLength', 1);
@@ -365,8 +368,8 @@ function normalizeUpdate(api, before, changes) {
         }
         if (has(changes, 'referee')) desired.referee = optionalContract(changes.referee, 'referee');
         if (has(changes, 'agent')) desired.agent = optionalContract(changes.agent, 'agent');
-        if (has(changes, 'announcers')) desired.announcers = validateContractIds(changes.announcers, 'announcers', contracts, { maximum: 4 });
-        if (has(changes, 'ringsideWorkers')) desired.ringsideWorkers = validateContractIds(changes.ringsideWorkers, 'ringsideWorkers', contracts);
+        if (has(changes, 'announcers')) desired.announcers = validateContractIds(changes.announcers, 'announcers', contracts, { maximum: 4, targetDate: before.showDate });
+        if (has(changes, 'ringsideWorkers')) desired.ringsideWorkers = validateContractIds(changes.ringsideWorkers, 'ringsideWorkers', contracts, { targetDate: before.showDate });
         var participantIds = [].concat.apply([], participants);
         ['purposeWorker', 'referee', 'agent'].forEach(function (field) {
             if (desired[field] !== '' && desired[field] != null && !contracts[Number(desired[field])]) throw new Error(field + ' contract ' + desired[field] + ' is not active at the player promotion');
@@ -383,7 +386,7 @@ function normalizeUpdate(api, before, changes) {
             desired.beats = normalizeBeats(changes.beats, contracts);
             desired.segmentLength = desired.beats.reduce(function (sum, beat) { return sum + Number(beat.length); }, 0);
         }
-        if (has(changes, 'subjectContractIds')) desired.subjectContractIds = validateContractIds(changes.subjectContractIds, 'subjectContractIds', contracts);
+        if (has(changes, 'subjectContractIds')) desired.subjectContractIds = validateContractIds(changes.subjectContractIds, 'subjectContractIds', contracts, { targetDate: before.showDate });
         var flattened = [].concat.apply([], participants);
         desired.subjectContractIds.forEach(function (id) {
             if (flattened.indexOf(id) === -1) throw new Error('subjectContractIds contains contract ' + id + ', which is not an angle participant');

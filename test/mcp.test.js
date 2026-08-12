@@ -12,7 +12,7 @@ test('negotiates a compatible MCP version and publishes guidance', async functio
 });
 
 test('rejects a mismatched in-game plugin before exposing stale tool behavior', function () {
-    assert.doesNotThrow(function () { mcp.assertRuntimeVersion({ pluginVersion: '0.4.0-beta.5' }); });
+    assert.doesNotThrow(function () { mcp.assertRuntimeVersion({ pluginVersion: '0.4.0' }); });
     assert.doesNotThrow(function () { mcp.assertRuntimeVersion({}); });
     assert.throws(function () { mcp.assertRuntimeVersion({ pluginVersion: '0.4.0-beta.4' }); }, /version mismatch.*matching pair/i);
 });

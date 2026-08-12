@@ -171,7 +171,7 @@ function changeStableMember(api, options, adding) {
     }, function () {
         var after = stable(api, stableId);
         var member = after && after.members.find(function (item) { return Number(item.contractID) === contractId; });
-        var correct = adding ? Boolean(member) : !member;
+        var correct = adding ? Boolean(member) && member.isLeader === (options.isLeader === true) : !member;
         return correct ? { success: true, after: after } : { success: false, error: 'stable membership was not persisted', after: after };
     });
 }
