@@ -1,0 +1,152 @@
+[h1]PWS MCP Server Roadmap — Final Steps Toward 0.4.0[/h1]
+
+[h2]PWS MCP Server Roadmap[/h2]
+
+This roadmap shows the current state of PWS MCP Server 0.4.0. Plans may still change if final production testing reveals a release blocker, but the beta feature and live-save test phase is now complete.
+
+[h2]Release path[/h2]
+
+[code]
+0.3.0 — Current Workshop release
+   |
+   +-- 0.4.0-beta.1 — Stables, gimmicks, events, and show scheduling
+   |
+   +-- 0.4.0-beta.2 — Gimmick discovery, company size, and diagnostic fixes
+   |
+   +-- 0.4.0-beta.3 — Wrestler personas and worker promises
+   |
+   +-- 0.4.0-beta.4 — Hardening and completed live-save validation
+   |
+   +-- 0.4.0 — Next production Workshop release
+[/code]
+
+[h2]Progress overview[/h2]
+
+[code]
+STABLES & GROUPS             [■■■■■■■■■■] Implemented and tested
+GIMMICK ASSIGNMENT           [■■■■■■■■■■] Implemented and tested
+EVENTS & SHOW SCHEDULING     [■■■■■■■■■■] Implemented and tested
+SHOW & SEGMENT MANAGEMENT    [■■■■■■■■■■] Implemented and tested
+PERSONAS & RING NAMES        [■■■■■■■■■■] Implemented and tested
+WORKER PROMISE RESPONSES     [■■■■■■■■■■] Implemented and tested
+STORYLINE DIAGNOSTICS        [■■■■■■■■■■] Implemented and validated
+RELEASE SAFETY & TESTING     [■■■■■■■■■■] Beta gate passed
+GENERIC ACTION REPLACEMENT   [■■■■■■□□□□] In progress
+TOURNAMENT MANAGEMENT        [□□□□□□□□□□] Planned after 0.4.0
+CONTRACT NEGOTIATIONS        [□□□□□□□□□□] Planned after 0.4.0
+NETWORK & TV MANAGEMENT      [□□□□□□□□□□] Planned after 0.4.0
+[/code]
+
+[h2]What the 0.4.0 betas added[/h2]
+
+[h3]Stables, gimmicks, events, and shows[/h3]
+
+[list]
+[*]List, create, update, and dissolve stables while protecting PWS's minimum stable size.
+[*]Browse database-specific gimmicks and assign a contract gimmick safely.
+[*]Create event series, schedule show instances, assign venues, and cancel unfinished shows.
+[*]Archive or restore event series without deleting completed or cancelled show history.
+[*]Plan, validate, create, edit, and remove match and angle segments with post-save verification and rollback safeguards.
+[/list]
+
+[h3]Wrestler personas[/h3]
+
+[list]
+[*]Browse a worker's native PWS alter egos, including preferred gimmick, picture, mask, promotion restriction, and valid dates.
+[*]Switch one promotion contract to a selected persona or custom ring name without renaming the worker globally.
+[*]Change a persona between promotion-specific and free use, with exact restoration support.
+[*]Reject personas outside their native date range by default, with an explicit creative-sandbox override when requested.
+[/list]
+
+This supports cases such as selecting The Undertaker, biker Undertaker, Mankind, or Dude Love when those alter egos exist in the loaded database. PWS currently stores one active presentation per contract rather than a separate persona selection for every match.
+
+[h3]Worker promises[/h3]
+
+[list]
+[*]Read pending, active, declined, fulfilled, and expired promises.
+[*]Preview acceptance or rejection before changing the save.
+[*]Apply the promise status, decision email, and native relationship consequence together in one verified transaction.
+[/list]
+
+[h3]Reliability and client updates[/h3]
+
+[list]
+[*]Return structured show participants, opponent details, ringside workers, and angle subjects.
+[*]Normalize database flags to proper true/false values.
+[*]Detect mismatched MCP client and in-game plugin versions before running tools.
+[*]Keep Workshop and TEST folder paths stable across updates, so Claude Code and Codex do not need a new path for every version.
+[*]Add an automated live regression runner and copy-only promise fixtures for controlled testing.
+[/list]
+
+[h2]Beta.4 test results[/h2]
+
+[list]
+[*]All 67 automated tests passed.
+[*]All 17 automated live bridge checks passed against the VWE1 test save.
+[*]Event archiving, retained show history, and exact persona restoration persisted across full PWS restarts.
+[*]The biker Undertaker persona and its date override were visually confirmed in PWS before the original presentation and WWF restriction were restored.
+[*]Promise acceptance and rejection were both verified transactionally and after full restarts on separate save copies.
+[*]No beta.4 release blockers remain.
+[/list]
+
+[h2]What remains before 0.4.0[/h2]
+
+[list]
+[*]Promote the tested beta.4 code to version 0.4.0 without adding another large feature set.
+[*]Build and inspect the production Workshop package and matching Claude Desktop MCPB.
+[*]Install the production package separately and run a final connection and save-read smoke test.
+[*]Publish the Workshop update, matching GitHub release, installation notes, and full changelog.
+[/list]
+
+Tournament management, complete contract negotiations, incoming rival-offer responses, and network or TV-deal management are valuable future features, but they are no longer being treated as blockers for 0.4.0.
+
+[h2]Storyline attribution finding[/h2]
+
+Version 0.3.0 added a diagnostic for completed segments that appear to be missing storyline-history entries. Beta testing then fixed false positives caused by escaped characters and storyline-date boundaries.
+
+The remaining historical outage was traced to Concert Bands Pro replacing PWS's show-summary function. Storyline attribution resumed after that mod was disabled. Because the MCP server was not causing the simulation failure, 0.4.0 keeps the diagnostic and avoids an unsafe database repair.
+
+[h2]Testing approach[/h2]
+
+[code]
+Feature implementation
+        |
+        v
+Automated validation
+        |
+        v
+Separate TEST plugin
+        |
+        v
+Copied or backed-up live-save testing
+        |
+        v
+Visual and restart-persistence checks
+        |
+        v
+Production 0.4.0 package and smoke test
+[/code]
+
+Beta builds remain separate from the production Workshop item. The Workshop version will stay on stable 0.3.0 until the production 0.4.0 package passes its final smoke test.
+
+[h2]Client update reminder[/h2]
+
+Steam updates only the in-game PWS plugin.
+
+Claude Desktop users must also install the matching [code].mcpb[/code] from the [url=https://github.com/Distortik/pws-mcp-server/releases]GitHub release[/url] and restart Claude Desktop. Installing a newer package with the same extension identity normally upgrades the existing installation; uninstalling first should only be needed as a fallback.
+
+Claude Code and Codex users can keep their MCP configuration pointed at the stable Workshop plugin folder. Restart the client after an update so it reloads the current server and tool catalogue.
+
+[h2]Feedback[/h2]
+
+If a tool behaves unexpectedly, please include:
+
+[list]
+[*]The tool or feature you used.
+[*]The show, worker, contract, storyline, persona, promise, or stable involved.
+[*]What you expected to happen.
+[*]What actually happened.
+[*]Whether PWS or the MCP client had been restarted after updating.
+[/list]
+
+Concrete save examples make issues much easier to reproduce and fix.
