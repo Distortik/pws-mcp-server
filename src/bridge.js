@@ -224,6 +224,9 @@ function dispatch(api, request, services) {
     case 'integrations.innerCircle':
         if (!services.integrations) return integrations.createManager(api).innerCircle(params);
         return services.integrations.innerCircle(params);
+    case 'integrations.investments':
+        if (!services.integrations) return integrations.createManager(api).investments(params);
+        return services.integrations.investments(params);
     case 'shows.upcoming':
         return domain.upcomingShows(api, params);
     case 'shows.get':

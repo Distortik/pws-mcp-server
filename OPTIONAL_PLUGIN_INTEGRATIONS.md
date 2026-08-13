@@ -8,7 +8,7 @@ The original owner gave direct permission to fork, update, and add to these plug
 
 | Plugin | Installed version | Workshop item | Status | Initial MCP opportunity |
 | --- | ---: | ---: | --- | --- |
-| Investments Manager | 8.0.0 | 3678007324 | Imported; maintained patch at 8.0.1 | Read assets, maintenance, and relevant company/network state |
+| Investments Manager | 8.0.0 | 3678007324 | Maintained 8.1.0 provider; live validation pending | Read assets, maintenance, and relevant company/network state |
 | Plugin Features | 3.5.3 | 3669937858 | Imported | Dynamic launcher/settings registry for maintained forks |
 | Booker Career Mode | 3.0.0 | 3672521864 | Imported | Read booker progress, directives, records, and milestones |
 | Hire Local Worker | 1.0.0 | 3674977824 | Imported | Discover eligible local workers and preview verified one-day hires |
@@ -34,9 +34,9 @@ The maintained forks should negotiate a save-scoped ownership snapshot keyed by 
 
 Optional plugins register a small, versioned, declarative capability description and return sanitized save-scoped snapshots through PWS Community Interop v1. The neutral read-only channels are `pws-community:v1:describe` and `pws-community:v1:snapshot`; PWS MCP Server is one optional consumer, not the protocol host. The MCP server exposes only reviewed static tools, so an optional plugin cannot inject tool instructions, arbitrary JavaScript, callbacks, raw SQL access, or generic writes.
 
-The first implemented provider is Inner Circle 2.1 capability `inner-circle.assignments`. The consumer tools are `pws_list_optional_integrations` and `pws_get_inner_circle`. The snapshot includes public role definitions and assignment facts keyed by native worker/contract IDs, while excluding notes, complete roster data, and internal history. The consumer accepts at most 64 KiB and independently verifies provider identity, schema/capability versions, assignment consistency, current save hash, native promotion ID, and revision monotonicity.
+The first implemented provider is Inner Circle 2.1 capability `inner-circle.assignments`. Investments Manager 8.1.0 adds the second provider, `investments.portfolio`. The consumer tools are `pws_list_optional_integrations`, `pws_get_inner_circle`, and `pws_get_investments`. Investments publishes bounded category totals and sanitized owned-asset facts with native PWS IDs where available. It excludes private notes, histories, renderer storage, UI preferences, custom categories, agency clients, and treatment records. Both consumers independently verify provider identity, schema/capability versions, current save hash, native promotion ID, revision monotonicity, internal collection consistency, and the 64 KiB limit.
 
-The installed TEST pair passed its first live gate on VWE1/promotion 229: Inner Circle TEST 2.1.0 reported 14 roles, 25 unique assignments, nine unavailable historical assignments, and revision 1. A repeated unchanged snapshot was identical, and no notes, roster data, or history crossed the boundary.
+The installed TEST providers passed their joint core gate on VWE1/promotion 229. Inner Circle TEST 2.1.0 reported 14 roles, 25 unique assignments, nine unavailable historical assignments, and revision 1. Investments Manager TEST 8.1.0 reported four tracked assets, published all four with zero truncation, and revision 1. Both matched the same save/promotion context, repeated unchanged reads were stable, and no private fields crossed either boundary. Cross-save and provider-absence checks remain release gates.
 
 The first implementation phase is discovery and read-only data. A later write phase requires the same safety properties as native MCP actions: exact preview, current-state binding, explicit confirmation, apply-time validation, post-save verification, and rollback where practical.
 

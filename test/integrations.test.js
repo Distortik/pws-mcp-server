@@ -35,6 +35,38 @@ function snapshot(api, pluginId, revision) {
     };
 }
 
+function investmentsDescription(pluginId) {
+    return {
+        protocol: integrations.PROTOCOL,
+        protocolVersion: 1,
+        provider: { pluginId: pluginId, pluginVersion: '8.1.0', schemaVersion: 1 },
+        capabilities: [{ id: integrations.INVESTMENTS_CAPABILITY, version: 1, access: 'read', context: 'save-promotion' }]
+    };
+}
+
+function investmentsSnapshot(api, pluginId, revision) {
+    var context = integrations.contextIdentity(api, null);
+    return {
+        protocol: integrations.PROTOCOL,
+        protocolVersion: 1,
+        capability: { id: integrations.INVESTMENTS_CAPABILITY, version: 1 },
+        provider: { pluginId: pluginId, pluginVersion: '8.1.0', schemaVersion: 1 },
+        context: { saveHash: context.saveHash, promotionId: context.promotionId, revision: revision, currentDate: '1992-04-20' },
+        data: {
+            ready: true,
+            summary: { totalAssets: 2, publishedAssets: 2, truncatedAssets: 0, totalInvested: 1500000, monthlyMaintenance: 35000, monthlyIncome: 10000 },
+            categories: [
+                { id: 'networks', label: 'Networks', count: 1, published: 1, totalInvested: 1000000, monthlyMaintenance: 25000, monthlyIncome: 0 },
+                { id: 'tapeLibraries', label: 'Tape Libraries', count: 1, published: 1, totalInvested: 500000, monthlyMaintenance: 10000, monthlyIncome: 10000 }
+            ],
+            assets: [
+                { assetId: 'net_1', category: 'networks', name: 'WrestleVision', tier: 2, tierName: 'National', cost: 1000000, monthlyMaintenance: 25000, monthlyIncome: 0, acquiredDate: '1992-04-20', activeUntil: null, native: { type: 'networkID', id: 44 }, location: null, markets: ['North America'] },
+                { assetId: 'tape_1', category: 'tapeLibraries', name: 'Legacy Wrestling', tier: null, tierName: null, cost: 500000, monthlyMaintenance: 10000, monthlyIncome: 10000, acquiredDate: '1992-03-01', activeUntil: null, native: { type: 'promotionID', id: 88 }, location: null, markets: [] }
+            ]
+        }
+    };
+}
+
 function mockApi(options) {
     options = options || {};
     var handlers = {};
@@ -104,6 +136,45 @@ test('supports an explicitly selected side-by-side TEST provider', async functio
     var manager = integrations.createManager(api);
     var result = await manager.innerCircle({ providerId: 'inner-circle-test' });
     assert.equal(result.provider.pluginId, 'inner-circle-test');
+});
+
+test('discovers and validates a sanitized Investments portfolio', async function () {
+    var api = mockApi({
+        list: ['inner-circle', 'investments-test'],
+        send: function (target, channel, currentApi) {
+            if (target === 'inner-circle') return channel === integrations.DESCRIBE_CHANNEL ? description(target) : snapshot(currentApi, target, 4);
+            return channel === integrations.DESCRIBE_CHANNEL ? investmentsDescription(target) : investmentsSnapshot(currentApi, target, 2);
+        }
+    });
+    var manager = integrations.createManager(api);
+    var discovered = await manager.list();
+    var result = await manager.investments({ providerId: 'investments-test' });
+    var capability = discovered.capabilities.find(function (value) { return value.id === integrations.INVESTMENTS_CAPABILITY; });
+    assert.equal(capability.available, true);
+    assert.deepEqual(capability.providers, ['investments-test']);
+    assert.equal(result.available, true);
+    assert.equal(result.data.summary.totalAssets, 2);
+    assert.equal(result.data.assets[0].native.type, 'networkID');
+    assert.equal(JSON.stringify(result).includes('notes'), false);
+    assert.equal(JSON.stringify(result).includes('history'), false);
+});
+
+test('rejects inconsistent Investments totals and native identity types', async function () {
+    var mode = 'totals';
+    var api = mockApi({
+        list: ['investments'],
+        send: function (target, channel, currentApi) {
+            if (channel === integrations.DESCRIBE_CHANNEL) return investmentsDescription(target);
+            var value = investmentsSnapshot(currentApi, target, 1);
+            if (mode === 'totals') value.data.summary.totalAssets = 99;
+            else value.data.assets[0].native.type = 'promotionID';
+            return value;
+        }
+    });
+    var manager = integrations.createManager(api);
+    await assert.rejects(manager.investments({}), /summary does not match/);
+    mode = 'native';
+    await assert.rejects(manager.investments({}), /identity type does not match/);
 });
 
 test('rejects stale save context, older revisions, and changed data at one revision', async function () {

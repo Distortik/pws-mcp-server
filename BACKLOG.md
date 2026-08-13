@@ -94,7 +94,7 @@ The MCP handshake and manifests expose the version, but models do not always rec
 
 **Wanted:** a lightweight `pws_get_server_info` or `pws_version` tool that works without a loaded save and reports the client server version, expected in-game plugin version, transport, and connection/version-pair state.
 
-### F22 — Optional community plugin interoperability — first provider implemented
+### F22 — Optional community plugin interoperability — second provider implemented
 
 Add opt-in interoperability with separately installed maintained forks of Investments Manager, Plugin Features, Booker Career Mode, Hire Local Worker, Inner Circle, Dynamic Negotiations, Network Approval Hub, and Tag Team and Stables Overhaul. These plugins must not become MCP dependencies or be bundled into the MCP package.
 
@@ -110,7 +110,9 @@ Add opt-in interoperability with separately installed maintained forks of Invest
 
 **Live validation:** the installed Inner Circle TEST 2.1.0 and MCP TEST 0.5.0-beta.1 pair negotiated Community Interop v1 on VWE1/promotion 229. The consumer accepted revision 1 with 14 roles, 25 unique assignments, and nine unavailable historical assignments; an unchanged second read was identical, and privacy checks found no notes, roster data, or history.
 
-**Next work:** add sanitized providers for investments, booker progress, local hiring, negotiation context, network/deal state, and team/stable history as their forks become ready. Optional writes come later and must remain plugin-owned, preview-bound, allowlisted, revalidated, and read back after persistence. Do not scrape another plugin's private `localStorage` or expose arbitrary callbacks, JavaScript, or SQL.
+**Second provider implemented; live validation pending:** Investments Manager 8.1.0 publishes `investments.portfolio` from a validated plugin-owned mirror of its existing save/promotion-scoped renderer data. MCP TEST 0.5.0-beta.2 adds the static read-only `pws_get_investments` consumer. Both sides cap snapshots at 64 KiB, validate native asset identities and totals, report truncation, and exclude notes, histories, preferences, renderer storage, agency clients, treatment records, callbacks, and writes.
+
+**Next work:** live-validate Investments, then add sanitized providers for booker progress, local hiring, negotiation context, network/deal state, and team/stable history as their forks become ready. Optional writes come later and must remain plugin-owned, preview-bound, allowlisted, revalidated, and read back after persistence. Do not scrape another plugin's private `localStorage` or expose arbitrary callbacks, JavaScript, or SQL.
 
 ### F10 — Network and TV-deal management
 

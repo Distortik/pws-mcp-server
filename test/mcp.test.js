@@ -12,7 +12,7 @@ test('negotiates a compatible MCP version and publishes guidance', async functio
 });
 
 test('rejects a mismatched in-game plugin before exposing stale tool behavior', function () {
-    assert.doesNotThrow(function () { mcp.assertRuntimeVersion({ pluginVersion: '0.5.0-beta.1' }); });
+    assert.doesNotThrow(function () { mcp.assertRuntimeVersion({ pluginVersion: '0.5.0-beta.2' }); });
     assert.doesNotThrow(function () { mcp.assertRuntimeVersion({}); });
     assert.throws(function () { mcp.assertRuntimeVersion({ pluginVersion: '0.4.0' }); }, /version mismatch.*matching pair/i);
 });
@@ -38,7 +38,7 @@ test('publishes a broad unique tool catalogue with safety annotations', async fu
         assert.equal(tool.inputSchema.properties.preview.default, true);
         assert.equal(tool.annotations.destructiveHint, true);
     });
-    ['pws_get_venues', 'pws_get_gimmicks', 'pws_get_personas', 'pws_get_promises', 'pws_diagnose_storyline_attribution', 'pws_list_optional_integrations', 'pws_get_inner_circle'].forEach(function (name) {
+    ['pws_get_venues', 'pws_get_gimmicks', 'pws_get_personas', 'pws_get_promises', 'pws_diagnose_storyline_attribution', 'pws_list_optional_integrations', 'pws_get_inner_circle', 'pws_get_investments'].forEach(function (name) {
         var tool = result.tools.find(function (item) { return item.name === name; });
         assert.ok(tool, name + ' should be published');
         assert.equal(tool.annotations.readOnlyHint, true);

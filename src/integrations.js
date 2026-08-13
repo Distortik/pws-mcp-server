@@ -8,7 +8,12 @@ var PROTOCOL_VERSION = 1;
 var DESCRIBE_CHANNEL = 'pws-community:v1:describe';
 var SNAPSHOT_CHANNEL = 'pws-community:v1:snapshot';
 var INNER_CIRCLE_CAPABILITY = 'inner-circle.assignments';
-var PROVIDER_IDS = ['inner-circle', 'inner-circle-test'];
+var INVESTMENTS_CAPABILITY = 'investments.portfolio';
+var PROVIDER_IDS = ['inner-circle', 'inner-circle-test', 'investments', 'investments-test'];
+var CAPABILITY_DEFINITIONS = [
+    { id: INNER_CIRCLE_CAPABILITY, providers: ['inner-circle', 'inner-circle-test'], label: 'Inner Circle' },
+    { id: INVESTMENTS_CAPABILITY, providers: ['investments', 'investments-test'], label: 'Investments' }
+];
 var MAX_DESCRIPTION_BYTES = 16 * 1024;
 var MAX_SNAPSHOT_BYTES = 64 * 1024;
 
@@ -108,10 +113,14 @@ function normalizeDescription(targetId, value) {
     };
 }
 
-function supportsInnerCircle(description) {
+function supportsCapability(description, capabilityId) {
     return description.capabilities.some(function (capability) {
-        return capability.id === INNER_CIRCLE_CAPABILITY && capability.version === 1 && capability.access === 'read' && capability.context === 'save-promotion';
+        return capability.id === capabilityId && capability.version === 1 && capability.access === 'read' && capability.context === 'save-promotion';
     });
+}
+
+function supportsRecognizedCapability(description) {
+    return CAPABILITY_DEFINITIONS.some(function (definition) { return supportsCapability(description, definition.id); });
 }
 
 function optionalInteger(value, label, minimum) {
@@ -186,12 +195,143 @@ function normalizeInnerCircleData(value) {
     return normalized;
 }
 
-function normalizeSnapshot(targetId, description, value, currentContext) {
+var INVESTMENT_NATIVE_TYPES = {
+    companies: 'promotionID',
+    networks: 'networkID',
+    schools: 'schoolID',
+    venues: 'venueID',
+    titles: 'titleID',
+    tapeLibraries: 'promotionID',
+    legends: 'workerID'
+};
+
+function finiteAmount(value, label) {
+    var parsed = Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > Number.MAX_SAFE_INTEGER) throw new Error(label + ' is invalid');
+    return parsed;
+}
+
+function nullableText(value, label, maximum) {
+    return value == null ? null : boundedText(value, label, maximum, true);
+}
+
+function normalizeInvestmentLocation(value) {
+    if (value == null) return null;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Investment asset location is invalid');
+    return {
+        continent: nullableText(value.continent, 'Investment asset continent', 80),
+        countryId: optionalInteger(value.countryId, 'Investment asset country ID', 1),
+        countryName: nullableText(value.countryName, 'Investment asset country', 120),
+        regionId: optionalInteger(value.regionId, 'Investment asset region ID', 1),
+        regionName: nullableText(value.regionName, 'Investment asset region', 120)
+    };
+}
+
+function normalizeInvestmentNative(value, category) {
+    if (value == null) return null;
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Investment native identity is invalid');
+    var expected = INVESTMENT_NATIVE_TYPES[category];
+    var type = boundedText(value.type, 'Investment native identity type', 40);
+    if (!expected || type !== expected) throw new Error('Investment native identity type does not match its category');
+    return { type: type, id: integer(value.id, 'Investment native identity ID', 1) };
+}
+
+function normalizeInvestmentsData(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value) || typeof value.ready !== 'boolean') {
+        throw new Error('Investments snapshot data is invalid');
+    }
+    if (!value.summary || typeof value.summary !== 'object') throw new Error('Investments summary is invalid');
+    if (!Array.isArray(value.categories) || value.categories.length > 32 || !Array.isArray(value.assets) || value.assets.length > 1000) {
+        throw new Error('Investments snapshot collections are invalid');
+    }
+    var normalized = {
+        ready: value.ready,
+        summary: {
+            totalAssets: integer(value.summary.totalAssets, 'Investments total asset count', 0),
+            publishedAssets: integer(value.summary.publishedAssets, 'Investments published asset count', 0),
+            truncatedAssets: integer(value.summary.truncatedAssets, 'Investments truncated asset count', 0),
+            totalInvested: finiteAmount(value.summary.totalInvested, 'Investments total invested'),
+            monthlyMaintenance: finiteAmount(value.summary.monthlyMaintenance, 'Investments monthly maintenance'),
+            monthlyIncome: finiteAmount(value.summary.monthlyIncome, 'Investments monthly income')
+        },
+        categories: value.categories.map(function (category) {
+            if (!category || typeof category !== 'object') throw new Error('Investment category is invalid');
+            return {
+                id: boundedText(category.id, 'Investment category ID', 100),
+                label: boundedText(category.label, 'Investment category label', 150),
+                count: integer(category.count, 'Investment category count', 0),
+                published: integer(category.published, 'Investment category published count', 0),
+                totalInvested: finiteAmount(category.totalInvested, 'Investment category invested total'),
+                monthlyMaintenance: finiteAmount(category.monthlyMaintenance, 'Investment category maintenance'),
+                monthlyIncome: finiteAmount(category.monthlyIncome, 'Investment category income')
+            };
+        }),
+        assets: value.assets.map(function (asset) {
+            if (!asset || typeof asset !== 'object') throw new Error('Investment asset is invalid');
+            if (!Array.isArray(asset.markets) || asset.markets.length > 12) throw new Error('Investment asset markets are invalid');
+            var category = boundedText(asset.category, 'Investment asset category', 100);
+            var seenMarkets = {};
+            var markets = asset.markets.map(function (market) { return boundedText(market, 'Investment asset market', 80); }).filter(function (market) {
+                if (seenMarkets[market]) return false;
+                seenMarkets[market] = true;
+                return true;
+            });
+            return {
+                assetId: boundedText(asset.assetId, 'Investment asset ID', 140),
+                category: category,
+                name: boundedText(asset.name, 'Investment asset name', 200),
+                tier: optionalInteger(asset.tier, 'Investment asset tier', 1),
+                tierName: nullableText(asset.tierName, 'Investment asset tier name', 120),
+                cost: finiteAmount(asset.cost, 'Investment asset cost'),
+                monthlyMaintenance: finiteAmount(asset.monthlyMaintenance, 'Investment asset maintenance'),
+                monthlyIncome: finiteAmount(asset.monthlyIncome, 'Investment asset income'),
+                acquiredDate: nullableText(asset.acquiredDate, 'Investment asset acquisition date', 50),
+                activeUntil: nullableText(asset.activeUntil, 'Investment asset active-until date', 50),
+                native: normalizeInvestmentNative(asset.native, category),
+                location: normalizeInvestmentLocation(asset.location),
+                markets: markets
+            };
+        })
+    };
+    var categories = {};
+    var categoryTotals = { count: 0, published: 0, invested: 0, maintenance: 0, income: 0 };
+    normalized.categories.forEach(function (category) {
+        if (categories[category.id]) throw new Error('Investment category IDs must be unique');
+        if (category.published > category.count) throw new Error('Investment category published count is invalid');
+        categories[category.id] = { value: category, assets: 0, assetIds: {} };
+        categoryTotals.count += category.count;
+        categoryTotals.published += category.published;
+        categoryTotals.invested += category.totalInvested;
+        categoryTotals.maintenance += category.monthlyMaintenance;
+        categoryTotals.income += category.monthlyIncome;
+    });
+    normalized.assets.forEach(function (asset) {
+        var category = categories[asset.category];
+        if (!category) throw new Error('Investment asset references an unknown category');
+        if (category.assetIds[asset.assetId]) throw new Error('Investment asset IDs must be unique within a category');
+        category.assetIds[asset.assetId] = true;
+        category.assets += 1;
+    });
+    Object.keys(categories).forEach(function (id) {
+        if (categories[id].assets !== categories[id].value.published) throw new Error('Investment category published count does not match its assets');
+    });
+    if (normalized.summary.totalAssets !== categoryTotals.count || normalized.summary.publishedAssets !== normalized.assets.length ||
+        normalized.summary.publishedAssets !== categoryTotals.published || normalized.summary.truncatedAssets !== normalized.summary.totalAssets - normalized.summary.publishedAssets ||
+        normalized.summary.totalInvested !== categoryTotals.invested || normalized.summary.monthlyMaintenance !== categoryTotals.maintenance ||
+        normalized.summary.monthlyIncome !== categoryTotals.income) {
+        throw new Error('Investments summary does not match its categories and assets');
+    }
+    if (!normalized.ready && normalized.summary.totalAssets !== 0) throw new Error('Investments snapshot is not ready but contains assets');
+    return normalized;
+}
+
+function normalizeSnapshot(targetId, description, value, currentContext, capabilityId) {
+    capabilityId = capabilityId || INNER_CIRCLE_CAPABILITY;
     value = encoded(value, MAX_SNAPSHOT_BYTES, 'Provider snapshot');
     if (!value || typeof value !== 'object' || value.protocol !== PROTOCOL || Number(value.protocolVersion) !== PROTOCOL_VERSION) {
         throw new Error('Provider snapshot uses an unsupported community interoperability protocol');
     }
-    if (!value.capability || value.capability.id !== INNER_CIRCLE_CAPABILITY || Number(value.capability.version) !== 1) {
+    if (!value.capability || value.capability.id !== capabilityId || Number(value.capability.version) !== 1) {
         throw new Error('Provider returned the wrong capability snapshot');
     }
     if (!value.provider || value.provider.pluginId !== targetId || Number(value.provider.schemaVersion) !== description.provider.schemaVersion ||
@@ -207,7 +347,7 @@ function normalizeSnapshot(targetId, description, value, currentContext) {
     return {
         protocol: PROTOCOL,
         protocolVersion: PROTOCOL_VERSION,
-        capability: { id: INNER_CIRCLE_CAPABILITY, version: 1 },
+        capability: { id: capabilityId, version: 1 },
         provider: {
             pluginId: targetId,
             pluginVersion: value.provider.pluginVersion == null ? null : boundedText(value.provider.pluginVersion, 'Provider plugin version', 40),
@@ -219,7 +359,7 @@ function normalizeSnapshot(targetId, description, value, currentContext) {
             revision: revision,
             currentDate: value.context.currentDate == null ? null : boundedText(value.context.currentDate, 'Provider snapshot date', 50, true)
         },
-        data: normalizeInnerCircleData(value.data)
+        data: capabilityId === INVESTMENTS_CAPABILITY ? normalizeInvestmentsData(value.data) : normalizeInnerCircleData(value.data)
     };
 }
 
@@ -266,7 +406,7 @@ function createManager(api) {
                     var normalized = normalizeDescription(id, description);
                     return {
                         pluginId: id,
-                        compatible: supportsInnerCircle(normalized),
+                        compatible: supportsRecognizedCapability(normalized),
                         pluginVersion: normalized.provider.pluginVersion,
                         schemaVersion: normalized.provider.schemaVersion,
                         capabilities: normalized.capabilities,
@@ -281,7 +421,6 @@ function createManager(api) {
 
     function list() {
         return inspectProviders().then(function (providers) {
-            var compatible = providers.filter(function (provider) { return provider.compatible; });
             return {
                 protocol: PROTOCOL,
                 protocolVersion: PROTOCOL_VERSION,
@@ -296,13 +435,18 @@ function createManager(api) {
                         error: provider.error || null
                     };
                 }),
-                capabilities: [{
-                    id: INNER_CIRCLE_CAPABILITY,
-                    version: 1,
-                    access: 'read',
-                    available: compatible.length > 0,
-                    providers: compatible.map(function (provider) { return provider.pluginId; })
-                }]
+                capabilities: CAPABILITY_DEFINITIONS.map(function (definition) {
+                    var compatible = providers.filter(function (provider) {
+                        return provider.description && supportsCapability(provider.description, definition.id);
+                    });
+                    return {
+                        id: definition.id,
+                        version: 1,
+                        access: 'read',
+                        available: compatible.length > 0,
+                        providers: compatible.map(function (provider) { return provider.pluginId; })
+                    };
+                })
             };
         }).catch(function (error) {
             return {
@@ -310,27 +454,33 @@ function createManager(api) {
                 protocolVersion: PROTOCOL_VERSION,
                 optional: true,
                 providers: [],
-                capabilities: [{ id: INNER_CIRCLE_CAPABILITY, version: 1, access: 'read', available: false, providers: [] }],
+                capabilities: CAPABILITY_DEFINITIONS.map(function (definition) {
+                    return { id: definition.id, version: 1, access: 'read', available: false, providers: [] };
+                }),
                 error: errorText(error)
             };
         });
     }
 
-    function innerCircle(options) {
+    function readCapability(options, definition) {
         options = options || {};
         var requestedProvider = options.providerId == null ? null : boundedText(options.providerId, 'providerId', 100);
-        if (requestedProvider && PROVIDER_IDS.indexOf(requestedProvider) === -1) throw new Error('Unsupported Inner Circle provider: ' + requestedProvider);
+        if (requestedProvider && definition.providers.indexOf(requestedProvider) === -1) throw new Error('Unsupported ' + definition.label + ' provider: ' + requestedProvider);
         return inspectProviders().then(function (providers) {
             var compatible = providers.filter(function (provider) {
-                return provider.compatible && (!requestedProvider || provider.pluginId === requestedProvider);
+                return provider.description && supportsCapability(provider.description, definition.id) && (!requestedProvider || provider.pluginId === requestedProvider);
             });
             if (!compatible.length) {
                 return {
                     available: false,
-                    capability: INNER_CIRCLE_CAPABILITY,
+                    capability: definition.id,
                     reason: requestedProvider ? 'requested-provider-unavailable' : 'provider-not-installed-or-incompatible',
                     providers: providers.map(function (provider) {
-                        return { pluginId: provider.pluginId, compatible: provider.compatible, error: provider.error || null };
+                        return {
+                            pluginId: provider.pluginId,
+                            compatible: !!(provider.description && supportsCapability(provider.description, definition.id)),
+                            error: provider.error || null
+                        };
                     })
                 };
             }
@@ -338,20 +488,28 @@ function createManager(api) {
             var current = contextIdentity(api, activeDatabasePath);
             return send(provider.pluginId, SNAPSHOT_CHANNEL, {
                 protocolVersion: PROTOCOL_VERSION,
-                capability: INNER_CIRCLE_CAPABILITY
+                capability: definition.id
             }).then(function (snapshot) {
-                var normalized = normalizeSnapshot(provider.pluginId, provider.description, snapshot, current);
-                var key = [provider.pluginId, INNER_CIRCLE_CAPABILITY, current.saveHash, current.promotionId].join(':');
+                var normalized = normalizeSnapshot(provider.pluginId, provider.description, snapshot, current, definition.id);
+                var key = [provider.pluginId, definition.id, current.saveHash, current.promotionId].join(':');
                 var digest = crypto.createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
                 var previous = cache[key];
-                if (previous && normalized.context.revision < previous.revision) throw new Error('Provider returned an older Inner Circle revision');
+                if (previous && normalized.context.revision < previous.revision) throw new Error('Provider returned an older ' + definition.label + ' revision');
                 if (previous && normalized.context.revision === previous.revision && digest !== previous.digest) {
-                    throw new Error('Provider changed Inner Circle data without advancing its revision');
+                    throw new Error('Provider changed ' + definition.label + ' data without advancing its revision');
                 }
                 cache[key] = { revision: normalized.context.revision, digest: digest };
                 return Object.assign({ available: true }, normalized);
             });
         });
+    }
+
+    function innerCircle(options) {
+        return readCapability(options, CAPABILITY_DEFINITIONS[0]);
+    }
+
+    function investments(options) {
+        return readCapability(options, CAPABILITY_DEFINITIONS[1]);
     }
 
     function start() {
@@ -381,12 +539,13 @@ function createManager(api) {
         clearCache();
     }
 
-    return { innerCircle: innerCircle, list: list, start: start, stop: stop };
+    return { innerCircle: innerCircle, investments: investments, list: list, start: start, stop: stop };
 }
 
 module.exports = {
     DESCRIBE_CHANNEL: DESCRIBE_CHANNEL,
     INNER_CIRCLE_CAPABILITY: INNER_CIRCLE_CAPABILITY,
+    INVESTMENTS_CAPABILITY: INVESTMENTS_CAPABILITY,
     MAX_SNAPSHOT_BYTES: MAX_SNAPSHOT_BYTES,
     PROTOCOL: PROTOCOL,
     PROTOCOL_VERSION: PROTOCOL_VERSION,
@@ -395,5 +554,6 @@ module.exports = {
     createManager: createManager,
     listedPluginIds: listedPluginIds,
     normalizeDescription: normalizeDescription,
+    normalizeInvestmentsData: normalizeInvestmentsData,
     normalizeSnapshot: normalizeSnapshot
 };

@@ -12,12 +12,12 @@ test('release metadata agrees on the current candidate version', function () {
     var plugin = require('../plugin.json');
     var manifest = require('../manifest.json');
     var server = fs.readFileSync(path.join(root, 'mcp-server.js'), 'utf8');
-    assert.equal(packageJson.version, '0.5.0-beta.1');
+    assert.equal(packageJson.version, '0.5.0-beta.2');
     assert.equal(plugin.version, packageJson.version);
     assert.equal(manifest.version, packageJson.version);
     assert.equal(manifest.server.entry_point, 'mcpb-entry.js');
     assert.deepEqual(manifest.server.mcp_config.args, ['${__dirname}/mcpb-entry.js']);
-    assert.match(server, /version: '0\.5\.0-beta\.1'/);
+    assert.match(server, /version: '0\.5\.0-beta\.2'/);
     assert.notEqual(packageJson.version.indexOf('-'), -1);
 });
 

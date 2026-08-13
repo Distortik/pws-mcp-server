@@ -25,7 +25,7 @@ async function verifyTransport(serverPath, cwd, loadThroughWrapper) {
     try {
         await client.connect(transport);
         assert.equal(client.getServerVersion().name, 'pws-mcp-server');
-        assert.equal(client.getServerVersion().version, '0.5.0-beta.1');
+        assert.equal(client.getServerVersion().version, '0.5.0-beta.2');
         var tools = await client.listTools();
         assert.ok(tools.tools.length >= 19);
         assert.ok(tools.tools.some(function (tool) { return tool.name === 'pws_set_contract_persona'; }));

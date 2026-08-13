@@ -1,6 +1,14 @@
 # Changelog
 
-## 0.5.0-beta.1 — Unreleased
+## 0.5.0-beta.2 — Unreleased
+
+- Added the static read-only `pws_get_investments` tool for the neutral `investments.portfolio` capability while keeping Investments Manager entirely optional.
+- Validate category and asset totals, bounded financial values, native identity types, save/promotion context, revision monotonicity, and a 64 KiB maximum before accepting an Investments snapshot.
+- Expose only the provider's sanitized asset mirror; private notes, histories, renderer storage, preferences, treatment records, agency-client details, callbacks, and write operations are not accepted or returned.
+- Discover Inner Circle and Investments providers independently, including side-by-side TEST IDs, without treating either provider as a dependency of the other or of core MCP tools.
+- Live-validate both providers together on VWE1/promotion 229: Investments TEST 8.1.0 published four of four assets at revision 1 with zero truncation, Inner Circle TEST 2.1.0 retained all 25 assignments and nine unavailable records, both matched the same save context, and repeated reads were stable.
+
+## 0.5.0-beta.1 — 2026-08-13
 
 - Added optional PWS Community Interop v1 discovery through PWS's built-in inter-plugin messaging. Community plugins remain independently installable and core MCP behavior is unchanged when none are present.
 - Added the static read-only `pws_list_optional_integrations` and `pws_get_inner_circle` tools. Compatible Inner Circle 2.1 providers expose role definitions and assignment facts without private notes, roster data, history, storage access, or dynamic tool injection.
