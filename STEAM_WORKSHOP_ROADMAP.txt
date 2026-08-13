@@ -60,13 +60,14 @@ This should make update and connection troubleshooting easier for Claude Desktop
 
 [h2]Priority: optional community plugin interoperability[/h2]
 
-The original owner has granted permission to maintain forks of Investments Manager, Plugin Features, Booker Career Mode, Hire Local Worker, and Inner Circle. These forks are being set up as a separate project and will remain independently installable; they will not be bundled with or required by PWS MCP Server.
+The original owner has granted permission to maintain forks of Investments Manager, Plugin Features, Booker Career Mode, Hire Local Worker, Inner Circle, Dynamic Negotiations, Network Approval Hub, and Tag Team and Stables Overhaul. These forks are being set up as a separate project and will remain independently installable; they will not be bundled with or required by PWS MCP Server.
 
 The planned first phase is safe discovery and read-only integration:
 
 [list]
 [*]Let compatible installed plugins identify themselves and their protocol version.
-[*]Expose sanitized, save-scoped information such as investments, booker progress, eligible local workers, and Inner Circle assignments.
+[*]Expose sanitized, save-scoped information such as investments, booker progress, eligible local workers, Inner Circle assignments, negotiation context, network/deal state, and team/stable history.
+[*]Make Investments-created networks and Network Hub acquisitions recognize the same native network ownership without either plugin reading the other's private storage.
 [*]Turn Plugin Features into a dynamic launcher and settings hub so maintained forks can register without another hard-coded update.
 [*]Continue to work normally when none of the optional plugins is installed.
 [/list]

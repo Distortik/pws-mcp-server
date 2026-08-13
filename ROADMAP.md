@@ -2,12 +2,14 @@
 
 ## 0.5.0 optional community plugin interoperability
 
-The original plugin owner has granted permission to fork, update, and add to Investments Manager, Plugin Features, Booker Career Mode, Hire Local Worker, and Inner Circle. Their source and releases remain in a separate project so PWS MCP Server stays small and none of these plugins becomes a dependency.
+The original plugin owner has granted permission to fork, update, and add to Investments Manager, Plugin Features, Booker Career Mode, Hire Local Worker, Inner Circle, Dynamic Negotiations, Network Approval Hub, and Tag Team and Stables Overhaul. Their source and releases remain in a separate project so PWS MCP Server stays small and none of these plugins becomes a dependency.
 
 - [Foundation created] Preserve the five installed upstream versions, source hashes, manifest identities, attribution, and permission record in the separate `pws-community-plugins` repository.
+- [Approved next imports] Preserve and hash Dynamic Negotiations 8.0.0, Network Approval Hub 5.0.0, and Tag Team and Stables Overhaul 1.0.0 before modifying them.
 - [Planned] Turn Plugin Features into a dynamic launcher/settings registry for maintained forks while retaining compatibility with its existing hard-coded catalogue.
 - [Planned] Let PWS MCP Server discover compatible installed plugins through a versioned, opt-in capability protocol.
-- [Planned] Start with sanitized read-only snapshots for investments, booker progress, local hiring, and Inner Circle assignments.
+- [Planned] Start with sanitized read-only snapshots for investments, booker progress, local hiring, Inner Circle assignments, negotiation context, network/deal state, and team/stable history.
+- [Compatibility required] Reconcile Investments-created networks with Network Hub ownership using native network and promotion IDs without scraping either plugin's private storage.
 - [Research required] Add plugin-owned write operations only after preview binding, validation, verification, and stale-save rejection are implemented.
 
 See [Optional community plugin integrations](OPTIONAL_PLUGIN_INTEGRATIONS.md) and **F22** in [the backlog](BACKLOG.md).
