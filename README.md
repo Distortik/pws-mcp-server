@@ -16,6 +16,7 @@ Ask it to search your save, analyze your company, review contracts, recommend wo
 - [Connect another MCP client](#connect-another-mcp-client)
 - [Test the connection](#test-the-connection)
 - [Ideas to try](#ideas-to-try)
+- [Optional community plugins](#optional-community-plugins)
 - [Booking API notes](#booking-api-notes)
 - [Safety](#safety)
 - [Troubleshooting](#troubleshooting)
@@ -194,6 +195,12 @@ If the answer contains information from your save, setup is complete.
 - "Review all contracts expiring in the next year."
 - "Show me my champions, active storylines, and neglected wrestlers."
 - "Draft my next show, explain every choice, and wait for approval."
+
+## Optional community plugins
+
+PWS MCP Server can discover independently installed plugins that implement the dependency-free PWS Community Interop protocol. They are enhancements, never requirements: core tools behave exactly as before when no compatible community plugin is installed.
+
+The first supported provider is **Inner Circle 2.1**. `pws_list_optional_integrations` reports compatible providers, and `pws_get_inner_circle` reads sanitized role assignments for the current save and player promotion. The provider remains the owner of its data. MCP does not inspect its private files, `api.storage`, or legacy `localStorage`, and snapshots exclude private notes, roster data, and history. A snapshot is rejected if its save, promotion, provider, capability, schema, size, structure, or revision cannot be validated.
 
 ## Booking API notes
 

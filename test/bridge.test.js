@@ -84,3 +84,12 @@ test('read-only queries are capped by an outer limit', function () {
     assert.match(received.sql, /SELECT \* FROM \(SELECT \* FROM workers/);
     assert.deepEqual(received.params, ['A%', 25]);
 });
+
+test('dispatch routes optional integration reads through the bridge-owned manager', async function () {
+    var services = { integrations: {
+        list: function () { return Promise.resolve({ optional: true, providers: [] }); },
+        innerCircle: function (params) { return Promise.resolve({ available: true, providerId: params.providerId }); }
+    } };
+    assert.deepEqual(await bridge.dispatch({}, { method: 'integrations.list' }, services), { optional: true, providers: [] });
+    assert.deepEqual(await bridge.dispatch({}, { method: 'integrations.innerCircle', params: { providerId: 'inner-circle-test' } }, services), { available: true, providerId: 'inner-circle-test' });
+});

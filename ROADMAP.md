@@ -7,8 +7,8 @@ The original plugin owner has granted permission to fork, update, and add to Inv
 - [Foundation created] Preserve the five installed upstream versions, source hashes, manifest identities, attribution, and permission record in the separate `pws-community-plugins` repository.
 - [Approved next imports] Preserve and hash Dynamic Negotiations 8.0.0, Network Approval Hub 5.0.0, and Tag Team and Stables Overhaul 1.0.0 before modifying them.
 - [Planned] Turn Plugin Features into a dynamic launcher/settings registry for maintained forks while retaining compatibility with its existing hard-coded catalogue.
-- [Planned] Let PWS MCP Server discover compatible installed plugins through a versioned, opt-in capability protocol.
-- [Planned] Start with sanitized read-only snapshots for investments, booker progress, local hiring, Inner Circle assignments, negotiation context, network/deal state, and team/stable history.
+- [Implemented; live test pending] Let PWS MCP Server discover compatible installed plugins through the dependency-free PWS Community Interop v1 protocol and expose only reviewed static read tools.
+- [First provider implemented; live test pending] Read bounded, sanitized Inner Circle 2.1 assignment snapshots with save/promotion/revision validation. Investments, booker progress, local hiring, negotiation context, network/deal state, and team/stable history remain subsequent providers.
 - [Compatibility required] Reconcile Investments-created networks with Network Hub ownership using native network and promotion IDs without scraping either plugin's private storage.
 - [Research required] Add plugin-owned write operations only after preview binding, validation, verification, and stale-save rejection are implemented.
 

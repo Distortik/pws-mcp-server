@@ -94,7 +94,7 @@ The MCP handshake and manifests expose the version, but models do not always rec
 
 **Wanted:** a lightweight `pws_get_server_info` or `pws_version` tool that works without a loaded save and reports the client server version, expected in-game plugin version, transport, and connection/version-pair state.
 
-### F22 — Optional community plugin interoperability — foundation started
+### F22 — Optional community plugin interoperability — first provider implemented
 
 Add opt-in interoperability with separately installed maintained forks of Investments Manager, Plugin Features, Booker Career Mode, Hire Local Worker, Inner Circle, Dynamic Negotiations, Network Approval Hub, and Tag Team and Stables Overhaul. These plugins must not become MCP dependencies or be bundled into the MCP package.
 
@@ -106,7 +106,9 @@ Add opt-in interoperability with separately installed maintained forks of Invest
 
 **First fork fixes implemented, awaiting copied-save live validation:** Investments Manager 8.0.1 stops recreating revoked `General / All Shows` deals, keeps new network show access explicit, verifies manual deal persistence, requires real country/region IDs for new owned venues, prevents duplicate active venue names, hydrates existing tracked venue labels, and scopes transactional spending to the active promotion instead of rounding every promotion's balance.
 
-**Next work:** add a versioned capability registry and sanitized read-only snapshots first, including negotiation context, network/deal state, and team/stable history as their forks become ready. Reject stale save/promotion data and expose only static, reviewed MCP tools. Optional writes come later and must remain plugin-owned, preview-bound, allowlisted, revalidated, and read back after persistence. Do not scrape another plugin's private `localStorage` or expose arbitrary callbacks, JavaScript, or SQL.
+**First provider:** Inner Circle 2.1 publishes the neutral read-only `inner-circle.assignments` capability. The MCP consumer discovers it at request time and validates protocol/provider/schema/capability metadata, payload size, native IDs, complete assignment consistency, save hash, player-promotion ID, and monotonic revision before exposing it through two static read-only tools. Missing plugins are a normal unavailable result. Private notes, roster data, history, storage, dynamic tools, and generic interop writes are excluded.
+
+**Next work:** live-validate the installed Inner Circle/MCP TEST pair, then add sanitized providers for investments, booker progress, local hiring, negotiation context, network/deal state, and team/stable history as their forks become ready. Optional writes come later and must remain plugin-owned, preview-bound, allowlisted, revalidated, and read back after persistence. Do not scrape another plugin's private `localStorage` or expose arbitrary callbacks, JavaScript, or SQL.
 
 ### F10 — Network and TV-deal management
 

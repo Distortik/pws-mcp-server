@@ -7,6 +7,7 @@ var path = require('path');
 var booking = require('./booking');
 var audit = require('./audit');
 var domain = require('./domain');
+var integrations = require('./integrations');
 var runtime = require('./runtime');
 var segments = require('./segments');
 var purposeBuiltActions = require('./actions');
@@ -185,8 +186,9 @@ function invokeAction(api, name, args) {
     }
 }
 
-function dispatch(api, request) {
+function dispatch(api, request, services) {
     var params = request.params || {};
+    services = services || {};
     switch (request.method) {
     case 'health':
         return { ok: true, game: 'Pro Wrestling Sim', state: domain.state(api), pluginVersion: api.plugin.version };
@@ -216,6 +218,12 @@ function dispatch(api, request) {
         return domain.hiring(api, params);
     case 'contracts.advise':
         return domain.contractAdvice(api, params);
+    case 'integrations.list':
+        if (!services.integrations) return integrations.createManager(api).list();
+        return services.integrations.list();
+    case 'integrations.innerCircle':
+        if (!services.integrations) return integrations.createManager(api).innerCircle(params);
+        return services.integrations.innerCircle(params);
     case 'shows.upcoming':
         return domain.upcomingShows(api, params);
     case 'shows.get':
@@ -294,15 +302,17 @@ function createBridge(api, options) {
     var server = null;
     var token = crypto.randomBytes(32).toString('hex');
     var runtimePath = runtime.resolveRuntimePath({ pluginDirectory: options.pluginDirectory });
+    var integrationManager = integrations.createManager(api);
 
     return {
         start: function () {
             if (server) return Promise.reject(new Error('Bridge is already running'));
+            integrationManager.start();
             server = http.createServer(function (request, response) {
                 if (request.method !== 'POST' || request.url !== '/rpc') return json(response, 404, { error: 'Not found' });
                 if (request.headers.authorization !== 'Bearer ' + token) return json(response, 401, { error: 'Unauthorized' });
                 readBody(request).then(function (body) {
-                    return Promise.resolve(dispatch(api, body));
+                    return Promise.resolve(dispatch(api, body, { integrations: integrationManager }));
                 }).then(function (result) {
                     json(response, 200, { result: result });
                 }).catch(function (error) {
@@ -325,6 +335,7 @@ function createBridge(api, options) {
         },
         stop: function () {
             try { if (fs.existsSync(runtimePath)) fs.unlinkSync(runtimePath); } catch (_) { /* best effort */ }
+            integrationManager.stop();
             if (!server) return Promise.resolve();
             return new Promise(function (resolve) {
                 server.close(resolve);

@@ -32,13 +32,15 @@ The maintained forks should negotiate a save-scoped ownership snapshot keyed by 
 
 ## Architecture
 
-Optional plugins should register a small, versioned, declarative capability description and send sanitized save-scoped snapshots to the in-game MCP plugin. The MCP server exposes only reviewed static tools; an optional plugin cannot inject tool instructions, arbitrary JavaScript, callbacks, or raw SQL access.
+Optional plugins register a small, versioned, declarative capability description and return sanitized save-scoped snapshots through PWS Community Interop v1. The neutral read-only channels are `pws-community:v1:describe` and `pws-community:v1:snapshot`; PWS MCP Server is one optional consumer, not the protocol host. The MCP server exposes only reviewed static tools, so an optional plugin cannot inject tool instructions, arbitrary JavaScript, callbacks, raw SQL access, or generic writes.
+
+The first implemented provider is Inner Circle 2.1 capability `inner-circle.assignments`. The consumer tools are `pws_list_optional_integrations` and `pws_get_inner_circle`. The snapshot includes public role definitions and assignment facts keyed by native worker/contract IDs, while excluding notes, complete roster data, and internal history. The consumer accepts at most 64 KiB and independently verifies provider identity, schema/capability versions, assignment consistency, current save hash, native promotion ID, and revision monotonicity.
 
 The first implementation phase is discovery and read-only data. A later write phase requires the same safety properties as native MCP actions: exact preview, current-state binding, explicit confirmation, apply-time validation, post-save verification, and rollback where practical.
 
 The integration must also:
 
-- reject stale data after a save or player-promotion change;
+- reject stale data after a save or player-promotion change and invalidate revision evidence on `database:opened`;
 - identify the optional plugin and protocol/schema versions;
 - limit payload size and validate every field;
 - remain silent and harmless when the other side is not installed;

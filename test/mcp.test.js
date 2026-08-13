@@ -12,9 +12,9 @@ test('negotiates a compatible MCP version and publishes guidance', async functio
 });
 
 test('rejects a mismatched in-game plugin before exposing stale tool behavior', function () {
-    assert.doesNotThrow(function () { mcp.assertRuntimeVersion({ pluginVersion: '0.4.0' }); });
+    assert.doesNotThrow(function () { mcp.assertRuntimeVersion({ pluginVersion: '0.5.0-beta.1' }); });
     assert.doesNotThrow(function () { mcp.assertRuntimeVersion({}); });
-    assert.throws(function () { mcp.assertRuntimeVersion({ pluginVersion: '0.4.0-beta.4' }); }, /version mismatch.*matching pair/i);
+    assert.throws(function () { mcp.assertRuntimeVersion({ pluginVersion: '0.4.0' }); }, /version mismatch.*matching pair/i);
 });
 
 test('publishes a broad unique tool catalogue with safety annotations', async function () {
@@ -38,10 +38,11 @@ test('publishes a broad unique tool catalogue with safety annotations', async fu
         assert.equal(tool.inputSchema.properties.preview.default, true);
         assert.equal(tool.annotations.destructiveHint, true);
     });
-    ['pws_get_venues', 'pws_get_gimmicks', 'pws_get_personas', 'pws_get_promises', 'pws_diagnose_storyline_attribution'].forEach(function (name) {
+    ['pws_get_venues', 'pws_get_gimmicks', 'pws_get_personas', 'pws_get_promises', 'pws_diagnose_storyline_attribution', 'pws_list_optional_integrations', 'pws_get_inner_circle'].forEach(function (name) {
         var tool = result.tools.find(function (item) { return item.name === name; });
         assert.ok(tool, name + ' should be published');
         assert.equal(tool.annotations.readOnlyHint, true);
+        assert.equal(tool.annotations.destructiveHint, false);
     });
     ['pws_create_stable', 'pws_dissolve_stable', 'pws_add_stable_worker', 'pws_remove_stable_worker', 'pws_set_contract_gimmick', 'pws_set_contract_persona', 'pws_set_persona_availability', 'pws_respond_to_promise', 'pws_create_event', 'pws_set_event_active', 'pws_schedule_show', 'pws_cancel_show'].forEach(function (name) {
         var tool = result.tools.find(function (item) { return item.name === name; });

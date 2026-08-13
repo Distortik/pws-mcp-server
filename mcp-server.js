@@ -9,7 +9,7 @@ var mcpTypes = require('@modelcontextprotocol/sdk/types.js');
 var definitions = require('./src/tools');
 var runtime = require('./src/runtime');
 
-var SERVER = { name: 'pws-mcp-server', version: '0.4.0' };
+var SERVER = { name: 'pws-mcp-server', version: '0.5.0-beta.1' };
 var PROTOCOLS = mcpTypes.SUPPORTED_PROTOCOL_VERSIONS.slice();
 var INSTRUCTIONS = 'Use PWS search tools to resolve names to IDs before acting. Read company and booking context before giving management advice. Show plans are drafts: explain major choices and obtain explicit user approval before applying a plan or calling any save-changing action. Prefer purpose-built tools over raw SQL. Never claim a save change succeeded unless the tool result says success=true.';
 

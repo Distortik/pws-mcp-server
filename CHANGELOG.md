@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.0-beta.1 — Unreleased
+
+- Added optional PWS Community Interop v1 discovery through PWS's built-in inter-plugin messaging. Community plugins remain independently installable and core MCP behavior is unchanged when none are present.
+- Added the static read-only `pws_list_optional_integrations` and `pws_get_inner_circle` tools. Compatible Inner Circle 2.1 providers expose role definitions and assignment facts without private notes, roster data, history, storage access, or dynamic tool injection.
+- Bound accepted snapshots to the currently loaded save hash and native player-promotion ID, reject older revisions and same-revision content changes, and invalidate cached revision evidence whenever PWS opens a database.
+- Added bounded protocol/provider/schema/capability validation, a 64 KiB snapshot limit, native ID validation, assignment/summary consistency checks, deterministic production/TEST provider selection, and harmless unavailable results for missing or incompatible providers.
+- Added automated coverage for discovery, bridge routing, side-by-side TEST selection, absent providers, sanitized output, wrong-save rejection, stale/tampered revisions, malformed data, oversized payloads, and database-switch invalidation.
+
 ## 0.4.0 - 2026-08-13
 
 > Release gate passed. The TEST deployment, live read-only suite, focused B10/B12/B13 checks, production package inspection, and installed Claude Desktop Home-chat smoke test all pass.

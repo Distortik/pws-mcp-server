@@ -21,6 +21,7 @@ var runtimeFiles = [
     'src/booking.js',
     'src/bridge.js',
     'src/domain.js',
+    'src/integrations.js',
     'src/runtime.js',
     'src/segments.js',
     'src/tools.js'

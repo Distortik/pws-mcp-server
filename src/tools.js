@@ -61,6 +61,10 @@ updateChanges.minProperties = 1;
 
 var TOOLS = [
     { name: 'pws_get_state', description: 'Get the loaded save, current date, player promotion, PWS popularity-derived size, continental popularity, cash, and home market.', inputSchema: object(), annotations: READ_ONLY },
+    { name: 'pws_list_optional_integrations', description: 'Discover compatible, independently installed PWS community plugins and the sanitized read-only capabilities they currently provide. Missing plugins are normal and never required.', inputSchema: object(), annotations: READ_ONLY },
+    { name: 'pws_get_inner_circle', description: 'Read the current save and player promotion\'s sanitized Inner Circle role assignments when a compatible Inner Circle plugin is installed. Returns unavailable without affecting core PWS tools when it is absent.', inputSchema: object({
+        providerId: { type: 'string', enum: ['inner-circle', 'inner-circle-test'], description: 'Optional exact provider, primarily for side-by-side TEST builds.' }
+    }), annotations: READ_ONLY },
     { name: 'pws_search', description: 'Search across PWS workers, promotions, shows, titles, storylines, tag teams, stables, venues, and news. Start here when resolving a name to an ID.', inputSchema: object({
         query: { type: 'string', minLength: 1, maxLength: 120 },
         categories: { type: 'array', items: { type: 'string', enum: ['all', 'workers', 'promotions', 'shows', 'titles', 'storylines', 'teams', 'stables', 'venues', 'news'] } },
@@ -205,7 +209,8 @@ var TOOLS = [
 ];
 
 var ROUTES = {
-    pws_get_state: 'game.state', pws_search: 'search', pws_database_catalog: 'database.catalog', pws_query: 'database.query',
+    pws_get_state: 'game.state', pws_list_optional_integrations: 'integrations.list', pws_get_inner_circle: 'integrations.innerCircle',
+    pws_search: 'search', pws_database_catalog: 'database.catalog', pws_query: 'database.query',
     pws_company_overview: 'company.overview', pws_get_roster: 'roster.list', pws_get_worker: 'game.worker',
     pws_get_worker_contracts: 'game.contracts', pws_analyze_hiring: 'hiring.analyze', pws_contract_advice: 'contracts.advise',
     pws_get_upcoming_shows: 'shows.upcoming', pws_get_show: 'shows.get', pws_get_venues: 'venues.list', pws_get_titles: 'game.titles',
