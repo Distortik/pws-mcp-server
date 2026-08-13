@@ -108,7 +108,9 @@ Add opt-in interoperability with separately installed maintained forks of Invest
 
 **First provider:** Inner Circle 2.1 publishes the neutral read-only `inner-circle.assignments` capability. The MCP consumer discovers it at request time and validates protocol/provider/schema/capability metadata, payload size, native IDs, complete assignment consistency, save hash, player-promotion ID, and monotonic revision before exposing it through two static read-only tools. Missing plugins are a normal unavailable result. Private notes, roster data, history, storage, dynamic tools, and generic interop writes are excluded.
 
-**Next work:** live-validate the installed Inner Circle/MCP TEST pair, then add sanitized providers for investments, booker progress, local hiring, negotiation context, network/deal state, and team/stable history as their forks become ready. Optional writes come later and must remain plugin-owned, preview-bound, allowlisted, revalidated, and read back after persistence. Do not scrape another plugin's private `localStorage` or expose arbitrary callbacks, JavaScript, or SQL.
+**Live validation:** the installed Inner Circle TEST 2.1.0 and MCP TEST 0.5.0-beta.1 pair negotiated Community Interop v1 on VWE1/promotion 229. The consumer accepted revision 1 with 14 roles, 25 unique assignments, and nine unavailable historical assignments; an unchanged second read was identical, and privacy checks found no notes, roster data, or history.
+
+**Next work:** add sanitized providers for investments, booker progress, local hiring, negotiation context, network/deal state, and team/stable history as their forks become ready. Optional writes come later and must remain plugin-owned, preview-bound, allowlisted, revalidated, and read back after persistence. Do not scrape another plugin's private `localStorage` or expose arbitrary callbacks, JavaScript, or SQL.
 
 ### F10 — Network and TV-deal management
 

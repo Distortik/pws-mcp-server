@@ -77,6 +77,14 @@ test('missing optional plugins are harmless', async function () {
     });
 });
 
+test('reports a loaded provider whose inter-plugin handler did not register', async function () {
+    var api = mockApi({ send: function () { return undefined; } });
+    var manager = integrations.createManager(api);
+    var discovered = await manager.list();
+    assert.equal(discovered.providers[0].compatible, false);
+    assert.match(discovered.providers[0].error, /did not respond.*pws-community:v1:describe/);
+});
+
 test('discovers and validates a sanitized Inner Circle snapshot', async function () {
     var api = mockApi();
     var manager = integrations.createManager(api);

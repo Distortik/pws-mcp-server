@@ -36,6 +36,8 @@ Optional plugins register a small, versioned, declarative capability description
 
 The first implemented provider is Inner Circle 2.1 capability `inner-circle.assignments`. The consumer tools are `pws_list_optional_integrations` and `pws_get_inner_circle`. The snapshot includes public role definitions and assignment facts keyed by native worker/contract IDs, while excluding notes, complete roster data, and internal history. The consumer accepts at most 64 KiB and independently verifies provider identity, schema/capability versions, assignment consistency, current save hash, native promotion ID, and revision monotonicity.
 
+The installed TEST pair passed its first live gate on VWE1/promotion 229: Inner Circle TEST 2.1.0 reported 14 roles, 25 unique assignments, nine unavailable historical assignments, and revision 1. A repeated unchanged snapshot was identical, and no notes, roster data, or history crossed the boundary.
+
 The first implementation phase is discovery and read-only data. A later write phase requires the same safety properties as native MCP actions: exact preview, current-state binding, explicit confirmation, apply-time validation, post-save verification, and rollback where practical.
 
 The integration must also:

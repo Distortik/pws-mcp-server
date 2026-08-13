@@ -7,6 +7,8 @@
 - Bound accepted snapshots to the currently loaded save hash and native player-promotion ID, reject older revisions and same-revision content changes, and invalidate cached revision evidence whenever PWS opens a database.
 - Added bounded protocol/provider/schema/capability validation, a 64 KiB snapshot limit, native ID validation, assignment/summary consistency checks, deterministic production/TEST provider selection, and harmless unavailable results for missing or incompatible providers.
 - Added automated coverage for discovery, bridge routing, side-by-side TEST selection, absent providers, sanitized output, wrong-save rejection, stale/tampered revisions, malformed data, oversized payloads, and database-switch invalidation.
+- Report a loaded provider that has no registered inter-plugin handler distinctly from malformed or oversized responses, aiding diagnosis of PWS plugin-lifecycle failures without relaxing payload validation.
+- Live-validated the installed TEST pair on VWE1: Community Interop v1 discovered Inner Circle TEST 2.1.0, accepted all 14 roles and 25 assignments for promotion 229 at revision 1, retained nine unavailable assignments, accepted an identical repeated revision, and exposed no notes, roster data, or history.
 
 ## 0.4.0 - 2026-08-13
 

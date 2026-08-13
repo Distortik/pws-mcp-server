@@ -239,7 +239,12 @@ function createManager(api) {
 
     function send(targetId, channel, data) {
         if (!api.interPlugin || typeof api.interPlugin.send !== 'function') return Promise.reject(new Error('PWS inter-plugin messaging is unavailable'));
-        try { return Promise.resolve(api.interPlugin.send(targetId, channel, data)); }
+        try {
+            return Promise.resolve(api.interPlugin.send(targetId, channel, data)).then(function (value) {
+                if (value === undefined) throw new Error('Provider did not respond on ' + channel);
+                return value;
+            });
+        }
         catch (error) { return Promise.reject(error); }
     }
 
