@@ -9,7 +9,7 @@ var mcpTypes = require('@modelcontextprotocol/sdk/types.js');
 var definitions = require('./src/tools');
 var runtime = require('./src/runtime');
 
-var SERVER = { name: 'pws-mcp-server', version: '0.5.0-beta.2' };
+var SERVER = { name: 'pws-mcp-server', version: '0.5.0' };
 var PROTOCOLS = mcpTypes.SUPPORTED_PROTOCOL_VERSIONS.slice();
 var INSTRUCTIONS = 'Use PWS search tools to resolve names to IDs before acting. Read company and booking context before giving management advice. Show plans are drafts: explain major choices and obtain explicit user approval before applying a plan or calling any save-changing action. Prefer purpose-built tools over raw SQL. Never claim a save change succeeded unless the tool result says success=true.';
 
@@ -63,7 +63,10 @@ function rpc(method, params) {
 function toolCall(name, args) {
     var route = definitions.ROUTES[name];
     if (!route) return Promise.reject(new Error('Unknown tool: ' + name));
-    return ensureRuntimeVersion().then(function () { return rpc(route, args || {}); });
+    return ensureRuntimeVersion().then(function () { return rpc(route, args || {}); }).then(function (result) {
+        if (name !== 'pws_get_server_info') return result;
+        return Object.assign({}, result, { clientVersion: SERVER.version, versionMatch: result && result.pluginVersion === SERVER.version });
+    });
 }
 
 function resourceRead(uri) {

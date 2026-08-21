@@ -5,18 +5,18 @@ Use this checklist for the `0.4.0` production candidate. It promotes the live-va
 ## Production-candidate record
 
 - All 79 automated tests and syntax checks pass.
-- Live read-only inspection confirmed `advancedPopularityMode` is stored in `gameworld`, VWE1 has one regional-popularity row at 20 (Regional), and every injury/rehab/suspension/time-off return-date column used by B13 exists.
+- Live read-only inspection confirmed `advancedPopularityMode` is stored in `gameworld`, the validation save has a regional-popularity row at 20 (Regional), and every injury/rehab/suspension/time-off return-date column used by B13 exists.
 - The 0.4.0 TEST deployment hash-matched all 14 production runtime files and passed all 13 live read-only bridge checks.
-- VWE1 reported Regional through advanced regional popularity, live injury/rehab rows passed return-date boundary checks, a current-show validation returned the exact injury date, and a temporary stable leader persisted and cleaned up exactly.
-- The installed production MCPB initialized in a fresh Claude Desktop Home conversation, loaded the Pro Wrestling Sim integration, and returned VWE1 as Regional through regional popularity. The 0.4.0 release gate is complete.
+- The validation save reported Regional through advanced regional popularity, live injury/rehab rows passed return-date boundary checks, a current-show validation returned the exact injury date, and a temporary stable leader persisted and cleaned up exactly.
+- The installed production MCPB initialized in a fresh Claude Desktop Home conversation, loaded the Pro Wrestling Sim integration, and returned the correct Regional size through regional popularity. The 0.4.0 release gate is complete.
 
 ## Beta.5 acceptance record
 
 - All 73 automated tests passed, including direct and wrapper-loaded official-client initialization plus angle normalization on new cards and edits.
-- The matching beta.5 TEST plugin passed all 13 non-mutating live bridge checks against VWE1.
-- A new Claude Desktop Home conversation on Windows loaded the Pro Wrestling Sim integration and returned the live VWE1 state.
+- The matching beta.5 TEST plugin passed all 13 non-mutating live bridge checks against a copied validation save.
+- A new Claude Desktop Home conversation on Windows loaded the Pro Wrestling Sim integration and returned the loaded save state.
 - B14 passed a live dry-run validation using Wendi Richter (`Occasional Wrestler`) and Debbie Combs (`Wrestler`); no segment was created and the save was not changed.
-- B15 was reproduced on CareerMode show 52, traced to omitted empty beat groups, repaired without changing the card's creative content, and confirmed by successfully starting the show.
+- B15 was reproduced on a copied test show, traced to omitted empty beat groups, repaired without changing the card's creative content, and confirmed by successfully starting the show.
 
 ## Install the matching pair
 
@@ -31,7 +31,7 @@ Use this checklist for the `0.4.0` production candidate. It promotes the live-va
 ## Read-only checks
 
 - Confirm `pws_get_state` reports all six continental popularity values and the correct popularity-derived company tier.
-- On VWE1 with advanced popularity enabled, confirm `pws_get_state` reports **Regional**, `sizeMethod` is `regional popularity`, and the promotion's maximum regional-popularity row is 20.
+- On a copied save with advanced popularity enabled, confirm `pws_get_state` reports the same size as PWS, `sizeMethod` is `regional popularity`, and the regional-popularity rows explain that result.
 - Run `pws_get_gimmicks` with search and disposition filters.
 - Run `pws_get_promises` with no filter and then each applicable status. Check worker/title relationships, deadlines, `daysRemaining`, `overdue`, and declined requests.
 - Run `pws_get_personas` for Mark Calaway or Mick Foley. Check promotion names, boolean promotion/date eligibility and mask flags, preferred gimmick, picture, and dates.
@@ -62,8 +62,8 @@ Use pending decision emails on the backed-up save.
 If the save has none, close PWS and create two independent fixture copies with Node.js 22 or newer:
 
 ```powershell
-npm.cmd run fixture:promise -- "C:\path\VWE1.db" "C:\path\VWE1-promise-accept.db"
-npm.cmd run fixture:promise -- "C:\path\VWE1.db" "C:\path\VWE1-promise-decline.db"
+npm.cmd run fixture:promise -- "C:\path\source-save.db" "C:\path\promise-accept-copy.db"
+npm.cmd run fixture:promise -- "C:\path\source-save.db" "C:\path\promise-decline-copy.db"
 ```
 
 The command never edits the source and refuses to overwrite an existing output. Load only the generated copy and use the printed `promiseId`.

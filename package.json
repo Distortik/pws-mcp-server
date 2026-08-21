@@ -1,6 +1,6 @@
 {
   "name": "pws-mcp-server",
-  "version": "0.5.0-beta.2",
+  "version": "0.5.0",
   "private": true,
   "license": "Apache-2.0",
   "description": "MCP bridge for Pro Wrestling Sim",
@@ -18,7 +18,7 @@
     "verify:workshop": "node scripts/build-workshop.js --verify",
     "deploy:plugin": "node scripts/deploy-plugin.js",
     "deploy:test-plugin": "node scripts/deploy-test-plugin.js",
-    "check": "node --check index.js && node --check mcpb-entry.js && node --check src/audit.js && node --check src/actions.js && node --check src/bridge.js && node --check src/domain.js && node --check src/integrations.js && node --check src/booking.js && node --check src/segments.js && node --check src/runtime.js && node --check src/tools.js && node --check scripts/build-mcpb.js && node --check scripts/build-release.js && node --check scripts/build-test-release.js && node --check scripts/build-workshop.js && node --check scripts/deploy-plugin.js && node --check scripts/deploy-test-plugin.js && node --check scripts/live-regression.js && node --check scripts/prepare-promise-fixture.js && node --check scripts/verify-save.js && node --check mcp-server.js",
+    "check": "node --check index.js && node --check mcpb-entry.js && node --check src/audit.js && node --check src/actions.js && node --check src/bridge.js && node --check src/domain.js && node --check src/integrations.js && node --check src/booking.js && node --check src/management.js && node --check src/segments.js && node --check src/runtime.js && node --check src/tools.js && node --check scripts/build-mcpb.js && node --check scripts/build-release.js && node --check scripts/build-test-release.js && node --check scripts/build-workshop.js && node --check scripts/deploy-plugin.js && node --check scripts/deploy-test-plugin.js && node --check scripts/live-regression.js && node --check scripts/prepare-promise-fixture.js && node --check scripts/verify-save.js && node --check mcp-server.js",
     "test": "node --test",
     "test:save": "node scripts/verify-save.js",
     "test:live": "node scripts/live-regression.js",

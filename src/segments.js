@@ -6,7 +6,7 @@ var domain = require('./domain');
 var COMMON_CHANGE_FIELDS = ['participants', 'segmentLength', 'segmentPosition', 'cardPosition', 'segmentName', 'description'];
 var MATCH_CHANGE_FIELDS = COMMON_CHANGE_FIELDS.concat([
     'titleIds', 'winner', 'winType', 'finishSpecific', 'purpose', 'purposeWorker', 'losers',
-    'gimmick', 'matchStoryId', 'referee', 'agent', 'announcers', 'ringsideWorkers'
+    'gimmick', 'matchStoryId', 'referee', 'agent', 'announcers', 'ringsideWorkers', 'entranceOrder', 'eliminationOrder'
 ]);
 var ANGLE_CHANGE_FIELDS = COMMON_CHANGE_FIELDS.concat(['angleType', 'beats', 'subjectContractIds']);
 
@@ -75,6 +75,12 @@ function parseBeats(value) {
     } catch (_) {
         return [];
     }
+}
+
+function parseOrder(value) {
+    if (!value) return [];
+    try { var parsed = typeof value === 'string' ? JSON.parse(value) : value; return Array.isArray(parsed) ? parsed.map(function (item) { return Number(typeof item === 'object' ? item.contractID : item); }).filter(function (id) { return id > 0; }) : []; }
+    catch (_) { return []; }
 }
 
 function readSegment(api, segmentId) {
@@ -152,7 +158,8 @@ function readSegment(api, segmentId) {
             referee: row.referee === '' || row.referee == null ? null : Number(row.referee),
             agent: row.agent === '' || row.agent == null ? null : Number(row.agent),
             announcers: [row.announcer1, row.announcer2, row.announcer3, row.announcer4].filter(function (id) { return id !== '' && id != null && Number(id) > 0; }).map(Number),
-            ringsideWorkers: ringside
+            ringsideWorkers: ringside,
+            entranceOrder: parseOrder(row.entranceOrder), eliminationOrder: parseOrder(row.eliminationOrder)
         });
     } else if (type === 'angle') {
         result.angleType = row.angleType || '';
@@ -371,6 +378,14 @@ function normalizeUpdate(api, before, changes) {
         if (has(changes, 'announcers')) desired.announcers = validateContractIds(changes.announcers, 'announcers', contracts, { maximum: 4, targetDate: before.showDate });
         if (has(changes, 'ringsideWorkers')) desired.ringsideWorkers = validateContractIds(changes.ringsideWorkers, 'ringsideWorkers', contracts, { targetDate: before.showDate });
         var participantIds = [].concat.apply([], participants);
+        if (has(changes, 'entranceOrder')) desired.entranceOrder = validateContractIds(changes.entranceOrder, 'entranceOrder', contracts, { targetDate: before.showDate });
+        if (has(changes, 'eliminationOrder')) desired.eliminationOrder = validateContractIds(changes.eliminationOrder, 'eliminationOrder', contracts, { targetDate: before.showDate });
+        if (has(changes, 'entranceOrder') && !same(sorted(desired.entranceOrder), sorted(participantIds))) throw new Error('entranceOrder must contain every match participant exactly once');
+        if (has(changes, 'eliminationOrder')) {
+            if (desired.winner === 'auto' || desired.winner === 'draw') throw new Error('eliminationOrder requires an explicit winning contract');
+            var expectedEliminations = participantIds.filter(function (id) { return id !== Number(desired.winner); });
+            if (!same(sorted(desired.eliminationOrder), sorted(expectedEliminations))) throw new Error('eliminationOrder must contain every participant except the winner exactly once');
+        }
         ['purposeWorker', 'referee', 'agent'].forEach(function (field) {
             if (desired[field] !== '' && desired[field] != null && !contracts[Number(desired[field])]) throw new Error(field + ' contract ' + desired[field] + ' is not active at the player promotion');
         });
@@ -425,6 +440,8 @@ function updateRows(api, desired, changes, contracts) {
         if (has(changes, 'announcers')) {
             for (var announcerIndex = 0; announcerIndex < 4; announcerIndex += 1) set('announcer' + (announcerIndex + 1), desired.announcers[announcerIndex] || '');
         }
+        if (has(changes, 'entranceOrder')) set('entranceOrder', JSON.stringify(orderObjects(desired.entranceOrder, contracts)));
+        if (has(changes, 'eliminationOrder')) set('eliminationOrder', JSON.stringify(orderObjects(desired.eliminationOrder, contracts)));
     } else {
         if (has(changes, 'angleType')) set('angleType', desired.angleType);
         if (has(changes, 'beats')) {
@@ -455,6 +472,21 @@ function updateRows(api, desired, changes, contracts) {
         });
     }
 }
+
+function orderObjects(ids, contracts) {
+    return (ids || []).map(function (contractId) { var contract = contracts[contractId]; return { contractID: Number(contractId), workerID: Number(contract.workerID), name: contract.contractName || contract.name || '' }; });
+}
+
+function setMatchOrders(api, segmentId, entranceOrder, eliminationOrder) {
+    if (entranceOrder == null && eliminationOrder == null) return;
+    var before = readSegment(api, segmentId), changes = {};
+    if (entranceOrder != null) changes.entranceOrder = entranceOrder;
+    if (eliminationOrder != null) changes.eliminationOrder = eliminationOrder;
+    var normalized = normalizeUpdate(api, Object.assign(before, { complete: false, isCancelled: false, promotionId: contextPromotion(api), showBrand: domain.get(api, 'SELECT e.brand FROM eventinstance ei JOIN events e ON e.eventID=ei.eventID WHERE ei.instanceID=?', [before.showId]).brand }), changes);
+    updateRows(api, normalized.desired, changes, normalized.contracts);
+}
+
+function contextPromotion(api) { return domain.context(api).promotionId; }
 
 function updateSegment(api, options) {
     options = options || {};
@@ -519,6 +551,7 @@ module.exports = {
     readSegment: readSegment,
     normalizeBeats: normalizeBeats,
     rejectUnknown: rejectUnknown,
+    setMatchOrders: setMatchOrders,
     updateSegment: updateSegment,
     validateParticipants: validateParticipants,
     validateTitles: validateTitles,

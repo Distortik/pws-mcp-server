@@ -85,13 +85,15 @@ test('read-only queries are capped by an outer limit', function () {
     assert.deepEqual(received.params, ['A%', 25]);
 });
 
-test('dispatch routes optional integration reads through the bridge-owned manager', async function () {
-    var services = { integrations: {
-        list: function () { return Promise.resolve({ optional: true, providers: [] }); },
-        innerCircle: function (params) { return Promise.resolve({ available: true, providerId: params.providerId }); },
-        investments: function (params) { return Promise.resolve({ available: true, providerId: params.providerId }); }
-    } };
-    assert.deepEqual(await bridge.dispatch({}, { method: 'integrations.list' }, services), { optional: true, providers: [] });
-    assert.deepEqual(await bridge.dispatch({}, { method: 'integrations.innerCircle', params: { providerId: 'inner-circle-test' } }, services), { available: true, providerId: 'inner-circle-test' });
-    assert.deepEqual(await bridge.dispatch({}, { method: 'integrations.investments', params: { providerId: 'investments-test' } }, services), { available: true, providerId: 'investments-test' });
+test('server diagnostics remain callable without a loaded save', function () {
+    var api = {
+        plugin: { version: '0.5.0' },
+        game: { getState: function () { return {}; } },
+        database: { get: function () { return null; } }
+    };
+    var result = bridge.dispatch(api, { method: 'server.info' });
+    assert.equal(result.ok, true);
+    assert.equal(result.pluginVersion, '0.5.0');
+    assert.equal(result.saveLoaded, false);
+    assert.match(result.stateError, /No PWS save/);
 });

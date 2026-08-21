@@ -1,80 +1,89 @@
-[h1]PWS MCP Server 0.4.0[/h1]
+[h1]PWS MCP Server 0.5.0 — The Company Management Update[/h1]
 
 [quote][b]Claude Desktop users must update both halves.[/b]
-Steam automatically updates only the in-game PWS plugin. Download and install [code]pws-mcp-server-v0.4.0.mcpb[/code] from the [url=https://github.com/Distortik/pws-mcp-server/releases/latest]matching GitHub release[/url], then fully restart Claude Desktop and begin a new Home conversation.[/quote]
+Steam updates only the in-game PWS plugin. Download and install [code]pws-mcp-server-v0.5.0.mcpb[/code] from the [url=https://github.com/Distortik/pws-mcp-server/releases/latest]matching GitHub release[/url], then fully restart Claude Desktop and begin a new Home conversation.[/quote]
 
-[h2]Wrestler personas and contract identities[/h2]
+[h2]Never lose sight of your shows[/h2]
 
 [list]
-[*]Browse native PWS alter egos with their preferred gimmick, picture, mask, promotion restriction, and valid dates.
-[*]Switch one promotion contract to a native persona or custom ring name without renaming the underlying worker globally.
-[*]Change persona availability between promotion-specific and free use, with exact restoration support.
-[*]Require an explicit creative-sandbox override before selecting a persona outside its native date range.
+[*]Fixed the issue that could make an AI client report no scheduled shows, or only part of the schedule, when valid unfinished shows existed through PWS's second native event-instance path.
+[*]Added explicit unfinished-show verification to the release checks so this regression cannot silently return.
+[*]Added [code]pws_audit_show[/code], a one-request readiness report covering empty cards, invalid winners, risky title outcomes, repeated worker use, and runtime targets.
 [/list]
 
-This supports presentations such as The Undertaker, biker Undertaker, Mankind, or Dude Love when those alter egos exist in the loaded database. PWS stores one active presentation per contract rather than a separate persona for every match.
-
-[h2]Stables, gimmicks, events, and promises[/h2]
+[h2]Tag teams, brands, and commentary[/h2]
 
 [list]
-[*]Create, read, and dissolve stables; add or remove members; assign leaders; and protect PWS's minimum stable size.
-[*]Browse database-specific gimmicks and assign them safely to player-company contracts.
-[*]Create event series, schedule show instances, assign venues, cancel unfinished shows, and archive or restore event series without deleting their history.
-[*]Read pending, active, declined, fulfilled, and expired worker promises.
-[*]Preview and apply promise acceptance or rejection with the native email and relationship consequence in one verified transaction.
+[*]Discover established global tag teams when both members work for your company but the team has not yet been registered there.
+[*]Register an established team using its existing name and accumulated experience, with an optional company-specific name.
+[*]Create tag teams and edit their names, members, experience, and active status, or dissolve them.
+[*]Create, edit, and delete brands, assign workers to brands, and preview the native cleanup caused by brand deletion.
+[*]Set default commentary teams for brands and recurring events.
 [/list]
 
-[h2]Booking and show management[/h2]
+[h2]Championship management[/h2]
 
 [list]
-[*]Return structured participant groups, opponent details, ringside workers, and angle subjects from show reads.
-[*]Create and edit matches or angles transactionally with post-save verification and rollback safeguards.
-[*]Accept both Wrestlers and Occasional Wrestlers as match participants while continuing to reject angle-only worker types.
-[*]Evaluate injuries, rehab, worker suspensions, contract suspensions, and time off against a future show's actual air date.
-[*]Persist every native angle beat group, including unused empty groups, preventing MCP-created promos from blocking show startup.
-[*]Reject non-defendable championships or prizes when they cannot legally be attached to a match.
+[*]Create and edit championships.
+[*]Retire and reinstate championships without destroying their history.
+[*]Award singles, tag-team, and trios championships through PWS's native title-history action.
+[*]Vacate championships through the existing verified workflow.
 [/list]
 
-[h2]Correctness and safety[/h2]
+[h2]Contracts, hiring, and roster rotation[/h2]
 
 [list]
-[*]Use PWS's advanced regional-popularity mode when enabled, fixing company-size results that incorrectly fell back to continental popularity.
-[*]Verify the requested leader flag after adding a stable member instead of checking membership alone.
-[*]Correct generic worker-signing terms with monthly and appearance wages, day-based contract lengths, compatibility handling for the old [code]wages[/code] field, and exact persisted-term verification.
-[*]Normalize database flags to proper true/false values throughout public results.
-[*]Detect mismatched MCP client and in-game plugin versions before running tools.
-[*]Keep Workshop and TEST folder paths stable across updates so Claude Code and Codex do not need a new path every version.
-[*]Keep save-changing tools preview-first, require explicit confirmation, revalidate current state during application, and verify persistence before reporting success.
+[*]Added purpose-built contract modification for supported terms and management settings.
+[*]Added a purpose-built immediate-signing workflow driven by hiring analysis.
+[*]Made automatic hiring guidance account for cash runway and your company's existing top-end contracts.
+[*]Automatic wage bands are now advisory: expensive candidates are shown as stretch targets instead of being incorrectly excluded. User-supplied limits remain hard constraints.
+[*]Included Occasional Wrestlers consistently in roster reads, company counts, roster-balance analysis, and hiring results, with worker type and match eligibility shown clearly.
+[*]Added roster-rotation analysis with appearances, matches, angles, last-booked dates, and unused or heavy-use warnings.
 [/list]
 
-[h2]Claude Desktop and packaging[/h2]
+[h2]Storylines, events, and show control[/h2]
 
 [list]
-[*]Replaced the custom transport with the official MCP SDK stdio transport.
-[*]Added a dedicated MCPB entry point compatible with Claude Desktop's Windows extension host.
-[*]Built Workshop, direct-path, and MCPB distributions from the same self-contained server.
-[*]Included third-party license notices and automatic package/manifest verification.
-[*]Retained direct-path support for Claude Code, Claude Desktop's Code tab, Codex, and other compatible local MCP clients.
+[*]Create storylines through PWS's native action, edit their name and overview, manage membership, and end them.
+[*]Browse recurring event series and edit their name, recurrence, prestige, brand, runtime, importance, and preferred venue.
+[*]Schedule shows and reschedule unfinished shows, with follow-up audit guidance after a move.
+[*]Add ordered entrance and elimination sequences to multi-person matches. Entrances include all participants; eliminations include everyone except the selected winner.
+[*]Store and verify both orders in PWS's native format.
 [/list]
 
-[h2]Testing completed[/h2]
+[h2]Networks and television[/h2]
 
 [list]
-[*]All 79 automated tests passed.
-[*]All 13 live read-only bridge checks passed on VWE1.
-[*]The corrected Regional company size, real injury/rehab date boundaries, and stable-leader persistence were confirmed against the live save.
-[*]Persona selection/restoration, promise acceptance/rejection, event archiving, show history retention, and angle show-start behavior passed their respective live and restart-persistence tests.
-[*]The installed production 0.4.0 MCPB connected in a fresh Claude Desktop Home conversation and returned the correct live game state.
+[*]Browse networks, availability, and the player company's current television deals.
+[*]Cancel a network deal through PWS's native status and news behavior with preview and verification.
+[*]New offers and renegotiations remain in PWS so the game continues to calculate its hidden negotiation terms.
+[/list]
+
+[h2]Connection diagnostics[/h2]
+
+[list]
+[*]Added [code]pws_get_server_info[/code] for callable client/server version, transport, connection, and loaded-save diagnostics.
+[*]The diagnostic remains useful when PWS is open without a save loaded, making setup and restart problems easier to identify.
+[/list]
+
+[h2]Validation[/h2]
+
+[list]
+[*]All 96 automated tests pass.
+[*]All 20 installed live read checks pass.
+[*]All 33 save-changing lifecycle checks pass, covering contracts, signing and release, tag teams, brands, storylines, championships, events, commentary, show rescheduling, ordered booking, auditing, and network cancellation.
+[*]All 20 live read checks pass again after the save-changing suite.
+[*]The Workshop ZIP and Claude Desktop MCPB are built from the same verified 0.5.0 server.
 [/list]
 
 [h2]Updating[/h2]
 
 [olist]
-[*]Let Steam update the Workshop plugin, then restart PWS.
-[*]Confirm [b]PWS MCP Server 0.4.0[/b] is enabled and load your save.
-[*]If you use Claude Desktop Home, install [code]pws-mcp-server-v0.4.0.mcpb[/code] from GitHub Releases and fully restart Claude Desktop. Installing the same extension identity normally upgrades the existing version; uninstall first only if the new version does not appear.
-[*]Start a new Home conversation and ask: [i]Use the PWS MCP server to show my current game state.[/i]
-[*]If you use Claude Code or Codex, keep the existing stable Workshop path and restart the client so it reloads the 0.4.0 server and tool catalogue.
+[*]Let Steam update the Workshop item, then restart PWS.
+[*]Confirm [b]PWS MCP Server 0.5.0[/b] is enabled and load your save.
+[*]Claude Desktop users: install [code]pws-mcp-server-v0.5.0.mcpb[/code] from GitHub Releases and fully restart Claude Desktop.
+[*]Claude Code and Codex users: keep the existing Workshop server path and restart the client so it reloads the 0.5.0 tool catalogue.
+[*]Ask: [i]Use the PWS MCP server to show my current game state and connection information.[/i]
 [/olist]
 
-[b]Steam cannot update Claude Desktop's MCPB. Codex, Claude Code, and other clients that run the Workshop copy of [code]mcp-server.js[/code] directly do not install the MCPB.[/b]
+[b]Steam cannot update Claude Desktop's MCPB. Claude Code, Codex, and other clients that run the Workshop copy of [code]mcp-server.js[/code] directly do not install the MCPB.[/b]

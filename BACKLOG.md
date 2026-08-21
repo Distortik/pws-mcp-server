@@ -2,35 +2,39 @@
 
 This is the version-controlled source of truth for open PWS MCP Server defects, safety work, and feature requests. `ROADMAP.md` describes release direction; this file tracks the concrete work still waiting.
 
-Status last reconciled: **13 August 2026**
-Repository candidate: **0.4.0 release-ready**
-Latest fully live-validated build: **0.4.0**
+Status last reconciled: **21 August 2026**
+Repository candidate: **0.5.0 release-ready**
+Latest fully live-validated build: **0.5.0-beta.2**, with the 0.5.0 scheduled-show fix verified against real read-only save data
 
-Version 0.4.0 fixes B10, B12, B13, and the generic-signing portion of F19. All 79 automated tests and all 13 live read-only bridge checks pass. VWE1 confirmed the corrected Regional company size, real injury/rehab date boundaries, current-show rejection details, stable-leader persistence, and exact stable cleanup. The installed production MCPB also passed a fresh Claude Desktop Home-chat connection and live state read.
+Version 0.4.0 fixes B10, B12, B13, and the generic-signing portion of F19. All 79 automated tests and all 13 live read-only bridge checks pass. Live validation confirmed the corrected Regional company size, real injury/rehab date boundaries, current-show rejection details, stable-leader persistence, and exact stable cleanup. The installed production MCPB also passed a fresh Claude Desktop Home-chat connection and live state read.
 
-## Release recommendation
+## 0.5.0 release recommendation
 
-The 0.4.0 release gate is complete. Remaining release work is publication only:
+The 0.5.0 release gate is complete. Remaining release work is publication only:
 
 1. Commit and push the release-ready source and documentation.
-2. Publish the production ZIP/MCPB in the GitHub 0.4.0 release.
+2. Publish the production ZIP/MCPB in the GitHub 0.5.0 release.
 3. Publish the matching Steam Workshop update and description/roadmap text.
 
-The larger management features should follow 0.4.0 rather than reopening the release scope.
+The larger management features should follow 0.5.0 rather than reopening the release scope.
+
+### Scheduled-show discovery — fixed for 0.5.0
+
+Upcoming-show reads now merge the normal event join with PWS's native `vw_eventinstance` rows on every request. Previously the native view was consulted only when the join returned zero rows, so one joinable event could hide other valid unfinished shows. Automated coverage now includes empty and partially successful joins; real-save read-only verification reports the unfinished show explicitly.
 
 ## Release-candidate fixes validated for release
 
 ### B12 — Company-size tier differs from the game — fixed and live-validated
 
-The mismatch came from mode detection, not the tier thresholds. VWE1 stores `advancedPopularityMode = 1` in `gameworld`, while the runtime state helper omitted that flag. The MCP therefore used continental popularity and returned Local even though a regional-popularity row had reached 20 and PWS correctly displayed Regional.
+The mismatch came from mode detection, not the tier thresholds. The validation save stores `advancedPopularityMode = 1` in `gameworld`, while the runtime state helper omitted that flag. The MCP therefore used continental popularity and returned Local even though a regional-popularity row had reached 20 and PWS correctly displayed Regional.
 
-**Validated fix:** fall back to `gameworld.advancedPopularityMode`, use PWS's regional aggregation rules in advanced mode, and retain boundary tests for both popularity systems. The deployed candidate now reports VWE1 as Regional with `sizeMethod = regional popularity`, matching its advanced-mode flag and maximum regional value of 20.
+**Validated fix:** fall back to `gameworld.advancedPopularityMode`, use PWS's regional aggregation rules in advanced mode, and retain boundary tests for both popularity systems. The deployed candidate now reports Regional with `sizeMethod = regional popularity`, matching the save's advanced-mode flag and maximum regional value of 20.
 
 ### B13 — Future-show availability uses the current date — fixed and validated
 
 Show planning and segment edits now evaluate injury, rehab, worker suspension, contract suspension, and time off against the target show's `airDate`. A return date on or before the show date makes the worker eligible, matching PWS's date-transition clearing rules; a missing or invalid return date remains unavailable conservatively.
 
-**Validation:** automated coverage passes for new show plans and edits to existing segments. Live VWE1 checks confirmed all expected date columns, returned Megumi Kudo's 28 May injury date in a current-show rejection, and evaluated both Kudo and Terry Gordy as unavailable the day before return and available on the return date.
+**Validation:** automated coverage passes for new show plans and edits to existing segments. Live checks confirmed all expected date columns, returned the exact injury date in a current-show rejection, and evaluated workers as unavailable the day before return and available on the return date.
 
 ### B10 — Stable leader persistence is only partially normalized — fixed and live-validated
 
@@ -54,7 +58,7 @@ Create, rename, archive/retire, and configure brands and championships. Title an
 
 ### F18 — Promotion popularity consistency and management
 
-Expose regional popularity alongside continental popularity, warn when the two systems materially disagree, and investigate safe popularity editing. A new CareerMode promotion had North American continental popularity 50 while every `promotionRegionalPopularity` row was zero, a state the established AI promotions did not exhibit and which can distort company size, attendance, and local-market analysis.
+Expose regional popularity alongside continental popularity, warn when the two systems materially disagree, and investigate safe popularity editing. A newly created player promotion had North American continental popularity 50 while every `promotionRegionalPopularity` row was zero, a state the established AI promotions did not exhibit and which can distort company size, attendance, and local-market analysis.
 
 ### F19 — Signing terms, perks, and negotiation-layer awareness — generic path corrected
 
@@ -108,9 +112,9 @@ Add opt-in interoperability with separately installed maintained forks of Invest
 
 **First provider:** Inner Circle 2.1 publishes the neutral read-only `inner-circle.assignments` capability. The MCP consumer discovers it at request time and validates protocol/provider/schema/capability metadata, payload size, native IDs, complete assignment consistency, save hash, player-promotion ID, and monotonic revision before exposing it through two static read-only tools. Missing plugins are a normal unavailable result. Private notes, roster data, history, storage, dynamic tools, and generic interop writes are excluded.
 
-**Live validation:** the installed Inner Circle TEST 2.1.0 and MCP TEST 0.5.0-beta.1 pair negotiated Community Interop v1 on VWE1/promotion 229. The consumer accepted revision 1 with 14 roles, 25 unique assignments, and nine unavailable historical assignments; an unchanged second read was identical, and privacy checks found no notes, roster data, or history.
+**Live validation:** the installed TEST pair negotiated Community Interop v1 against a copied validation save and its active player promotion. The consumer accepted the complete expected assignment set; an unchanged second read was identical, and privacy checks found no notes, roster data, or history.
 
-**Second provider implemented; live validation pending:** Investments Manager 8.1.0 publishes `investments.portfolio` from a validated plugin-owned mirror of its existing save/promotion-scoped renderer data. MCP TEST 0.5.0-beta.2 adds the static read-only `pws_get_investments` consumer. Both sides cap snapshots at 64 KiB, validate native asset identities and totals, report truncation, and exclude notes, histories, preferences, renderer storage, agency clients, treatment records, callbacks, and writes.
+**Second provider implemented and live-validated:** Investments Manager 8.1.0 publishes `investments.portfolio` from a validated plugin-owned mirror of its existing save/promotion-scoped renderer data. An experimental static read-only consumer was validated separately from the base-game release. Both sides cap snapshots at 64 KiB, validate native asset identities and totals, report truncation, and exclude notes, histories, preferences, renderer storage, agency clients, treatment records, callbacks, and writes.
 
 **Next work:** live-validate Investments, then add sanitized providers for booker progress, local hiring, negotiation context, network/deal state, and team/stable history as their forks become ready. Optional writes come later and must remain plugin-owned, preview-bound, allowlisted, revalidated, and read back after persistence. Do not scrape another plugin's private `localStorage` or expose arbitrary callbacks, JavaScript, or SQL.
 
@@ -156,15 +160,15 @@ Replace the remaining advanced generic writes with preview-first, ownership-awar
 
 ### B15 â€” MCP-created angles can prevent a show from starting
 
-Fixed and live-validated in the in-place beta.5 hotfix. The public angle schema correctly allowed unused `group2` and `group3` fields to be omitted, but PWS's show runner calls `group2.forEach()` without checking that the array exists. New show plans and transactional angle edits now normalize all three beat groups before persistence. The original eight-segment CareerMode card was repaired without changing its workers, descriptions, order, or runtime and then started successfully.
+Fixed and live-validated in the in-place beta.5 hotfix. The public angle schema correctly allowed unused `group2` and `group3` fields to be omitted, but PWS's show runner calls `group2.forEach()` without checking that the array exists. New show plans and transactional angle edits now normalize all three beat groups before persistence. The original eight-segment test card was repaired without changing its workers, descriptions, order, or runtime and then started successfully.
 
 ### Claude Desktop Home compatibility
 
-Resolved in beta.5. Beta.4's MCPB launched on Claude Desktop for Windows but regular Home chats cancelled initialization after 60 seconds. Beta.5 now uses the official MCP SDK transport and a dedicated entry point that starts when Claude's Node UtilityProcess wrapper loads it. A new Windows Home conversation exposed the PWS integration and returned the live VWE1 state.
+Resolved in beta.5. Beta.4's MCPB launched on Claude Desktop for Windows but regular Home chats cancelled initialization after 60 seconds. Beta.5 now uses the official MCP SDK transport and a dedicated entry point that starts when Claude's Node UtilityProcess wrapper loads it. A new Windows Home conversation exposed the PWS integration and returned the loaded save state.
 
 ### B14 — Occasional Wrestler match validation
 
-Fixed and live-validated in beta.5. Both match-validation paths accept `Wrestler` and `Occasional Wrestler` while rejecting `Staff`, `Personality`, `Referee`, and `Announcer`. Automated tests cover new show plans and existing segment edits. A live dry-run validation accepted Wendi Richter against Debbie Combs on VWE1 without creating a segment.
+Fixed and live-validated in beta.5. Both match-validation paths accept `Wrestler` and `Occasional Wrestler` while rejecting `Staff`, `Personality`, `Referee`, and `Announcer`. Automated tests cover new show plans and existing segment edits. A live dry-run validation accepted two eligible workers without creating a segment.
 
 ### F15 — Personas and contract ring names
 

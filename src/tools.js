@@ -35,6 +35,7 @@ var matchPlanSegment = object({
     announcers: Object.assign({}, idArray, { maxItems: 4 }), agent: nullableContractId,
     titleIds: Object.assign({}, idArray, { maxItems: 20, description: 'Canonical championship field. Every listed title is validated and persisted in matchtitles.' }),
     ringsideWorkers: idArray, planningReason: { type: 'string', description: 'Planner metadata; returned by pws_plan_show and removed before persistence.' }
+    , entranceOrder: idArray, eliminationOrder: idArray
 }, ['type', 'participants']);
 var anglePlanSegment = object({
     type: { type: 'string', const: 'angle' }, angleType: { type: 'string', maxLength: 100 },
@@ -54,20 +55,26 @@ var updateChanges = object({
     losers: { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'string', const: 'Unspecified' }, { type: 'null' }] },
     gimmick: { type: 'string', maxLength: 200 }, matchStoryId: { anyOf: [{ type: 'integer', minimum: 1 }, { type: 'string', const: 'None' }] },
     referee: nullableContractId, agent: nullableContractId, announcers: Object.assign({}, idArray, { maxItems: 4 }), ringsideWorkers: idArray,
+    entranceOrder: idArray, eliminationOrder: idArray,
     angleType: { type: 'string', maxLength: 100 }, beats: { type: 'array', minItems: 1, items: beat },
     subjectContractIds: Object.assign({}, idArray, { description: 'Angle participants stored by PWS as subjects (the only persisted per-participant role flag in the current schema).' })
 }, []);
 updateChanges.minProperties = 1;
+var contractChanges = object({
+    push:{type:'string',maxLength:100},contractName:{type:'string',maxLength:120},brand:{anyOf:[{type:'integer',minimum:1},{type:'string',const:''}]},
+    wagePerMonth:{type:'number',minimum:0},wagePerAppearance:{type:'number',minimum:0},exclusive:{type:'boolean'},role:{type:'string',maxLength:100},
+    expiryDate:{type:'string',pattern:'^\\d{4}-\\d{2}-\\d{2}$'},contractLength:{type:'integer',minimum:-1},noHouseShows:{type:'boolean'},creativeControl:{type:'boolean'},
+    isDevelopment:{type:'boolean'},developmentPurpose:{type:'string',maxLength:200},allowIndyBookings:{type:'boolean'},onTimeOff:{type:'boolean'},timeOffEndDate:{type:'string',pattern:'^\\d{4}-\\d{2}-\\d{2}$'}
+},[]); contractChanges.minProperties=1;
+var eventChanges = object({
+    name:{type:'string',minLength:1,maxLength:100},prestige:{type:'integer',minimum:1,maximum:100},recurrenceType:{type:'string',enum:['Weekly','Monthly','Annual','OneOff']},
+    recurrenceMonth:{anyOf:[{type:'integer',minimum:1,maximum:12},{type:'null'}]},recurrenceWeek:{anyOf:[{type:'integer',minimum:1,maximum:5},{type:'null'}]},brand:{anyOf:[{type:'integer',minimum:1},{type:'string',const:''}]},
+    eventLength:{type:'integer',minimum:1,maximum:600},importance:{type:'string',enum:['Huge','High','Normal','Unimportant','House Show']},preferredVenue:{anyOf:[{type:'integer',minimum:1},{type:'string',const:''}]}
+},[]); eventChanges.minProperties=1;
 
 var TOOLS = [
     { name: 'pws_get_state', description: 'Get the loaded save, current date, player promotion, PWS popularity-derived size, continental popularity, cash, and home market.', inputSchema: object(), annotations: READ_ONLY },
-    { name: 'pws_list_optional_integrations', description: 'Discover compatible, independently installed PWS community plugins and the sanitized read-only capabilities they currently provide. Missing plugins are normal and never required.', inputSchema: object(), annotations: READ_ONLY },
-    { name: 'pws_get_inner_circle', description: 'Read the current save and player promotion\'s sanitized Inner Circle role assignments when a compatible Inner Circle plugin is installed. Returns unavailable without affecting core PWS tools when it is absent.', inputSchema: object({
-        providerId: { type: 'string', enum: ['inner-circle', 'inner-circle-test'], description: 'Optional exact provider, primarily for side-by-side TEST builds.' }
-    }), annotations: READ_ONLY },
-    { name: 'pws_get_investments', description: 'Read the current save and player promotion\'s sanitized Investments portfolio when a compatible Investments Manager plugin is installed. Returns unavailable without affecting core PWS tools when it is absent.', inputSchema: object({
-        providerId: { type: 'string', enum: ['investments', 'investments-test'], description: 'Optional exact provider, primarily for side-by-side TEST builds.' }
-    }), annotations: READ_ONLY },
+    { name: 'pws_get_server_info', description: 'Diagnose the MCP connection and version pair. Reports client and in-game plugin versions, transport, and loaded-save state without failing when no save is loaded.', inputSchema: object(), annotations: READ_ONLY },
     { name: 'pws_search', description: 'Search across PWS workers, promotions, shows, titles, storylines, tag teams, stables, venues, and news. Start here when resolving a name to an ID.', inputSchema: object({
         query: { type: 'string', minLength: 1, maxLength: 120 },
         categories: { type: 'array', items: { type: 'string', enum: ['all', 'workers', 'promotions', 'shows', 'titles', 'storylines', 'teams', 'stables', 'venues', 'news'] } },
@@ -208,11 +215,36 @@ var TOOLS = [
         action: { type: 'string', enum: ['create_storyline', 'sign_worker', 'award_title', 'update_worker_attribute', 'create_news_item', 'create_email'] },
         arguments: { type: 'object', description: 'Action-specific arguments. sign_worker requires workerId, promotionId, contractType (Written, Handshake, or PPA), and role. Use wagePerMonth and wagePerAppearance for pay; the deprecated numeric wages alias maps to monthly pay for Written contracts and appearance pay otherwise. contractLength is DAYS (-1 means indefinite), not months or years. Optional fields: exclusive, push, gimmick, contractName, and brand. Successful signings are read back and their exact requested terms are verified.' }, confirmed: { type: 'boolean', const: true }
     }, ['action', 'arguments', 'confirmed']), annotations: WRITE },
-    { name: 'pws_get_audit_log', description: 'Get the PWS action audit log for this plugin.', inputSchema: object(), annotations: READ_ONLY }
+    { name: 'pws_get_audit_log', description: 'Get the PWS action audit log for this plugin.', inputSchema: object(), annotations: READ_ONLY },
+    { name: 'pws_audit_show', description: 'Audit a player-company show for empty cards, invalid winners, title-match risks, repeated workers, and runtime readiness.', inputSchema: object({ showId: { type: 'integer', minimum: 1 } }, ['showId']), annotations: READ_ONLY },
+    { name: 'pws_analyze_worker_usage', description: 'Analyze roster appearances, matches, angles, last-booked dates, and rotation flags.', inputSchema: object({ days: { type: 'integer', minimum: 7, maximum: 730, default: 90 } }), annotations: READ_ONLY },
+    { name: 'pws_update_contract', description: 'PREVIEW OR MODIFY supported terms and management settings on an active player-company contract through the official PWS action.', inputSchema: object({contractId:{type:'integer',minimum:1},changes:contractChanges,preview:{type:'boolean',default:true},confirmed:{type:'boolean'}},['contractId','changes']), annotations: WRITE },
+    { name: 'pws_sign_worker', description: 'PREVIEW OR IMMEDIATELY SIGN a worker through the official PWS action. This does not simulate offer/counter-offer negotiation.', inputSchema: object({workerId:{type:'integer',minimum:1},contractType:{type:'string',enum:['Written','Handshake','PPA']},role:{type:'string',minLength:1,maxLength:100},exclusive:{type:'boolean'},wagePerMonth:{type:'number',minimum:0},wagePerAppearance:{type:'number',minimum:0},contractLength:{type:'integer',minimum:1},push:{type:'string',maxLength:100},gimmick:{type:'string',maxLength:100},contractName:{type:'string',maxLength:120},brand:{type:'integer',minimum:1},preview:{type:'boolean',default:true},confirmed:{type:'boolean'}},['workerId','contractType','role']), annotations: WRITE },
+    { name: 'pws_get_tag_teams', description: 'List registered player-company tag teams plus established global teams whose members are contracted but which are not yet registered with the company.', inputSchema: object(), annotations: READ_ONLY },
+    { name: 'pws_register_tag_team', description: 'PREVIEW OR REGISTER an existing global tag team with the player company, preserving its experience and defaulting to its established name.', inputSchema: object({tagId:{type:'integer',minimum:1},name:{type:'string',maxLength:100},active:{type:'boolean',default:true},preview:{type:'boolean',default:true},confirmed:{type:'boolean'}},['tagId']), annotations: WRITE },
+    { name: 'pws_create_tag_team', description: 'PREVIEW OR CREATE a tag team from two active player-company contracts through the native PWS action.', inputSchema: object({ contractId1:{type:'integer',minimum:1},contractId2:{type:'integer',minimum:1},name:{type:'string',maxLength:100},experience:{type:'integer',minimum:0,maximum:100},active:{type:'boolean',default:true},preview:{type:'boolean',default:true},confirmed:{type:'boolean'} }, ['contractId1','contractId2']), annotations: WRITE },
+    { name: 'pws_update_tag_team', description: 'PREVIEW OR UPDATE a player-company tag team name, members, experience, and active status.', inputSchema: object({ tagId:{type:'integer',minimum:1},contractId1:{type:'integer',minimum:1},contractId2:{type:'integer',minimum:1},name:{type:'string',maxLength:100},experience:{type:'integer',minimum:0,maximum:100},active:{type:'boolean'},preview:{type:'boolean',default:true},confirmed:{type:'boolean'} }, ['tagId']), annotations: WRITE },
+    { name: 'pws_dissolve_tag_team', description: 'PREVIEW OR DISSOLVE a player-company tag team through the native PWS action.', inputSchema: object({ tagId:{type:'integer',minimum:1},preview:{type:'boolean',default:true},confirmed:{type:'boolean'} }, ['tagId']), annotations: WRITE },
+    { name: 'pws_get_brands', description: 'List player-company brands and default commentary teams.', inputSchema: object(), annotations: READ_ONLY },
+    { name: 'pws_save_brand', description: 'PREVIEW OR CREATE/UPDATE a player-company brand. Omit brandId to create.', inputSchema: object({ brandId:{type:'integer',minimum:1},name:{type:'string',maxLength:100},importance:{type:'integer',minimum:1,maximum:100},preview:{type:'boolean',default:true},confirmed:{type:'boolean'} }), annotations: WRITE },
+    { name: 'pws_assign_worker_brand', description: 'PREVIEW OR ASSIGN an active player-company contract to a brand; omit brandId to clear it.', inputSchema: object({ contractId:{type:'integer',minimum:1},brandId:{type:'integer',minimum:1},preview:{type:'boolean',default:true},confirmed:{type:'boolean'} }, ['contractId']), annotations: WRITE },
+    { name: 'pws_delete_brand', description: 'PREVIEW OR DELETE a player-company brand and clear its contract/event assignments using PWS native cleanup behavior.', inputSchema: object({ brandId:{type:'integer',minimum:1},preview:{type:'boolean',default:true},confirmed:{type:'boolean'} }, ['brandId']), annotations: WRITE },
+    { name: 'pws_set_commentary_defaults', description: 'PREVIEW OR SET up to four default commentators for either one player-company brand or event.', inputSchema: object({ brandId:{type:'integer',minimum:1},eventId:{type:'integer',minimum:1},contractIds:Object.assign({},idArray,{maxItems:4}),preview:{type:'boolean',default:true},confirmed:{type:'boolean'} }, ['contractIds']), annotations: WRITE },
+    { name: 'pws_get_championships', description: 'List active and retired player-company championships with rules and champions.', inputSchema: object(), annotations: READ_ONLY },
+    { name: 'pws_save_championship', description: 'PREVIEW OR CREATE/UPDATE a player-company championship. Omit titleId to create.', inputSchema: object({ titleId:{type:'integer',minimum:1},name:{type:'string',maxLength:100},type:{type:'string',maxLength:50},prestige:{type:'integer',minimum:1,maximum:100},genderLimits:{type:'string',maxLength:50},minWeightLimit:{type:'integer',minimum:0},weightLimits:{type:'integer',minimum:0},defendable:{type:'boolean'},brand:{anyOf:[{type:'integer',minimum:1},{type:'string',maxLength:50}]},preview:{type:'boolean',default:true},confirmed:{type:'boolean'} }), annotations: WRITE },
+    { name: 'pws_set_championship_active', description: 'PREVIEW OR RETIRE/REINSTATE a player-company championship without deleting its history.', inputSchema: object({ titleId:{type:'integer',minimum:1},active:{type:'boolean'},preview:{type:'boolean',default:true},confirmed:{type:'boolean'} }, ['titleId','active']), annotations: WRITE },
+    { name: 'pws_award_championship', description: 'PREVIEW OR AWARD a singles, tag, or trios championship to active player-company contracts through PWS, preserving title history.', inputSchema: object({titleId:{type:'integer',minimum:1},contractIds:Object.assign({},idArray,{minItems:1,maxItems:3}),preview:{type:'boolean',default:true},confirmed:{type:'boolean'}},['titleId','contractIds']), annotations: WRITE },
+    { name: 'pws_create_storyline', description: 'PREVIEW OR CREATE a player-company storyline with 2-10 active contracts through the official PWS action.', inputSchema: object({name:{type:'string',maxLength:200},overview:{type:'string',maxLength:10000},contractIds:Object.assign({},idArray,{minItems:2,maxItems:10}),startDate:{type:'string',pattern:'^\\d{4}-\\d{2}-\\d{2}$'},preview:{type:'boolean',default:true},confirmed:{type:'boolean'}},['contractIds']), annotations: WRITE },
+    { name: 'pws_update_storyline', description: 'PREVIEW OR UPDATE the name and overview of a player-company storyline.', inputSchema: object({storylineId:{type:'integer',minimum:1},name:{type:'string',minLength:1,maxLength:200},overview:{type:'string',maxLength:10000},preview:{type:'boolean',default:true},confirmed:{type:'boolean'}},['storylineId']), annotations: WRITE },
+    { name: 'pws_get_events', description: 'List active and archived player-company event series with recurrence, defaults, and show counts.', inputSchema: object(), annotations: READ_ONLY },
+    { name: 'pws_update_event', description: 'PREVIEW OR UPDATE a player-company event series name, recurrence, prestige, brand, runtime, importance, or preferred venue.', inputSchema: object({eventId:{type:'integer',minimum:1},changes:eventChanges,preview:{type:'boolean',default:true},confirmed:{type:'boolean'}},['eventId','changes']), annotations: WRITE },
+    { name: 'pws_reschedule_show', description: 'PREVIEW OR MOVE an unfinished player-company show to another game date, then rerun the show audit for availability.', inputSchema: object({showId:{type:'integer',minimum:1},airDate:{type:'string',pattern:'^\\d{4}-\\d{2}-\\d{2}$'},preview:{type:'boolean',default:true},confirmed:{type:'boolean'}},['showId','airDate']), annotations: WRITE },
+    { name: 'pws_get_network_options', description: 'List networks, regional availability, and the player company\'s current television/network deals for negotiation analysis.', inputSchema: object(), annotations: READ_ONLY },
+    { name: 'pws_cancel_network_deal', description: 'PREVIEW OR CANCEL a player-company network deal. New deal terms remain negotiated inside PWS.', inputSchema: object({ dealId:{type:'integer',minimum:1},preview:{type:'boolean',default:true},confirmed:{type:'boolean'} }, ['dealId']), annotations: WRITE }
 ];
 
 var ROUTES = {
-    pws_get_state: 'game.state', pws_list_optional_integrations: 'integrations.list', pws_get_inner_circle: 'integrations.innerCircle', pws_get_investments: 'integrations.investments',
+    pws_get_state: 'game.state', pws_get_server_info: 'server.info',
     pws_search: 'search', pws_database_catalog: 'database.catalog', pws_query: 'database.query',
     pws_company_overview: 'company.overview', pws_get_roster: 'roster.list', pws_get_worker: 'game.worker',
     pws_get_worker_contracts: 'game.contracts', pws_analyze_hiring: 'hiring.analyze', pws_contract_advice: 'contracts.advise',
@@ -222,7 +254,12 @@ var ROUTES = {
     pws_remove_segment: 'booking.removeSegment', pws_set_show_venue: 'shows.setVenue', pws_create_event: 'events.create', pws_set_event_active: 'events.setActive', pws_schedule_show: 'shows.schedule', pws_cancel_show: 'shows.cancel', pws_end_storyline: 'storylines.end', pws_add_storyline_worker: 'storylines.addWorker',
     pws_remove_storyline_worker: 'storylines.removeWorker', pws_release_worker: 'contracts.release', pws_set_contract_gimmick: 'contracts.setGimmick', pws_set_contract_persona: 'contracts.setPersona', pws_set_persona_availability: 'personas.setAvailability', pws_vacate_title: 'titles.vacate',
     pws_create_stable: 'stables.create', pws_dissolve_stable: 'stables.dissolve', pws_add_stable_worker: 'stables.addWorker', pws_remove_stable_worker: 'stables.removeWorker', pws_execute_action: 'actions.execute',
-    pws_get_audit_log: 'actions.audit'
+    pws_get_audit_log: 'actions.audit', pws_audit_show: 'shows.audit', pws_analyze_worker_usage: 'roster.usage', pws_update_contract:'contracts.update', pws_sign_worker:'contracts.sign',
+    pws_get_tag_teams: 'tagTeams.list', pws_register_tag_team:'tagTeams.register', pws_create_tag_team: 'tagTeams.create', pws_update_tag_team: 'tagTeams.update', pws_dissolve_tag_team: 'tagTeams.dissolve',
+    pws_get_brands: 'brands.list', pws_save_brand: 'brands.save', pws_assign_worker_brand: 'brands.assignWorker', pws_delete_brand: 'brands.delete', pws_set_commentary_defaults: 'commentary.setDefaults',
+    pws_get_championships: 'championships.list', pws_save_championship: 'championships.save', pws_set_championship_active: 'championships.setActive', pws_award_championship:'championships.award',
+    pws_create_storyline:'storylines.create',pws_update_storyline:'storylines.update',pws_get_events:'events.list',pws_update_event:'events.update',pws_reschedule_show:'shows.reschedule',
+    pws_get_network_options: 'networks.list', pws_cancel_network_deal: 'networks.cancelDeal'
 };
 
 var PROMPTS = [

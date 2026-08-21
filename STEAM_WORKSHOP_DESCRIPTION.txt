@@ -1,95 +1,92 @@
 [h1]PWS MCP Server[/h1]
 
-[b]Connect Pro Wrestling Sim to Claude Desktop, Claude Code, or Codex.[/b]
+[b]Turn Claude Desktop, Claude Code, or Codex into a hands-on booking and company-management assistant for Pro Wrestling Sim.[/b]
 
-Ask your AI assistant to inspect your save, plan shows, check workers and storylines, validate bookings, and perform supported changes through preview-first tools.
+PWS MCP Server gives compatible AI clients a structured, local connection to your loaded save. Ask questions in plain language, inspect what is actually in the game, build cards, manage your promotion, and preview supported changes before anything is applied.
 
-[quote][b]0.4.0 release[/b]
+[quote][b]Now available: 0.5.0 — the Company Management Update[/b]
 
-Version 0.4.0 adds wrestler personas and contract ring names, worker promise responses, stables, gimmicks, event/show scheduling, transactional segment editing, structured show reads, and stronger live-save verification. The full beta and release-candidate gates passed 79 automated tests plus live bridge, restart-persistence, visual, and reversible mutation checks.
-
-The release uses the official MCP SDK transport and a dedicated Claude Desktop entry point. It also includes the beta.5 hotfix for MCP-created angles whose missing unused group could stop a show from starting. Claude Desktop Home, Claude Code, Claude Desktop's Code tab, and Codex direct-path connections are supported.
+This is the largest PWS MCP Server update so far. Version 0.5.0 fixes incomplete scheduled-show results and adds major base-game management tools for tag teams, brands, championships, contracts, storylines, events, commentary teams, networks, and advanced show booking.
 [/quote]
 
-[h2]Highlights[/h2]
+[h2]What you can do[/h2]
 
 [list]
-[*]Browse companies, workers, contracts, titles, teams, stables, storylines, venues, events, and shows
-[*]Build and validate complete show plans, including matches, angles, titles, ringside workers, referees, agents, and announcers
-[*]Manage storylines, contracts, gimmicks, stables, venues, event series, and scheduled shows
-[*]Select native wrestler personas or custom contract ring names without renaming the worker globally
-[*]Read and respond safely to worker promises
-[*]Preview supported save changes before applying them, then verify the result
-[*]Diagnose booking availability and storyline attribution problems
+[*][b]See your real schedule:[/b] find unfinished shows reliably across both native PWS event-instance paths
+[*][b]Audit a show in one request:[/b] catch empty cards, invalid winners, title risks, repeated workers, and runtime problems
+[*][b]Book deeper matches:[/b] create and edit matches and angles, including ordered entrances and eliminations for rumbles and other multi-person matches
+[*][b]Manage tag teams:[/b] discover established teams whose members you employ, register them under their existing name, create new teams, edit members and experience, or dissolve them
+[*][b]Run brands and commentary teams:[/b] create and edit brands, assign workers, and set default announcers for brands or recurring events
+[*][b]Manage championships:[/b] create, edit, retire, reinstate, vacate, or award singles, tag, and trios titles
+[*][b]Handle contracts and hiring:[/b] inspect cash-aware hiring guidance, modify supported contract terms, sign workers immediately, or release talent
+[*][b]Build stories and events:[/b] create and edit storylines, manage their members, create event series, update recurring-event settings, schedule shows, and reschedule unfinished shows
+[*][b]Understand your roster:[/b] include Occasional Wrestlers correctly and review appearances, matches, angles, last-booked dates, and rotation warnings
+[*][b]Inspect television deals:[/b] browse networks, availability, and current deals, with verified cancellation support
 [/list]
+
+[h2]More base-game features[/h2]
+
+[list]
+[*]Browse companies, workers, contracts, titles, tag teams, stables, storylines, venues, events, shows, gimmicks, personas, and promises
+[*]Build complete show plans with championships, ringside workers, referees, agents, announcers, and structured angle groups
+[*]Use native wrestler personas or a contract-specific ring name without renaming the underlying worker globally
+[*]Manage stables, gimmicks, promises, venues, event series, and scheduled shows
+[*]Check future availability against injuries, rehab, suspensions, and time off on the actual show date
+[*]Diagnose connection state, active transport, loaded-save state, and client/plugin version mismatches
+[/list]
+
+[h2]Designed for safe collaboration[/h2]
+
+[list]
+[*]Save-changing tools show a preview first
+[*]A preview is not permission to apply a change
+[*]The assistant applies a supported change only after you approve that exact preview
+[*]The live target is checked again before applying the change
+[*]The persisted result is verified before success is reported
+[/list]
+
+Back up important saves before using any tool that changes game data.
 
 [h2]Install the PWS plugin[/h2]
 
-1. Subscribe to this Workshop item.
-2. Restart Pro Wrestling Sim.
-3. Enable [b]PWS MCP Server[/b] in the plugin manager.
-4. Load your save.
+[olist]
+[*]Subscribe to this Workshop item.
+[*]Let Steam finish downloading it, then restart Pro Wrestling Sim.
+[*]Enable [b]PWS MCP Server[/b] in the plugin manager.
+[*]Load your save.
+[/olist]
 
 [h2]Connect your AI client[/h2]
 
 [b]Claude Desktop[/b]
 
-Download and install the matching [code].mcpb[/code] file from the [url=https://github.com/Distortik/pws-mcp-server/releases]GitHub release[/url], then restart Claude Desktop and begin a new Home conversation.
+Download and install [code]pws-mcp-server-v0.5.0.mcpb[/code] from the [url=https://github.com/Distortik/pws-mcp-server/releases/latest]matching GitHub release[/url]. Fully restart Claude Desktop, begin a new Home conversation, and enable Pro Wrestling Sim.
 
-[b]Important:[/b] Steam updates only the in-game plugin. It does not update Claude Desktop's [code].mcpb[/code] file.
+[quote][b]Important:[/b] Steam updates only the in-game plugin. It cannot update Claude Desktop's separately installed [code].mcpb[/code]. Update both halves whenever a new version is released.[/quote]
 
-[b]Claude Code[/b]
+[b]Claude Code or Codex[/b]
 
-Claude Code ignores [code].mcpb[/code] files. It must point directly at the server file you want to test. With Node.js 18 or newer installed, run:
+Install Node.js 18 or newer, then ask the client to configure the Workshop server for you:
 
-You do not have to find or edit the path manually. Paste this request into Claude Code and let it configure and verify the entry for you:
+[quote]Locate the installed PWS MCP Server [code]mcp-server.js[/code] from my Steam Workshop installation. Configure my user-level MCP server named [code]pro-wrestling-sim[/code] to run it with Node, verify the saved entry, and tell me the exact path you selected. Do not guess my Steam library or edit unrelated MCP entries.[/quote]
 
-[quote]Locate the installed PWS MCP Server [code]mcp-server.js[/code] for the build I am actually using (Workshop, manual, or TEST). Configure the user-level Claude Code MCP server named [code]pro-wrestling-sim[/code] to run it with Node, verify it with [code]claude mcp get pro-wrestling-sim[/code], and tell me the exact path you selected. Do not guess the Steam library or edit unrelated MCP entries.[/quote]
-
-[code]
-$server = "C:\Program Files (x86)\Steam\steamapps\workshop\content\1157700\3780507815\plugins\pws-mcp-server\mcp-server.js"
-claude mcp add --scope user pro-wrestling-sim -- node $server
-claude mcp get pro-wrestling-sim
-[/code]
-
-You can paste that block into Claude Code and ask it to run the commands for you. Restart Claude Code afterward. If Steam is on another drive, ask Claude Code to locate the path instead of guessing it. For beta testing, use the separately installed TEST plugin path.
-
-[b]Codex[/b]
-
-You can also paste this request into Codex instead of editing its settings manually:
-
-[quote]Locate the installed PWS MCP Server [code]mcp-server.js[/code] for the build I am actually using (Workshop, manual, or TEST). Configure the user-level Codex MCP server named [code]pro-wrestling-sim[/code] to run it with Node, verify the saved MCP entry, and tell me the exact path you selected. Do not guess the Steam library or edit unrelated MCP entries.[/quote]
-
-Codex can inspect the installed paths and run its MCP configuration command; approve the configuration change when prompted, then restart the MCP server/client.
+Restart the client after configuration or after a Workshop update so it reloads the current tool catalogue.
 
 [h2]Test the connection[/h2]
 
-[quote]Use the PWS MCP server to show my current game state.[/quote]
+[quote]Use the PWS MCP server to show my current game state and connection information.[/quote]
 
-If the game is running with a save loaded, the assistant should return the current date and company information.
+With PWS running and a save loaded, the assistant should return the current date, player company, and matching 0.5.0 connection details.
 
-[h2]Safety[/h2]
-
-[list]
-[*]A preview is [b]not[/b] permission to apply a change.
-[*]The assistant should use [code]confirmed: true[/code] only after you approve that exact preview.
-[*]Requests to inspect, check, test, or verify do not authorize persistent save changes or creative booking decisions.
-[*]Back up important saves before using save-changing features.
-[/list]
-
-[h2]Optional mod integrations[/h2]
-
-Other mods are never required. PWS MCP can add optional compatibility when a mod exposes a stable, documented API. Mod authors can find the requested integration contract in the Workshop discussion: [b]For Mod Authors: Optional PWS MCP Integration Support[/b].
-
-[h2]Troubleshooting and full guide[/h2]
+[h2]Troubleshooting and documentation[/h2]
 
 [list]
-[*]Restart the game after installing or updating the Workshop plugin.
-[*]Restart the AI client after changing its MCP configuration.
-[*]If Claude Code shows old tools, run [code]claude mcp get pro-wrestling-sim[/code] and verify the exact path it is loading.
-[*]If connection fails, confirm the game is open, the plugin is enabled, and a save is loaded.
+[*]Restart PWS after installing or updating the Workshop item
+[*]Restart the AI client after installing the MCPB or changing a direct-path configuration
+[*]If old tools appear, verify which [code]mcp-server.js[/code] path the client is loading
+[*]If the bridge is offline, confirm the plugin is enabled and a save is loaded
 [/list]
 
-For detailed setup, updating, beta testing, permissions, and troubleshooting, read the [url=https://github.com/Distortik/pws-mcp-server#readme]complete GitHub guide[/url].
+Read the [url=https://github.com/Distortik/pws-mcp-server#readme]complete setup and troubleshooting guide[/url], the [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3780507815]Workshop release notes[/url], and the roadmap discussion for what comes next.
 
 [i]PWS MCP Server is an unofficial community project and is not affiliated with Pro Wrestling Sim or its developer.[/i]

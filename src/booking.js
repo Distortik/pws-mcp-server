@@ -7,7 +7,7 @@ var MATCH_PLAN_FIELDS = [
     'type', 'participants', 'gimmick', 'segmentLength', 'winner', 'winType', 'purpose',
     'purposeWorker', 'losers', 'segmentName', 'description', 'finishSpecific', 'matchStoryId',
     'segmentPosition', 'cardPosition', 'referee', 'announcers', 'agent', 'titleIds',
-    'ringsideWorkers', 'planningReason'
+    'ringsideWorkers', 'entranceOrder', 'eliminationOrder', 'planningReason'
 ];
 var ANGLE_PLAN_FIELDS = [
     'type', 'angleType', 'participants', 'beats', 'segmentLength', 'segmentName',
@@ -279,6 +279,17 @@ function validatePlan(api, options) {
                 if (matchStoryId === null || !domain.get(api, 'SELECT matchstoryID FROM matchstories WHERE matchstoryID=?', [matchStoryId])) throw new Error('Segment ' + (index + 1) + ' uses an unknown matchStoryId: ' + segment.matchStoryId);
                 segment.matchStoryId = String(matchStoryId);
             }
+            ['entranceOrder', 'eliminationOrder'].forEach(function (field) {
+                if (segment[field] == null) return;
+                if (!Array.isArray(segment[field]) || new Set(segment[field].map(Number)).size !== segment[field].length) throw new Error('Segment ' + (index + 1) + ' ' + field + ' must contain unique contract IDs');
+                segment[field] = segment[field].map(Number);
+            });
+            if (segment.entranceOrder && JSON.stringify(segment.entranceOrder.slice().sort(function(a,b){return a-b;})) !== JSON.stringify(flattened.slice().sort(function(a,b){return a-b;}))) throw new Error('Segment ' + (index + 1) + ' entranceOrder must contain every participant exactly once');
+            if (segment.eliminationOrder) {
+                if (segment.winner === 'auto' || segment.winner === 'draw') throw new Error('Segment ' + (index + 1) + ' eliminationOrder requires an explicit winner');
+                var expectedEliminations = flattened.filter(function (id) { return id !== Number(segment.winner); }).sort(function(a,b){return a-b;});
+                if (JSON.stringify(segment.eliminationOrder.slice().sort(function(a,b){return a-b;})) !== JSON.stringify(expectedEliminations)) throw new Error('Segment ' + (index + 1) + ' eliminationOrder must contain every participant except the winner');
+            }
             ['purposeWorker', 'referee', 'agent'].forEach(function (field) {
                 if (segment[field] == null || segment[field] === '') return;
                 var contractId = domain.integer(segment[field]);
@@ -358,6 +369,8 @@ function verificationFields(item) {
         if (item.options.agent != null) fields.push('agent');
         if (item.options.announcers != null) fields.push('announcers');
         if (item.options.ringsideWorkers != null) fields.push('ringsideWorkers');
+        if (item.options.entranceOrder != null) fields.push('entranceOrder');
+        if (item.options.eliminationOrder != null) fields.push('eliminationOrder');
     } else fields = fields.concat(['angleType', 'beats']);
     return fields;
 }
@@ -369,7 +382,9 @@ function applyPlan(api, options) {
     for (var index = 0; index < validated.segments.length; index += 1) {
         var item = validated.segments[index];
         var result;
-        try { result = item.kind === 'match' ? api.actions.bookMatch(item.options) : api.actions.bookAngle(item.options); }
+        var actionOptions = Object.assign({}, item.options);
+        delete actionOptions.entranceOrder; delete actionOptions.eliminationOrder;
+        try { result = item.kind === 'match' ? api.actions.bookMatch(actionOptions) : api.actions.bookAngle(actionOptions); }
         catch (error) {
             return { success: false, error: error.message, failedAt: index, createdBeforeFailure: created, rollback: rollbackCreated(api, created) };
         }
@@ -380,6 +395,7 @@ function applyPlan(api, options) {
         var createdItem = { type: item.kind, segmentId: Number(result.segmentId) };
         created.push(createdItem);
         try {
+            if (item.kind === 'match') segmentService.setMatchOrders(api, createdItem.segmentId, item.options.entranceOrder, item.options.eliminationOrder);
             var persisted = segmentService.readSegment(api, createdItem.segmentId);
             var expected = Object.assign({}, item.options);
             expected.segmentName = expected.segmentName || '';

@@ -41,6 +41,10 @@ function canParticipateInMatch(type) {
     return !normalized || normalized === 'wrestler' || normalized === 'occasional wrestler';
 }
 
+function matchEligibleWorkerSql(alias) {
+    return (alias || 'w') + ".type IN ('Wrestler','Occasional Wrestler')";
+}
+
 function clamp(value, fallback, min, max) {
     var parsed = integer(value);
     if (parsed === null) return fallback;
@@ -297,7 +301,7 @@ function rosterRows(api, ctx, options) {
         'w.' + ctx.popularityColumn + ' AS marketPopularity, COALESCE(u.appearances,0) appearances, COALESCE(u.matches,0) matches, COALESCE(u.angles,0) angles, u.lastBooked',
         'FROM contracts c JOIN workers w ON w.workerID=c.workerID LEFT JOIN usage u ON u.contractID=c.contractID',
         "WHERE c.promotionID=? AND c.finalised=1 AND c.expired=0 AND c.contractStarted=1",
-        options.includeStaff ? '' : "AND w.type='Wrestler'",
+        options.includeStaff ? '' : 'AND ' + matchEligibleWorkerSql('w'),
         filters.length ? 'AND ' + filters.join(' AND ') : '',
         'ORDER BY COALESCE(c.momentum,0) DESC, w.' + ctx.popularityColumn + ' DESC LIMIT ? OFFSET ?'
     ].join(' '), params);
@@ -318,6 +322,7 @@ function normalizeRoster(row, currentDate) {
         };
     });
     result.available = result.unavailabilityReasons.length === 0;
+    result.matchEligible = canParticipateInMatch(row.type);
     result.appearances = integer(row.appearances) || 0;
     result.matches = integer(row.matches) || 0;
     result.angles = integer(row.angles) || 0;
@@ -353,7 +358,7 @@ function rosterCount(api, ctx, options) {
     var row = get(api, [
         'SELECT COUNT(*) AS total FROM contracts c JOIN workers w ON w.workerID=c.workerID',
         'WHERE c.promotionID=? AND c.finalised=1 AND c.expired=0 AND c.contractStarted=1',
-        options.includeStaff ? '' : "AND w.type='Wrestler'", filters.length ? 'AND ' + filters.join(' AND ') : ''
+        options.includeStaff ? '' : 'AND ' + matchEligibleWorkerSql('w'), filters.length ? 'AND ' + filters.join(' AND ') : ''
     ].join(' '), params) || {};
     return Number(row.total || 0);
 }
@@ -386,20 +391,31 @@ function upcomingShows(api, options) {
     var rows = query(api,
         "SELECT ei.instanceID AS showId,ei.airDate AS date,COALESCE(NULLIF(ei.customName,''),e.eventName) name,e.eventID,e.eventLength AS length,e.importance,e.brand,ei.location,ei.venueID,COALESCE(SUM(s.segmentLength),0) bookedMinutes,COUNT(s.segmentID) segmentCount FROM eventinstance ei JOIN events e ON e.eventID=ei.eventID LEFT JOIN segments s ON s.showID=ei.instanceID WHERE e.promotionID=? AND COALESCE(ei.complete,0)=0 AND COALESCE(ei.isCancelled,0)=0 GROUP BY ei.instanceID ORDER BY ei.airDate,ei.instanceID LIMIT ?",
         [ctx.promotionId, limit]);
-    if (!rows.length) {
+    // PWS can retain live event instances whose event row is not visible through the
+    // normal join.  Query the native view every time, rather than only when the join
+    // is completely empty: otherwise one joinable show hides every orphaned show.
+    var knownShowIds = {};
+    rows.forEach(function (row) { knownShowIds[Number(row.showId)] = true; });
+    var remaining = Math.max(0, limit - rows.length);
+    if (remaining) {
         var viewRows = query(api, 'SELECT * FROM vw_eventinstance WHERE promotionID=? AND COALESCE(complete,0)=0 AND COALESCE(isCancelled,0)=0 ORDER BY airDate,instanceID LIMIT ?', [ctx.promotionId, limit]);
-        rows = viewRows.map(function (row) {
+        viewRows.forEach(function (row) {
             var showId = Number(row.instanceID || row.showId);
+            if (!showId || knownShowIds[showId] || rows.length >= limit) return;
             var totals = get(api, 'SELECT COALESCE(SUM(segmentLength),0) AS bookedMinutes,COUNT(segmentID) AS segmentCount FROM segments WHERE showID=?', [showId]) || {};
-            return {
+            rows.push({
                 showId: showId, date: row.airDate || row.date,
                 name: row.customName || row.eventName || row.name,
                 eventID: row.eventID, length: row.eventLength || row.length,
                 importance: importanceName(row.importance), brand: row.brand, location: row.location,
                 venueID: row.venueID, bookedMinutes: Number(totals.bookedMinutes || 0), segmentCount: Number(totals.segmentCount || 0)
-            };
+            });
+            knownShowIds[showId] = true;
         });
     }
+    rows.sort(function (left, right) {
+        return String(left.date || '').localeCompare(String(right.date || '')) || Number(left.showId) - Number(right.showId);
+    });
     rows.forEach(function (row) { row.importance = importanceName(row.importance); });
     return { game: state(api), shows: rows };
 }
@@ -617,7 +633,7 @@ function finances(api, ctx) {
 function overview(api) {
     var ctx = context(api);
     var rosterData = rosterRows(api, ctx, { includeStaff: true, limit: 500 });
-    var wrestlers = rosterData.filter(function (row) { return row.type === 'Wrestler'; });
+    var wrestlers = rosterData.filter(function (row) { return canParticipateInMatch(row.type); });
     var payroll = rosterData.reduce(function (sum, row) { return sum + Number(row.wagePerMonth || 0); }, 0);
     var perAppearance = rosterData.reduce(function (sum, row) { return sum + Number(row.wagePerAppearance || 0); }, 0);
     var byGender = {};
@@ -669,7 +685,7 @@ function workerProfile(api, options) {
 }
 
 function rosterNeeds(rows) {
-    var wrestlers = rows.filter(function (row) { return row.type === 'Wrestler'; });
+    var wrestlers = rows.filter(function (row) { return canParticipateInMatch(row.type); });
     var faces = wrestlers.filter(function (row) { return row.alignment === 'Face'; }).length;
     var heels = wrestlers.filter(function (row) { return row.alignment === 'Heel'; }).length;
     var women = wrestlers.filter(function (row) { return row.gender === 'Female'; }).length;
@@ -699,10 +715,10 @@ function hiring(api, options) {
     if (options.maxAge != null) { filters.push("CAST((julianday(?) - julianday(w.birthDate))/365.25 AS INTEGER) <= ?"); params.push(ctx.currentDate, Number(options.maxAge)); }
     params.push(500);
     var candidates = query(api, [
-        'SELECT w.workerID,w.name,w.gender,w.birthDate,w.style,w.basedIn,w.basedInCountry,w.status,w.wrestlingSkill,w.entertainment,w.starPower,w.stamina,w.psychology,w.safety,w.potential,w.tagExpert,w.marketingDream,w.injuryProne,w.injuryType,w.isSuspended,w.canDoAngles,w.betterAsHeel,w.betterAsFace,w.' + ctx.popularityColumn + ' marketPopularity,',
+        'SELECT w.workerID,w.name,w.type,w.gender,w.birthDate,w.style,w.basedIn,w.basedInCountry,w.status,w.wrestlingSkill,w.entertainment,w.starPower,w.stamina,w.psychology,w.safety,w.potential,w.tagExpert,w.marketingDream,w.injuryProne,w.injuryType,w.isSuspended,w.canDoAngles,w.betterAsHeel,w.betterAsFace,w.' + ctx.popularityColumn + ' marketPopularity,',
         "GROUP_CONCAT(DISTINCT p.shortName) employers,MAX(COALESCE(c.exclusive,0)) exclusiveElsewhere,MAX(COALESCE(c.wagePerMonth,0)) currentMonthlyWage,MAX(COALESCE(c.wagePerAppearance,0)) currentAppearanceWage",
         'FROM workers w LEFT JOIN contracts c ON c.workerID=w.workerID AND c.finalised=1 AND c.expired=0 AND c.contractStarted=1 LEFT JOIN promotions p ON p.promotionID=c.promotionID',
-        "WHERE w.type='Wrestler' AND w.status IN ('Active','Semi-Active') AND COALESCE(w.physicallyUnable,0)=0",
+        'WHERE ' + matchEligibleWorkerSql('w') + " AND w.status IN ('Active','Semi-Active') AND COALESCE(w.physicallyUnable,0)=0",
         'AND NOT EXISTS (SELECT 1 FROM contracts own WHERE own.workerID=w.workerID AND own.promotionID=? AND own.finalised=1 AND own.expired=0)',
         "AND (w.birthDate IS NULL OR w.birthDate='' OR date(w.birthDate)<=date(?,'-18 years')) AND (w.debutDate IS NULL OR w.debutDate='' OR date(w.debutDate)<=date(?))",
         filters.length ? 'AND ' + filters.join(' AND ') : '',
@@ -715,8 +731,12 @@ function hiring(api, options) {
     var cash = Number(ctx.promotion.money || 0);
     var sizeMultiplier = { Local: 0.7, Small: 0.9, Regional: 1.2, National: 1.7, Major: 2.5 }[ctx.size] || 1;
     var cashPressure = cash < 0 ? 0.35 : cash < Math.max(50000, monthlyPayroll * 3) ? 0.65 : 1;
-    var automaticAppearanceBudget = Math.round(Math.max(500, medianWage * sizeMultiplier * cashPressure));
-    var automaticMonthlyBudget = Math.round(Math.max(1000, (monthlyPayroll / Math.max(1, ownRows.length) || medianWage * 2) * sizeMultiplier * cashPressure));
+    var topMonthlyWage = ownRows.reduce(function (top, row) { return Math.max(top, Number(row.wagePerMonth || 0)); }, 0);
+    var topAppearanceWage = ownRows.reduce(function (top, row) { return Math.max(top, Number(row.wagePerAppearance || 0)); }, 0);
+    var cashBackedMonthly = cash > 0 ? cash / 120 : 0;
+    var cashBackedAppearance = cash > 0 ? cash / 2400 : 0;
+    var automaticAppearanceBudget = Math.round(Math.max(500, medianWage * sizeMultiplier * cashPressure, topAppearanceWage * 0.75 * cashPressure, cashBackedAppearance * cashPressure));
+    var automaticMonthlyBudget = Math.round(Math.max(1000, (monthlyPayroll / Math.max(1, ownRows.length) || medianWage * 2) * sizeMultiplier * cashPressure, topMonthlyWage * 0.75 * cashPressure, cashBackedMonthly * cashPressure));
     var maxMonthly = options.maxMonthlyWage == null ? null : Number(options.maxMonthlyWage);
     var maxAppearance = options.maxAppearanceWage == null ? null : Number(options.maxAppearanceWage);
     var scored = candidates.map(function (row) {
@@ -739,7 +759,7 @@ function hiring(api, options) {
         var appearanceCeiling = maxAppearance == null ? automaticAppearanceBudget : maxAppearance;
         var monthlyCeiling = maxMonthly == null ? automaticMonthlyBudget : maxMonthly;
         var affordable = estimatedAppearance <= appearanceCeiling && Number(row.currentMonthlyWage || 0) <= monthlyCeiling;
-        if (!affordable) { bonus -= 25; reasons.push('above stated wage budget'); }
+        if (!affordable) { bonus -= maxAppearance != null || maxMonthly != null ? 25 : 8; reasons.push(maxAppearance != null || maxMonthly != null ? 'above user wage limit' : 'above recommended wage band'); }
         var popularityReach = Number(ctx.promotion.prestige || 0) + (ctx.size === 'Major' ? 25 : 15);
         if (Number(row.marketPopularity || 0) > popularityReach) { bonus -= 12; reasons.push('ambitious target for company size'); }
         if (!reasons.length) reasons.push('balanced overall fit');
@@ -747,6 +767,7 @@ function hiring(api, options) {
             age: age,
             fitScore: Math.round(Math.max(0, Math.min(100, base + bonus)) * 10) / 10,
             affordable: affordable,
+            affordability: affordable ? 'within recommended band' : (maxAppearance != null || maxMonthly != null ? 'above user limit' : 'stretch target'),
             estimatedOffer: { monthly: Math.max(0, Number(row.currentMonthlyWage || 0)), perAppearance: estimatedAppearance },
             reasons: reasons,
             availability: row.exclusiveElsewhere ? 'Under an exclusive deal' : (row.employers ? 'Potentially available' : 'Free agent')
@@ -756,7 +777,7 @@ function hiring(api, options) {
     return {
         game: state(api),
         company: { size: ctx.size, prestige: numeric(ctx.promotion.prestige), cash: integer(ctx.promotion.money), style: ctx.promotion.style, market: ctx.promotion.basedIn, medianRosterWage: medianWage, monthlyBasePayroll: Math.round(monthlyPayroll), totalAppearanceCommitment: Math.round(appearanceCommitment) },
-        budgetModel: { maxMonthlyWage: maxMonthly == null ? automaticMonthlyBudget : maxMonthly, maxAppearanceWage: maxAppearance == null ? automaticAppearanceBudget : maxAppearance, source: maxMonthly == null && maxAppearance == null ? 'estimated from company size, cash pressure, payroll, and roster wage median' : 'user limits with automatic fallback for unspecified values' },
+        budgetModel: { maxMonthlyWage: maxMonthly == null ? automaticMonthlyBudget : maxMonthly, maxAppearanceWage: maxAppearance == null ? automaticAppearanceBudget : maxAppearance, advisory: maxMonthly == null && maxAppearance == null, source: maxMonthly == null && maxAppearance == null ? 'recommended band estimated from company size, cash runway, payroll, roster median, and existing top-end contracts' : 'user limits with automatic fallback for unspecified values' },
         rosterBalance: needs,
         requestedNeeds: options.needs || null,
         filters: { gender: options.gender || null, style: options.style || null, maxMonthlyWage: maxMonthly, maxAppearanceWage: maxAppearance },

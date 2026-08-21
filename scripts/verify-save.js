@@ -51,6 +51,7 @@ try {
     var worker = database.prepare("SELECT workerID FROM workers WHERE type='Wrestler' ORDER BY workerID LIMIT 1").get();
     check('worker profile', function () { return domain.workerProfile(api, { workerId: worker.workerID }).worker.name; });
     var shows = domain.upcomingShows(api, { limit: 20 }).shows;
+    check('upcoming shows', function () { return shows.length + ' unfinished rows'; });
     var plannableShow = shows.find(function (show) { return Number(show.length || 0) - Number(show.bookedMinutes || 0) >= 10; });
     if (plannableShow) {
         var plan = booking.planShow(api, { showId: plannableShow.showId, matchCount: 2, angleCount: 1 });

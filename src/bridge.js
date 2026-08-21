@@ -7,7 +7,7 @@ var path = require('path');
 var booking = require('./booking');
 var audit = require('./audit');
 var domain = require('./domain');
-var integrations = require('./integrations');
+var management = require('./management');
 var runtime = require('./runtime');
 var segments = require('./segments');
 var purposeBuiltActions = require('./actions');
@@ -192,6 +192,11 @@ function dispatch(api, request, services) {
     switch (request.method) {
     case 'health':
         return { ok: true, game: 'Pro Wrestling Sim', state: domain.state(api), pluginVersion: api.plugin.version };
+    case 'server.info':
+        var loadedState = null;
+        var stateError = null;
+        try { loadedState = domain.state(api); } catch (error) { stateError = error.message; }
+        return { ok: true, pluginVersion: api.plugin.version, transport: 'localhost authenticated RPC', saveLoaded: Boolean(loadedState), state: loadedState, stateError: stateError };
     case 'game.state':
         return domain.state(api);
     case 'game.worker':
@@ -218,19 +223,35 @@ function dispatch(api, request, services) {
         return domain.hiring(api, params);
     case 'contracts.advise':
         return domain.contractAdvice(api, params);
-    case 'integrations.list':
-        if (!services.integrations) return integrations.createManager(api).list();
-        return services.integrations.list();
-    case 'integrations.innerCircle':
-        if (!services.integrations) return integrations.createManager(api).innerCircle(params);
-        return services.integrations.innerCircle(params);
-    case 'integrations.investments':
-        if (!services.integrations) return integrations.createManager(api).investments(params);
-        return services.integrations.investments(params);
     case 'shows.upcoming':
         return domain.upcomingShows(api, params);
     case 'shows.get':
         return domain.show(api, params);
+    case 'shows.audit': return management.auditShow(api, params);
+    case 'roster.usage': return management.workerUsage(api, params);
+    case 'contracts.update': return management.updateContract(api, params);
+    case 'contracts.sign': return management.signWorker(api, params);
+    case 'tagTeams.list': return management.listTagTeams(api, params);
+    case 'tagTeams.register': return management.registerTagTeam(api, params);
+    case 'tagTeams.create': return management.createTagTeam(api, params);
+    case 'tagTeams.update': return management.updateTagTeam(api, params);
+    case 'tagTeams.dissolve': return management.dissolveTagTeam(api, params);
+    case 'brands.list': return management.listBrands(api, params);
+    case 'brands.save': return management.saveBrand(api, params);
+    case 'brands.assignWorker': return management.assignBrand(api, params);
+    case 'brands.delete': return management.deleteBrand(api, params);
+    case 'commentary.setDefaults': return management.setCommentary(api, params);
+    case 'championships.list': return management.listChampionships(api, params);
+    case 'championships.save': return management.saveChampionship(api, params);
+    case 'championships.setActive': return management.setChampionshipActive(api, params);
+    case 'championships.award': return management.awardChampionship(api, params);
+    case 'storylines.create': return management.createStoryline(api, params);
+    case 'storylines.update': return management.updateStoryline(api, params);
+    case 'events.list': return management.listEvents(api, params);
+    case 'events.update': return management.updateEvent(api, params);
+    case 'shows.reschedule': return management.rescheduleShow(api, params);
+    case 'networks.list': return management.networks(api, params);
+    case 'networks.cancelDeal': return management.cancelNetworkDeal(api, params);
     case 'venues.list':
         return domain.venues(api, params);
     case 'shows.setVenue':
@@ -305,17 +326,15 @@ function createBridge(api, options) {
     var server = null;
     var token = crypto.randomBytes(32).toString('hex');
     var runtimePath = runtime.resolveRuntimePath({ pluginDirectory: options.pluginDirectory });
-    var integrationManager = integrations.createManager(api);
 
     return {
         start: function () {
             if (server) return Promise.reject(new Error('Bridge is already running'));
-            integrationManager.start();
             server = http.createServer(function (request, response) {
                 if (request.method !== 'POST' || request.url !== '/rpc') return json(response, 404, { error: 'Not found' });
                 if (request.headers.authorization !== 'Bearer ' + token) return json(response, 401, { error: 'Unauthorized' });
                 readBody(request).then(function (body) {
-                    return Promise.resolve(dispatch(api, body, { integrations: integrationManager }));
+                    return Promise.resolve(dispatch(api, body));
                 }).then(function (result) {
                     json(response, 200, { result: result });
                 }).catch(function (error) {
@@ -338,7 +357,6 @@ function createBridge(api, options) {
         },
         stop: function () {
             try { if (fs.existsSync(runtimePath)) fs.unlinkSync(runtimePath); } catch (_) { /* best effort */ }
-            integrationManager.stop();
             if (!server) return Promise.resolve();
             return new Promise(function (resolve) {
                 server.close(resolve);

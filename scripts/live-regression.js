@@ -110,6 +110,7 @@ async function run(options) {
         await check('storyline attribution diagnostics', function () { return server.rpc('storylines.diagnoseAttribution', { limit: 10 }); });
         var upcoming = await check('upcoming shows', function () { return server.rpc('shows.upcoming', { limit: 10 }); });
         if (upcoming && upcoming.shows && upcoming.shows.length) {
+            await check('show readiness audit', function () { return server.rpc('shows.audit', { showId: Number(upcoming.shows[0].showId) }); });
             await check('structured show participants', async function () {
                 var value = await server.rpc('shows.get', { showId: Number(upcoming.shows[0].showId) });
                 value.segments.forEach(function (segment) {
@@ -119,6 +120,12 @@ async function run(options) {
                 return value;
             });
         }
+        await check('worker usage analysis', function () { return server.rpc('roster.usage', { days: 90 }); });
+        await check('tag teams', function () { return server.rpc('tagTeams.list'); });
+        await check('brands', function () { return server.rpc('brands.list'); });
+        await check('championship management', function () { return server.rpc('championships.list'); });
+        await check('network options', function () { return server.rpc('networks.list'); });
+        await check('event series', function () { return server.rpc('events.list'); });
         await check('read-only SQL rejection', async function () {
             var rejected = false;
             try { await server.rpc('database.query', { sql: 'UPDATE workers SET name=name' }); }

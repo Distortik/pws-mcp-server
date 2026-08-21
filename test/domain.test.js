@@ -28,6 +28,56 @@ test('boolean normalizes native numeric and string flags', function () {
     assert.equal(domain.boolean(null), false);
 });
 
+test('default roster reads include occasional wrestlers and expose match eligibility', function () {
+    var sqlSeen = [];
+    var api = {
+        game: { getState: function () { return { promotionId: 2, currentDate: '1992-01-01' }; } },
+        database: {
+            get: function (sql) {
+                if (sql.indexOf('FROM saveinfo') !== -1) return { saveName: 'Test', saveCurrentDate: '1992-01-01', saveUserPromotion: 2 };
+                if (sql.indexOf('FROM promotions') !== -1) return { promotionID: 2, fullName: 'VWE', basedIn: 'North America', money: 100000 };
+                if (sql.indexOf('COUNT(*)') !== -1) { sqlSeen.push(sql); return { total: 1 }; }
+                return null;
+            },
+            query: function (sql) {
+                if (sql.indexOf('WITH usage AS') !== -1) {
+                    sqlSeen.push(sql);
+                    return [{ contractID: 10, workerID: 20, name: 'Occasional', type: 'Occasional Wrestler', appearances: 0, matches: 0, angles: 0 }];
+                }
+                return [];
+            }
+        }
+    };
+    var result = domain.roster(api, {});
+    assert.equal(result.roster[0].type, 'Occasional Wrestler');
+    assert.equal(result.roster[0].matchEligible, true);
+    assert.equal(sqlSeen.every(function (sql) { return sql.indexOf("'Occasional Wrestler'") !== -1; }), true);
+});
+
+test('automatic hiring bands account for cash and top-end contracts and remain advisory', function () {
+    var api = {
+        game: { getState: function () { return { promotionId: 2, currentDate: '1992-01-01' }; } },
+        database: {
+            get: function (sql) {
+                if (sql.indexOf('FROM saveinfo') !== -1) return { saveName: 'Test', saveCurrentDate: '1992-01-01', saveUserPromotion: 2 };
+                if (sql.indexOf('FROM promotions') !== -1) return { promotionID: 2, fullName: 'VWE', basedIn: 'North America', money: 12000000, prestige: 60 };
+                return null;
+            },
+            query: function (sql) {
+                if (sql.indexOf('WITH usage AS') !== -1) return [{ contractID: 10, workerID: 20, name: 'Top Star', type: 'Wrestler', wagePerMonth: 80000, wagePerAppearance: 8000 }];
+                if (sql.indexOf('FROM workers w LEFT JOIN contracts') !== -1) return [{ workerID: 30, name: 'Candidate', type: 'Occasional Wrestler', wrestlingSkill: 60, entertainment: 60, starPower: 60, marketPopularity: 40, stamina: 60, currentMonthlyWage: 90000, currentAppearanceWage: 9000 }];
+                return [];
+            }
+        }
+    };
+    var result = domain.hiring(api, { limit: 1 });
+    assert.equal(result.budgetModel.advisory, true);
+    assert.ok(result.budgetModel.maxMonthlyWage >= 60000);
+    assert.ok(result.budgetModel.maxAppearanceWage >= 6000);
+    assert.equal(result.candidates[0].type, 'Occasional Wrestler');
+    assert.notEqual(result.candidates[0].affordability, 'above user limit');
+});
+
 test('promotion size matches PWS continental popularity tiers', function () {
     assert.equal(domain.promotionSize({ northAmericaPop: 11, europePop: 10, asiaPop: 10 }), 'Local');
     assert.equal(domain.promotionSize({ northAmericaPop: 20 }), 'Regional');
@@ -222,6 +272,31 @@ test('upcoming shows fall back to vw_eventinstance when the event join misses a 
     var result = domain.upcomingShows(api, { limit: 20 });
     assert.equal(result.shows[0].showId, 347);
     assert.equal(result.shows[0].bookedMinutes, 42);
+});
+
+test('upcoming shows merge view-only shows when the event join is partially successful', function () {
+    var api = {
+        game: { getState: function () { return { promotionId: 2, currentDate: '1992-03-23' }; } },
+        database: {
+            get: function (sql, params) {
+                if (sql.indexOf('FROM saveinfo') !== -1) return { saveUserPromotion: 2, saveCurrentDate: '1992-03-23' };
+                if (sql.indexOf('FROM promotions') !== -1) return { promotionID: 2, fullName: 'VWE', basedIn: 'North America' };
+                if (sql.indexOf('FROM segments WHERE') !== -1) return { bookedMinutes: params[0] === 348 ? 12 : 0, segmentCount: params[0] === 348 ? 1 : 0 };
+                return null;
+            },
+            query: function (sql) {
+                if (sql.indexOf('FROM eventinstance ei JOIN events') !== -1) return [{ showId: 347, date: '1992-03-23', name: 'Dominion', length: 120, bookedMinutes: 42, segmentCount: 4 }];
+                if (sql.indexOf('FROM vw_eventinstance') !== -1) return [
+                    { instanceID: 347, airDate: '1992-03-23', eventName: 'Dominion', eventLength: 120, promotionID: 2, complete: 0 },
+                    { instanceID: 348, airDate: '1992-03-24', eventName: 'Tour Show', eventLength: 90, promotionID: 2, complete: 0 }
+                ];
+                return [];
+            }
+        }
+    };
+    var result = domain.upcomingShows(api, { limit: 20 });
+    assert.deepEqual(result.shows.map(function (show) { return show.showId; }), [347, 348]);
+    assert.equal(result.shows[1].bookedMinutes, 12);
 });
 
 test('show reads normalize flags and return structured participant groups', function () {

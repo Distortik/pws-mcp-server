@@ -1,18 +1,8 @@
 # Roadmap
 
-## 0.5.0 optional community plugin interoperability
+## 0.5.0 base-game management
 
-The original plugin owner has granted permission to fork, update, and add to Investments Manager, Plugin Features, Booker Career Mode, Hire Local Worker, Inner Circle, Dynamic Negotiations, Network Approval Hub, and Tag Team and Stables Overhaul. Their source and releases remain in a separate project so PWS MCP Server stays small and none of these plugins becomes a dependency.
-
-- [Foundation created] Preserve the five installed upstream versions, source hashes, manifest identities, attribution, and permission record in the separate `pws-community-plugins` repository.
-- [Approved next imports] Preserve and hash Dynamic Negotiations 8.0.0, Network Approval Hub 5.0.0, and Tag Team and Stables Overhaul 1.0.0 before modifying them.
-- [Planned] Turn Plugin Features into a dynamic launcher/settings registry for maintained forks while retaining compatibility with its existing hard-coded catalogue.
-- [Implemented and live-validated] Let PWS MCP Server discover compatible installed plugins through the dependency-free PWS Community Interop v1 protocol and expose only reviewed static read tools.
-- [First provider live-validated; second awaiting live gate] Read bounded, sanitized Inner Circle 2.1 assignment snapshots and Investments Manager 8.1.0 portfolio snapshots with save/promotion/revision validation. VWE1 returned all 25 Inner Circle assignments and nine unavailable records without private notes, roster data, or history. The Investments implementation has passed automated tests; booker progress, local hiring, negotiation context, network/deal state, and team/stable history remain subsequent providers.
-- [Compatibility required] Reconcile Investments-created networks with Network Hub ownership using native network and promotion IDs without scraping either plugin's private storage.
-- [Research required] Add plugin-owned write operations only after preview binding, validation, verification, and stale-save rejection are implemented.
-
-See [Optional community plugin integrations](OPTIONAL_PLUGIN_INTEGRATIONS.md) and **F22** in [the backlog](BACKLOG.md).
+Version 0.5.0 is focused exclusively on the PWS base game: reliable show discovery, audits and roster rotation, complete booking controls, contracts and hiring, storylines, tag teams, brands, championships, event series, commentary defaults, and native network/deal information.
 
 ## 0.4.0 candidates
 
@@ -52,15 +42,15 @@ These require validated PWS action contracts or carefully established database i
 
 ### Live beta.3 release-gate results
 
-- [Passed] Read-only management, roster, hiring, contract, show, venue, title, storyline, stable, gimmick, persona, promise, catalog, and audit tools against VWE1.
+- [Passed] Read-only management, roster, hiring, contract, show, venue, title, storyline, stable, gimmick, persona, promise, catalog, and audit tools against a loaded save.
 - [Passed] Read-only SQL security rejected writes and stacked statements.
 - [Passed] Persona availability changed to free use and restored to the exact original promotion; date limits remained intact.
 - [Passed] Undertaker, Mankind, Dude Love, and a custom contract ring name applied their intended presentation without changing the global worker identity, then restored name, gimmick, picture, mask, and restriction exactly.
 - [Passed] Stable creation, leader/member changes, dissolution, gimmick changes, and storyline membership changes verified and cleaned up.
 - [Passed] Event/show scheduling, show planning and validation, match/angle creation, transactional updates, angle subjects, venue/default assignment, segment removal, cancellation, audit coverage, and multiple-title persistence/clearing.
 - [Passed] House Show event importance persisted as native value `0` and read back as `House Show`, covering PWS's native zero-value fallback edge case.
-- [Visually confirmed] PWS displayed The Undertaker's VWE contract name, Phenom gimmick, and intended picture correctly; the test then restored Mark Calaway's original VWE presentation.
-- [Partially covered] Promise reads, classification, and invalid-response rejection passed. VWE1 had no pending decision request for a legitimate live accept/decline test.
+- [Visually confirmed] PWS displayed the selected contract name, gimmick, and intended picture correctly; the test then restored the original presentation.
+- [Partially covered] Promise reads, classification, and invalid-response rejection passed. The validation save had no pending decision request for a legitimate live accept/decline test.
 
 ### Beta.4 implementation backlog
 
@@ -71,15 +61,15 @@ These require validated PWS action contracts or carefully established database i
 - [Implemented in 0.4.0-beta.4] Normalize database-backed flags such as persona eligibility and promise actionability to JSON booleans consistently across read tools.
 - [Implemented in 0.4.0-beta.4] Reject date-ineligible personas by default while allowing `allowDateOverride=true` as an explicit creative-sandbox override; date limits are never silently changed.
 - [Validated during playtest] `pws_get_audit_log` includes PWS-native match/angle creation and removal entries alongside the MCP server's verified local entries; consider a unified result shape in beta.4, but no actions were missing.
-- [Implemented in 0.4.0-beta.4] Add a controlled copy-only promise-response test-save preparation workflow; VWE1 had no pending decision promise, so the fixture enables both live response paths without altering the source save.
+- [Implemented in 0.4.0-beta.4] Add a controlled copy-only promise-response preparation workflow when the active save has no pending decision promise, enabling both live response paths without altering the source save.
 
 ### Beta.4 and 0.4.0 release gate
 
 - [Passed] Beta.4 syntax checks and 67 automated tests.
 - [Implemented in 0.4.0-beta.4] Keep Claude Code and Codex pointed at stable Workshop/TEST folder paths across updates and automatically reject mismatched client/plugin version pairs with restart/install guidance.
-- [Passed] The matching beta.4 TEST plugin is deployed and hash-verified; the first-party live regression runner passed all 17 read-only and reversible checks against VWE1, including cleanup.
+- [Passed] The matching beta.4 TEST plugin is deployed and hash-verified; the first-party live regression runner passed all 17 read-only and reversible checks against a copied validation save, including cleanup.
 - [Passed] Structured show results passed the live runner; event archiving and the date-overridden biker Undertaker persona plus its exact restoration were visually confirmed in PWS. After a full restart, the exact restored contract, WWF-only persona restriction, archived event, and all four cancelled show records persisted.
-- [Passed] Separate copy-only accept and decline fixtures were prepared from VWE1 with pending Rick Rude promise 1015. Acceptance and decline both passed transactionally and after restart, including status, handled-email, relationship-effect, and audit verification (+5 and -8 respectively).
+- [Passed] Separate copy-only accept and decline fixtures were prepared with a pending decision promise. Both paths passed transactionally and after restart, including status, handled-email, relationship-effect, and audit verification.
 - [Passed] Built and inspected the beta.4 TEST ZIP and MCPB from a clean release command after all 67 automated tests passed.
 - [Passed] Beta.4 feature, save-safety, visual, and restart-persistence testing completed with no PWS/save-operation blockers.
 - [Release blocker discovered after beta.4] The installed Windows MCPB launches in Claude Desktop regular chat but does not complete `initialize`; Claude cancels after 60 seconds. The identical server responds immediately when invoked directly, and Claude Code/Codex remain functional, isolating the issue to Desktop MCPB/stdio compatibility.
@@ -93,10 +83,10 @@ These require validated PWS action contracts or carefully established database i
 - [Implemented in 0.4.0-beta.5] Build Workshop and MCPB distributions from the same self-contained bundled server and validate the MCPB manifest from a minimal staging directory.
 - [Passed] Beta.5 syntax checks and all 73 automated tests, including official-client transport coverage, both B14 match-validation paths, and B15 angle-group normalization for new cards and edits.
 - [Implemented in 0.4.0-beta.5] Fix backlog item B14 so `Occasional Wrestler` is match-eligible in new show plans and segment edits while `Staff`, `Personality`, `Referee`, and `Announcer` remain ineligible.
-- [Passed] The corrected beta.5 MCPB initialized in a new Windows Claude Desktop Home conversation, exposed the Pro Wrestling Sim integration, and returned the loaded VWE1 state.
-- [Passed] The matching beta.5 client/plugin version pair completed all 13 non-mutating live bridge checks against VWE1.
+- [Passed] The corrected beta.5 MCPB initialized in a new Windows Claude Desktop Home conversation, exposed the Pro Wrestling Sim integration, and returned the loaded save state.
+- [Passed] The matching beta.5 client/plugin version pair completed all 13 non-mutating live bridge checks against a loaded save.
 - [Passed] B14 passed a live dry-run show-plan validation with Wendi Richter (`Occasional Wrestler`) and Debbie Combs (`Wrestler`); no segment was created.
-- [Fixed and live-validated in beta.5 hotfix] **B15:** normalize omitted angle beat groups before persistence so PWS can start MCP-booked shows. The affected CareerMode card started after exact beat-shape repair.
+- [Fixed and live-validated in beta.5 hotfix] **B15:** normalize omitted angle beat groups before persistence so PWS can start MCP-booked shows. The affected test card started after exact beat-shape repair.
 - [In progress for 0.4.0 promotion] Re-run the complete automated, live read-only, version-pair, and production packaging gates.
 - [Documented workaround] Claude Code and Codex users can paste a setup request into the client and let it locate, configure, and verify the stable Workshop/TEST `mcp-server.js` path instead of editing configuration manually.
 
@@ -104,8 +94,8 @@ These require validated PWS action contracts or carefully established database i
 
 The version-controlled [backlog](BACKLOG.md) was reconciled with the implementation and live-test record on 13 August 2026. The production candidate keeps the release narrow:
 
-- [Implemented and live-validated] **B12:** read advanced-popularity mode from `gameworld` when the runtime state omits it. The deployed candidate reports VWE1 as Regional through regional popularity, matching its live advanced-mode flag and maximum regional value of 20.
-- [Implemented and validated] **B13:** evaluate injuries, rehab, worker/contract suspensions, and time off against the target show's air date for both new cards and existing-segment edits, while treating missing return dates conservatively. Automated path coverage and live VWE1 date-boundary/current-show checks pass.
+- [Implemented and live-validated] **B12:** read advanced-popularity mode from `gameworld` when the runtime state omits it. The deployed candidate reports Regional through regional popularity, matching the live advanced-mode flag and maximum regional value of 20.
+- [Implemented and validated] **B13:** evaluate injuries, rehab, worker/contract suspensions, and time off against the target show's air date for both new cards and existing-segment edits, while treating missing return dates conservatively. Automated path coverage and live date-boundary/current-show checks pass.
 - [Implemented and live-validated] **B10:** require a newly added stable member's persisted normalized leader flag to match the requested flag. A reversible add-as-leader/removal test persisted `true` and restored the stable exactly.
 - [Corrected and automatically tested] **F19 generic signing:** use canonical monthly/appearance wage fields, preserve a deprecated compatibility alias, document day-based length, and verify every requested persisted term.
 - [Deferred after 0.4.0] **B11:** preview receipts are a valuable cross-tool protocol change, but adding them after the completed beta save-safety gate would create unnecessary late release risk. Existing preview defaults, explicit confirmation, apply-time revalidation, and post-write verification remain in force.
@@ -120,5 +110,5 @@ All 79 production automated tests, 13 live read-only bridge checks, focused B10/
 
 - The failure is not caused by bulk versus per-segment booking.
 - Apparent sporadic misses such as segments 987, 991, 1418, 1602, and 1644 were matcher false positives caused by escaped apostrophes. Both 1602 and 1609 registered correctly.
-- Attribution became a total failure for qualifying VWE segments from 23 March onward across shows 347, 361, and 378.
-- The real historical outage covers the qualifying VWE segments from 23-30 March. History rows still lack a segment ID, so diagnostics remain a best-effort match.
+- Attribution became a total failure for qualifying player-company segments across the affected historical window.
+- History rows still lack a segment ID, so diagnostics remain a best-effort match.

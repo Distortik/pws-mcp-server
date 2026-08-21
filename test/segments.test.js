@@ -135,6 +135,27 @@ test('updates a match transactionally and returns the complete verified segment'
     });
 });
 
+test('persists entrance and elimination order without sorting the sequence', function () {
+    withContext(function () {
+        var api = fakeApi();
+        var result = segments.updateSegment(api, {
+            segmentId: 7, preview: false, confirmed: true,
+            changes: { winner: 20, entranceOrder: [20, 10], eliminationOrder: [10] }
+        });
+        assert.deepEqual(result.after.entranceOrder, [20, 10]);
+        assert.deepEqual(result.after.eliminationOrder, [10]);
+        assert.match(api._state.segment.entranceOrder, /"contractID":20.*"contractID":10/);
+    });
+});
+
+test('rejects incomplete entrance order and elimination order without an explicit winner', function () {
+    withContext(function () {
+        var api = fakeApi();
+        assert.throws(function () { segments.updateSegment(api, { segmentId: 7, changes: { entranceOrder: [10] } }); }, /every match participant/);
+        assert.throws(function () { segments.updateSegment(api, { segmentId: 7, changes: { eliminationOrder: [10] } }); }, /explicit winning contract/);
+    });
+});
+
 test('rolls back when a championship association is not persisted', function () {
     withContext(function () {
         var api = fakeApi({ dropTitleInserts: true });

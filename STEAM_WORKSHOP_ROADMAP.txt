@@ -1,213 +1,122 @@
-[h1]PWS MCP Server Roadmap — What’s Coming in 0.5.0[/h1]
+[h1]PWS MCP Server Roadmap — Beyond 0.5.0[/h1]
 
-[h2]PWS MCP Server Roadmap[/h2]
+[h2]Where the project stands[/h2]
 
-Version 0.4.0 established the production foundation for safe save reads, show booking, wrestler personas, promises, stables, events, and verified changes. Development now moves toward 0.5.0: stronger approval guarantees, clearer client diagnostics, more accurate roster and hiring advice, and deeper booking and company-management tools.
+Version 0.5.0 is the current production release and the largest base-game expansion so far. It moves PWS MCP Server beyond save inspection and show booking into practical company management while retaining preview-first, revalidated, and verified changes.
 
-This is a development roadmap rather than a guarantee that every candidate below will ship in one release. Features that change a save will only be included after their native PWS behavior has been established and tested safely.
+This roadmap describes direction, not a promise that every item will ship together. Features that change a save will be released only after their native PWS behavior and persistence have been established.
 
-[h2]Release path[/h2]
+[h2]0.5.0 milestone — delivered[/h2]
+
+[list]
+[*]Reliable unfinished-show discovery across both native event-instance paths
+[*]Callable connection, transport, version-pair, and loaded-save diagnostics
+[*]One-call show auditing and roster-rotation analysis
+[*]Accurate Occasional Wrestler handling and cash-aware hiring guidance
+[*]Ordered multi-person entrances and eliminations
+[*]Established-team discovery, company registration, and full tag-team management
+[*]Brand lifecycle management, worker assignments, and commentary-team defaults
+[*]Championship creation, editing, retirement, reinstatement, awarding, and vacation
+[*]Purpose-built contract modification and immediate signing
+[*]Purpose-built storyline creation and editing
+[*]Event-series discovery and editing, show scheduling, and rescheduling
+[*]Network availability and deal discovery, plus native deal cancellation
+[/list]
+
+[h2]Next priority: stronger safety and clearer decisions[/h2]
+
+[h3]Preview-bound approval receipts[/h3]
+
+Current write tools preview by default, require explicit confirmation, revalidate the live target at application time, and verify what persisted. The next safety step is a short-lived approval receipt that binds confirmation to the exact preview, operation, and target state the player approved.
+
+[h3]Richer change summaries[/h3]
+
+Make complex previews even easier to judge by showing affected records, important side effects, and concise before/after values consistently across management tools.
+
+[h3]Better recovery guidance[/h3]
+
+When PWS rejects a native action or the live state changes between preview and application, return more specific next steps without hiding the original game error.
+
+[h2]Next priority: deeper booking intelligence[/h2]
+
+[list]
+[*][b]Feud and storyline health:[/b] identify inactive members, missing recent development, repetitive pairings, and stories that are not represented on upcoming cards.
+[*][b]Card variety:[/b] highlight repeated matchups, overused finishes, missing divisions, weak pacing, and workers who are booked in conflicting roles.
+[*][b]Title planning:[/b] summarize contender activity, recent defenses, reign length, brand alignment, and championship visibility.
+[*][b]Longer-horizon planning:[/b] compare several scheduled shows and suggest balanced worker rotation without silently changing the save.
+[*][b]Tournament research:[/b] map native tournaments, rounds, participants, matches, and their links to booked segments before adding write support.
+[/list]
+
+[h2]Next priority: broader company operations[/h2]
+
+[list]
+[*][b]Contract renewals and negotiations:[/b] research offers, counters, rival bids, matching, declines, perks, and negotiation states while leaving hidden calculations to PWS.
+[*][b]Network offers and renegotiation:[/b] extend the current network reads and cancellation support only where PWS exposes a complete native workflow.
+[*][b]Division and roster planning:[/b] connect brands, championships, teams, stables, worker roles, availability, and recent usage into clearer planning reports.
+[*][b]Financial context:[/b] improve read-only budgeting and payroll forecasts without introducing arbitrary balance edits.
+[*][b]Moveset research:[/b] establish the supported native moveset categories and JSON behavior before considering verified editing.
+[/list]
+
+[h2]Quality-of-life direction[/h2]
+
+[list]
+[*]More focused tools for common multi-step workflows
+[*]Clearer empty-state explanations so “nothing found” can be distinguished from connection, filter, or data-shape problems
+[*]More compact results for AI clients with smaller context windows
+[*]Expanded diagnostics for outdated clients and incorrectly configured server paths
+[*]Continued performance work on large databases and long-running saves
+[/list]
+
+[h2]Known native boundaries[/h2]
+
+[list]
+[*]PWS stores one active presentation per contract, not a separate persona for every match.
+[*]A championship or prize with [code]defendable = 0[/code] cannot be attached to a match; book the match without it and award the title afterward.
+[*]New network offers, renegotiations, and full contract negotiation simulations remain in PWS while their hidden calculations are not exposed as complete native actions.
+[*]World-editor operations such as arbitrary finances, worker attributes, relationships, venues, or raw database writes are outside the normal company-management scope.
+[/list]
+
+[h2]Release standard[/h2]
+
+Every production update must pass:
 
 [code]
-0.4.0 — Current production release
-   |
-   +-- 0.5.0 planning — Native schema and PWS action-contract research
-   |
-   +-- 0.5.0 betas — Focused feature batches and copied-save testing
-   |
-   +-- 0.5.0 — Next production release
+Native PWS behavior research
+        |
+        v
+Focused implementation and regression coverage
+        |
+        v
+Full automated test suite
+        |
+        v
+Installed live read and write verification
+        |
+        v
+Restart and persistence checks where relevant
+        |
+        v
+Matching Workshop and client packages
 [/code]
-
-[h2]0.5.0 development priorities[/h2]
-
-[code]
-APPROVAL RECEIPTS            [□□□□□□□□□□] Planned
-CALLABLE SERVER INFO         [□□□□□□□□□□] Planned
-OPTIONAL PLUGIN INTEGRATION  [■□□□□□□□□□] Foundation started
-ROSTER & HIRING ACCURACY     [□□□□□□□□□□] Planned
-POPULARITY CONSISTENCY       [□□□□□□□□□□] Planned
-COMMENTARY-TEAM DEFAULTS     [□□□□□□□□□□] Planned
-RUMBLE / ELIMINATION ORDER   [□□□□□□□□□□] Under investigation
-BRAND & TITLE MANAGEMENT     [□□□□□□□□□□] Candidate
-TAG-TEAM MANAGEMENT          [□□□□□□□□□□] Candidate
-CONTRACT NEGOTIATIONS        [□□□□□□□□□□] Research required
-NETWORK & TV MANAGEMENT      [□□□□□□□□□□] Research required
-TOURNAMENT MANAGEMENT        [□□□□□□□□□□] Research required
-MOVESET EDITING              [□□□□□□□□□□] Research required
-[/code]
-
-[h2]Priority: safer and easier client workflows[/h2]
-
-[h3]Preview-bound approvals[/h3]
-
-Version 0.4.0 tools preview by default, require explicit confirmation, revalidate the live target during application, and verify the persisted result. For 0.5.0, the planned next step is a short-lived approval receipt that binds confirmation to the exact operation and target state shown in the preview.
-
-This requires a coordinated change across every purpose-built write tool and client workflow, so it will be developed and tested as one system rather than added piecemeal.
-
-[h3]Callable server and connection information[/h3]
-
-A lightweight server-information tool is planned to report:
-
-[list]
-[*]The MCP client-server version.
-[*]The expected in-game plugin version.
-[*]The active transport and connection state.
-[*]Whether the client and plugin versions match.
-[*]Useful setup guidance even when no save is loaded.
-[/list]
-
-This should make update and connection troubleshooting easier for Claude Desktop, Claude Code, Codex, and other compatible clients.
-
-[h2]Priority: optional community plugin interoperability[/h2]
-
-The original owner has granted permission to maintain forks of Investments Manager, Plugin Features, Booker Career Mode, Hire Local Worker, Inner Circle, Dynamic Negotiations, Network Approval Hub, and Tag Team and Stables Overhaul. These forks are being set up as a separate project and will remain independently installable; they will not be bundled with or required by PWS MCP Server.
-
-The planned first phase is safe discovery and read-only integration:
-
-[list]
-[*]Let compatible installed plugins identify themselves and their protocol version.
-[*]Expose sanitized, save-scoped information such as investments, booker progress, eligible local workers, Inner Circle assignments, negotiation context, network/deal state, and team/stable history.
-[*]Make Investments-created networks and Network Hub acquisitions recognize the same native network ownership without either plugin reading the other's private storage.
-[*]Turn Plugin Features into a dynamic launcher and settings hub so maintained forks can register without another hard-coded update.
-[*]Continue to work normally when none of the optional plugins is installed.
-[/list]
-
-Optional plugin writes will only follow after the plugin owns an exact preview, apply-time validation, persisted read-back, and stale-save protection. The MCP will not scrape private plugin storage or expose arbitrary plugin code.
-
-[h2]Priority: roster, hiring, and popularity accuracy[/h2]
-
-[list]
-[*]Include Occasional Wrestlers consistently in relevant roster counts, filters, and hiring results while keeping angle-only roles clearly identified.
-[*]Make hiring affordability account for available cash, payroll pressure, and the company's real top-end contracts instead of treating an estimated wage band as a hard limit.
-[*]Expose regional popularity alongside continental popularity and warn when the two systems materially disagree.
-[*]Investigate safe popularity management without masking unusual or invalid save states.
-[/list]
-
-Version 0.4.0 already detects PWS's advanced regional-popularity mode and uses the correct company-size calculation. The 0.5.0 work will make the underlying popularity data and any inconsistencies more visible.
-
-[h2]Priority: deeper booking control[/h2]
-
-[h3]Commentary-team defaults[/h3]
-
-Preview-first management of brand and event-series commentary booths is planned. The current tools support announcers on individual segments, but they do not yet configure the intended default team stored on a brand or recurring event.
-
-[h3]Multi-person entrance and elimination order[/h3]
-
-Rumbles and other ordered multi-person matches need more than a winner. The investigation covers PWS's native [code]entranceOrder[/code] and [code]eliminationOrder[/code] data so future tools can safely describe and verify:
-
-[list]
-[*]Entrance numbers.
-[*]Elimination sequence.
-[*]The final two participants.
-[*]The last eliminated worker.
-[/list]
-
-This will only move from investigation to implementation after the exact JSON written and consumed by PWS is confirmed.
-
-[h2]Candidate company-management features[/h2]
-
-[h3]Brands and championships[/h3]
-
-Candidate tools would create, rename, configure, archive, or retire brands and championships with ownership checks and exact verification. Image handling needs separate investigation because PWS stores image filenames while the files themselves live outside the save database.
-
-[h3]Tag teams[/h3]
-
-Candidate tools would create, rename, edit, and disband promotion tag teams and manage their members safely.
-
-[h3]Purpose-built action replacements[/h3]
-
-The remaining advanced generic actions will be replaced gradually when their complete PWS contracts are known:
-
-[list]
-[*]Storyline creation.
-[*]Worker signing.
-[*]Championship awards.
-[*]News creation.
-[*]Email creation.
-[/list]
-
-Version 0.4.0 corrected and verifies the core generic worker-signing terms, but a proper preview-first signing tool still needs complete perk and negotiation behavior.
-
-[h2]Larger systems requiring research[/h2]
-
-[list]
-[*][b]Contract negotiations and rival offers:[/b] renewals, offers, counters, matching, declines, perks, and negotiation states.
-[*][b]Networks and TV deals:[/b] available networks, regional reach, show assignments, offers, acceptance, changes, and termination.
-[*][b]Tournaments:[/b] tournaments, rounds, participants, matches, and links between booked segments and tournament records.
-[*][b]Movesets:[/b] validated editing of the native worker moveset JSON and its supported move categories.
-[/list]
-
-These are valuable systems, but each touches several related tables or game actions. They are candidates for 0.5.0 research and beta work, not promises that every complete system will ship simultaneously.
-
-[h2]The 0.4.0 foundation[/h2]
-
-The current production release already provides:
-
-[list]
-[*]Company, roster, hiring, contract, worker, title, storyline, stable, venue, event, show, gimmick, persona, and promise reads.
-[*]Complete show planning and validation with matches, angles, titles, ringside workers, referees, agents, announcers, and transactional segment editing.
-[*]Contract-scoped wrestler personas and custom ring names without renaming workers globally.
-[*]Preview-first verified tools for promises, stables, gimmicks, event series, show scheduling, venues, storylines, releases, and title vacations.
-[*]Future-show availability based on injury, rehab, suspension, and time-off return dates.
-[*]Official MCP SDK transport for Claude Desktop Home plus direct-path support for Claude Code and Codex.
-[/list]
-
-[h2]Known native constraints[/h2]
-
-[list]
-[*]PWS currently stores one active presentation per contract, not a separate persona selection for every match.
-[*]A title or prize stored with [code]defendable = 0[/code] cannot be attached to a match. Book the match without it and award it afterward; a future purpose-built award tool should make that workflow preview-first and verified.
-[*]Third-party plugins can replace native PWS functions or alter save data outside the MCP server. Compatibility work is safest when a mod exposes a stable, documented integration API.
-[/list]
-
-[h2]Testing approach[/h2]
-
-[code]
-Native schema/action research
-        |
-        v
-Focused implementation
-        |
-        v
-Automated regression tests
-        |
-        v
-Separate 0.5.0 TEST plugin
-        |
-        v
-Copied or backed-up live-save testing
-        |
-        v
-Visual and restart-persistence checks
-        |
-        v
-Production package and client smoke tests
-[/code]
-
-0.5.0 beta builds will remain separate from the production Workshop item. The Workshop release stays on stable 0.4.0 until the selected 0.5.0 scope passes its complete release gate.
 
 [h2]Client update reminder[/h2]
 
 Steam updates only the in-game PWS plugin.
 
-Claude Desktop users must also install the matching [code].mcpb[/code] from the [url=https://github.com/Distortik/pws-mcp-server/releases]GitHub release[/url] and fully restart Claude Desktop. Installing a newer package with the same extension identity normally upgrades the existing installation; uninstalling first should only be needed as a fallback.
+Claude Desktop users must also install the matching [code].mcpb[/code] from the [url=https://github.com/Distortik/pws-mcp-server/releases/latest]GitHub release[/url] and fully restart Claude Desktop.
 
-Claude Code and Codex users can keep their MCP configuration pointed at the stable Workshop plugin folder. Instead of finding or editing the path manually, paste this request into Claude Code or Codex:
+Claude Code and Codex users can keep their MCP configuration pointed at the stable Workshop folder, then restart the client after an update so it reloads the current server and tool catalogue.
 
-[quote]Locate the installed PWS MCP Server [code]mcp-server.js[/code] for the build I am actually using (Workshop, manual, or TEST). Configure your user-level MCP server named [code]pro-wrestling-sim[/code] to run it with Node, verify the saved entry, and tell me the exact path you selected. Do not guess the Steam library or edit unrelated MCP entries.[/quote]
+[h2]Help shape what comes next[/h2]
 
-Restart the client after an update so it reloads the current server and tool catalogue.
-
-[h2]Feedback[/h2]
-
-If a tool behaves unexpectedly or you want to propose a 0.5.0 workflow, please include:
+Useful feedback includes:
 
 [list]
-[*]The tool or feature involved.
-[*]The relevant show, worker, contract, storyline, persona, promise, stable, brand, title, or network.
-[*]What you expected to happen.
-[*]What actually happened.
-[*]Whether PWS or the MCP client had been restarted after updating.
+[*]The tool or workflow involved
+[*]What you asked the assistant to do
+[*]What you expected to happen
+[*]What actually happened
+[*]Whether PWS and the AI client were restarted after updating
 [/list]
 
-Concrete save examples make features and fixes much easier to research, reproduce, and test safely.
+Clear, reproducible examples make the next release safer and more useful for everyone.

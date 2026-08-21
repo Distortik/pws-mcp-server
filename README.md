@@ -4,6 +4,8 @@ PWS MCP Server connects an AI assistant to the save currently loaded in **Pro Wr
 
 Ask it to search your save, analyze your company, review contracts, recommend workers, plan storylines, or draft and apply complete show cards. Read-only questions do not change your save. Save-changing actions require confirmation and are validated by PWS.
 
+Version 0.5.0 is a major base-game management update. It strengthens scheduled-show discovery, adds one-call show audits and roster-rotation analysis, supports ordered multi-person matches, and adds preview-first management for contracts, hiring, storylines, tag teams, brands, championships, event series, commentary teams, show dates, and network deals. It also includes Occasional Wrestlers consistently and makes hiring guidance cash-aware and explicitly advisory.
+
 ## Table of contents
 
 - [What you need](#what-you-need)
@@ -16,7 +18,6 @@ Ask it to search your save, analyze your company, review contracts, recommend wo
 - [Connect another MCP client](#connect-another-mcp-client)
 - [Test the connection](#test-the-connection)
 - [Ideas to try](#ideas-to-try)
-- [Optional community plugins](#optional-community-plugins)
 - [Booking API notes](#booking-api-notes)
 - [Safety](#safety)
 - [Troubleshooting](#troubleshooting)
@@ -40,7 +41,7 @@ Node.js 18 or newer is still required for Codex, Claude Code, and other clients 
 
 The `0.4.0-beta.4` MCPB installs, enables, and launches on Claude Desktop for Windows, but regular **Home** chats do not receive its tools. Claude sends the MCP `initialize` request, waits 60 seconds, and disconnects before tool registration completes. Direct Claude Code and Codex connections continue to work, confirming this is an MCPB/Claude Desktop compatibility issue rather than a PWS bridge or save-data failure.
 
-This was fixed in `0.4.0-beta.5` and is included in `0.4.0`. The current server uses the official MCP SDK transport plus a dedicated entry point that starts correctly when Claude Desktop loads the extension through its Node UtilityProcess wrapper. A fresh Windows Home conversation exposed the PWS integration and returned the live VWE1 state. Claude Code, the Code tab, and Codex remain supported through the direct `mcp-server.js` path.
+This was fixed in `0.4.0-beta.5` and is included in `0.4.0`. The current server uses the official MCP SDK transport plus a dedicated entry point that starts correctly when Claude Desktop loads the extension through its Node UtilityProcess wrapper. A fresh Windows Home conversation exposed the PWS integration and returned the loaded save state. Claude Code, the Code tab, and Codex remain supported through the direct `mcp-server.js` path.
 
 The release also includes the beta.5 booking hotfix: MCP-created and MCP-edited angle beats always persist all three PWS group arrays. This prevents single-person promos and other angles with unused groups from blocking show startup.
 
@@ -195,16 +196,19 @@ If the answer contains information from your save, setup is complete.
 - "Review all contracts expiring in the next year."
 - "Show me my champions, active storylines, and neglected wrestlers."
 - "Draft my next show, explain every choice, and wait for approval."
-
-## Optional community plugins
-
-PWS MCP Server can discover independently installed plugins that implement the dependency-free PWS Community Interop protocol. They are enhancements, never requirements: core tools behave exactly as before when no compatible community plugin is installed.
-
-The first supported provider is **Inner Circle 2.1**. `pws_list_optional_integrations` reports compatible providers, and `pws_get_inner_circle` reads sanitized role assignments for the current save and player promotion. The provider remains the owner of its data. MCP does not inspect its private files, `api.storage`, or legacy `localStorage`, and snapshots exclude private notes, roster data, and history. A snapshot is rejected if its save, promotion, provider, capability, schema, size, structure, or revision cannot be validated.
+- "Audit my next show and tell me exactly what must be fixed before I run it."
+- "Review roster rotation and identify unused talent and people I am overusing."
+- "Show my tag teams, brands, championships, commentary defaults, and television deals."
+- "Find established tag teams on my roster that have not been registered with my company yet."
+- "Review this contract, preview better terms, and wait for approval before changing it."
+- "Create a storyline for these wrestlers and give it a clear name and premise."
+- "Review my event series and recommend any recurrence, runtime, brand, or venue changes."
 
 ## Booking API notes
 
 Use `titleIds: number[]` to put championships on the line in a match. This is the only supported championship field; singular `titleId` and other unknown segment fields are rejected. Validation checks that each title is active, belongs to the player promotion, fits the show brand and match team size, and includes every reigning champion unless the title is vacant. Multiple titles are supported.
+
+For Rumbles and other multi-person matches, `entranceOrder` must contain every participant contract ID exactly once. `eliminationOrder` requires an explicit winner and contains every other participant exactly once. Order is significant; the server writes PWS's native worker/contract/name objects and verifies the saved sequence without sorting it.
 
 Match participants may have PWS worker type `Wrestler` or `Occasional Wrestler`. Angle-only types such as `Staff`, `Personality`, `Referee`, and `Announcer` remain ineligible for matches.
 
@@ -213,6 +217,12 @@ Match participants may have PWS worker type `Wrestler` or `Occasional Wrestler`.
 `pws_update_segment` previews by default. After reviewing `before` and `proposed`, call it again with the same changes, `preview: false`, and `confirmed: true`. The update uses a narrow field allowlist, one transaction, rollback, a post-save read, before/after output, and an audit entry. Applied results expose the persisted segment as `after` and retain `segment` as a compatibility alias. It does not expose general-purpose SQL writes.
 
 Purpose-built tools are also available for removing a segment, setting an unfinished show's venue (with an optional recurring-event default), ending a storyline, adding or removing a storyline worker, releasing a worker, and vacating a championship. These operations preview by default, validate that the target belongs to the player company, require `preview: false` and `confirmed: true`, and re-read the save before reporting success. The advanced generic action tool no longer exposes these operations.
+
+Version 0.5.0 extends that model to tag teams, brands, worker brand assignments, championships, event/brand commentary defaults, and network-deal cancellation. `pws_audit_show` and `pws_analyze_worker_usage` are read-only. Network discovery exposes the facts needed to compare reach and terms, but accepting and renegotiating offers remains in PWS because the game calculates negotiation-only values that plugins should not guess.
+
+Tag teams have both a global PWS identity and a promotion-specific registration. `pws_get_tag_teams` returns teams already registered with the player company and established teams whose two members are contracted but which are not registered yet. `pws_register_tag_team` preserves the existing global team and experience, defaults to its established name, and optionally accepts a company-specific name.
+
+Contract advice can now lead into `pws_update_contract`, which previews and verifies supported terms such as push, role, pay, expiry, exclusivity, creative control, development status, outside-booking permissions, and time off. `pws_sign_worker` is a purpose-built immediate signing action; it does not pretend to run PWS's offer/counter-offer negotiation. Storyline reads are paired with purpose-built creation and metadata editing. Championship reads are paired with verified awarding for singles, tag, and trios titles. Event-series reads are paired with editing and unfinished-show rescheduling; audit a moved show again because its new date can change worker availability and network scheduling.
 
 Large rosters can be read page-by-page with `offset` and `limit`; use `lean: true` for a compact booking-oriented response. Availability excludes workers in rehab as well as injured, suspended, and time-off workers. Show planning and segment edits compare return dates with the target show's air date, so someone who recovers by a future show can be booked while missing or later return dates remain unavailable. Storyline reads accept `storylineId` and `lean: true` for inexpensive heat/status checks.
 

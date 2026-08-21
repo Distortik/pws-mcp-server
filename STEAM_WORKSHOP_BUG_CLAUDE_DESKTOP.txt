@@ -40,7 +40,7 @@ Workshop and TEST plugin folder names remain stable across version updates, so t
 [*]Passed the matching beta.5 in-game version-pair and live read-only bridge checks.
 [/list]
 
-The beta.5 source server, standalone distribution, wrapper-loaded MCPB entry point, and Claude Desktop Home extension host all complete initialization. The successful Home conversation called the PWS integration and returned the loaded VWE1 state.
+The beta.5 source server, standalone distribution, wrapper-loaded MCPB entry point, and Claude Desktop Home extension host all complete initialization. The successful Home conversation called the PWS integration and returned the loaded save state.
 
 [h2]Reporting another result[/h2]
 

@@ -1,22 +1,25 @@
 # Changelog
 
-## 0.5.0-beta.2 — Unreleased
+## 0.5.0 — 2026-08-21
 
-- Added the static read-only `pws_get_investments` tool for the neutral `investments.portfolio` capability while keeping Investments Manager entirely optional.
-- Validate category and asset totals, bounded financial values, native identity types, save/promotion context, revision monotonicity, and a 64 KiB maximum before accepting an Investments snapshot.
-- Expose only the provider's sanitized asset mirror; private notes, histories, renderer storage, preferences, treatment records, agency-client details, callbacks, and write operations are not accepted or returned.
-- Discover Inner Circle and Investments providers independently, including side-by-side TEST IDs, without treating either provider as a dependency of the other or of core MCP tools.
-- Live-validate both providers together on VWE1/promotion 229: Investments TEST 8.1.0 published four of four assets at revision 1 with zero truncation, Inner Circle TEST 2.1.0 retained all 25 assignments and nine unavailable records, both matched the same save context, and repeated reads were stable.
-
-## 0.5.0-beta.1 — 2026-08-13
-
-- Added optional PWS Community Interop v1 discovery through PWS's built-in inter-plugin messaging. Community plugins remain independently installable and core MCP behavior is unchanged when none are present.
-- Added the static read-only `pws_list_optional_integrations` and `pws_get_inner_circle` tools. Compatible Inner Circle 2.1 providers expose role definitions and assignment facts without private notes, roster data, history, storage access, or dynamic tool injection.
-- Bound accepted snapshots to the currently loaded save hash and native player-promotion ID, reject older revisions and same-revision content changes, and invalidate cached revision evidence whenever PWS opens a database.
-- Added bounded protocol/provider/schema/capability validation, a 64 KiB snapshot limit, native ID validation, assignment/summary consistency checks, deterministic production/TEST provider selection, and harmless unavailable results for missing or incompatible providers.
-- Added automated coverage for discovery, bridge routing, side-by-side TEST selection, absent providers, sanitized output, wrong-save rejection, stale/tampered revisions, malformed data, oversized payloads, and database-switch invalidation.
-- Report a loaded provider that has no registered inter-plugin handler distinctly from malformed or oversized responses, aiding diagnosis of PWS plugin-lifecycle failures without relaxing payload validation.
-- Live-validated the installed TEST pair on VWE1: Community Interop v1 discovered Inner Circle TEST 2.1.0, accepted all 14 roles and 25 assignments for promotion 229 at revision 1, retained nine unavailable assignments, accepted an identical repeated revision, and exposed no notes, roster data, or history.
+- Fixed upcoming-show discovery so valid scheduled shows exposed only by PWS's native event-instance view are merged with normally joined events. One joinable show can no longer hide other unfinished shows, preventing clients from incorrectly reporting an empty or incomplete schedule.
+- Added real-save verification output for the number of unfinished shows, making schedule-discovery regressions explicit in the release gate.
+- Added `pws_get_server_info` for model-callable connection, transport, version-pair, and loaded-save diagnostics. It remains useful when PWS is running without a save loaded.
+- Included Occasional Wrestlers consistently in default roster reads, company counts, roster-balance analysis, and hiring candidates while exposing worker type and match eligibility explicitly.
+- Reworked automatic hiring bands to account materially for cash runway and existing top-end contracts. Automatic bands are advisory, and candidates above them are labeled as stretch targets rather than categorically unaffordable; explicit user limits remain hard constraints.
+- Added `pws_audit_show`, a one-call readiness report for empty cards, invalid winners, risky automatic title-match outcomes, repeated match usage, and runtime under/overruns.
+- Added roster rotation analysis with appearances, matches, angles, last-booked dates, and clear unused/heavy-use flags.
+- Added ordered multi-person match support: entrances include every participant, while elimination order includes every participant except an explicitly selected winner. Both are stored in PWS's native format and verified after saving.
+- Added preview-first tag-team creation, member/name/experience/status editing, and dissolution with player-company ownership checks and persisted-result verification.
+- Added established-team discovery and preview-first company registration. When both members are contracted, the MCP can now find a global team that has never been registered with the player company, preserve its accumulated experience, and reuse its established name or apply a company-specific name.
+- Added preview-first brand creation/editing/deletion, worker assignment, and event/brand default commentary teams. Brand deletion previews its impact and applies PWS's native contract/event cleanup behavior transactionally.
+- Added preview-first championship creation/editing and reversible retirement/reinstatement, complementing the existing award and vacation actions.
+- Added purpose-built preview-first championship awarding for singles, tag, and trios titles through PWS's native title-history action.
+- Added preview-first contract modification for supported terms and management settings, plus a purpose-built immediate-signing workflow driven by hiring analysis.
+- Added purpose-built preview-first storyline creation and metadata editing, complementing membership changes and storyline ending.
+- Added event-series discovery and preview-first event editing and show rescheduling, including recurrence, prestige, brand, runtime, importance, preferred venue, and post-move audit guidance.
+- Added network and television discovery with availability and current-deal context, plus preview-first cancellation using PWS's native status and news behavior. New offers and renegotiations remain in the game's negotiation UI so PWS—not the MCP server—calculates hidden terms.
+- Passed the final installed TEST-plugin gate with all 20 read-only live checks and all 33 destructive live checks. The write suite covered contract restoration, immediate signing/release, existing-team registration, full tag-team/brand/storyline/title/event lifecycles, commentary defaults, show rescheduling, ordered four-person booking, post-write auditing, and native network-deal cancellation.
 
 ## 0.4.0 - 2026-08-13
 
@@ -27,7 +30,7 @@
 - Added complete show planning and validation with structured participants, multiple championships, ringside workers, announcers, referees, agents, angle subjects, safe rollbacks, and the beta.5 angle-group show-start hotfix.
 - Added management dashboards, roster/hiring/contract analysis, gimmick discovery, promise reads/responses, stable reads, venue discovery, show reads, and storyline-attribution diagnostics.
 - Added the official MCP SDK stdio transport and a self-contained MCPB entry point verified in a regular Claude Desktop Home conversation on Windows; Claude Code and Codex continue to use the stable direct server path.
-- Fixed advanced-popularity company sizing when PWS omits the mode from its runtime state by reading `gameworld.advancedPopularityMode`; live VWE1 data confirms the corrected Regional calibration point.
+- Fixed advanced-popularity company sizing when PWS omits the mode from its runtime state by reading `gameworld.advancedPopularityMode`; live save data confirms the corrected Regional calibration point.
 - Fixed future-show availability for new plans and existing-segment edits by evaluating injury, rehab, worker suspension, contract suspension, and time-off return dates against the show's air date.
 - Strengthened stable-member verification so a requested leader flag must persist, not merely the membership row.
 - Corrected generic `sign_worker` terms: canonical monthly/appearance wages, compatible `wages` translation, day-based contract lengths, normalized types/gimmicks, and exact readback verification of requested supported terms.
@@ -36,7 +39,7 @@
 ## 0.4.0-beta.5 - 2026-08-12
 
 - Hotfix: normalized every MCP-created or MCP-edited angle beat to persist `group1`, `group2`, and `group3` arrays, including empty unused groups. This prevents PWS show startup from crashing when a promo omits `group2`.
-- Added regression coverage for a single-person promo and for later angle-beat edits; the affected CareerMode show was repaired without changing its card and then started successfully in PWS.
+- Added regression coverage for a single-person promo and for later angle-beat edits; the affected test show was repaired without changing its card and then started successfully in PWS.
 - Replaced the hand-written JSON-lines stdin loop with the official MCP SDK server and stdio transport while preserving the existing tools, resources, prompts, and PWS version-pair checks.
 - Added a dedicated MCPB entry point that starts unconditionally when Claude Desktop loads it through its Node UtilityProcess wrapper; the reusable direct-path server remains import-safe for Claude Code, Codex, and tests.
 - Added real-client regression coverage that completes MCP initialization and lists the tool, resource, and prompt catalogues through the official SDK client transport.
@@ -45,7 +48,7 @@
 - Generated and shipped third-party license notices for every dependency included in the standalone bundle.
 - Fixed B14 by allowing both `Wrestler` and `Occasional Wrestler` in match-plan validation and transactional segment edits while continuing to reject angle-only worker types.
 - Kept the beta narrow: game-facing changes are limited to B14 match eligibility and safe normalization of omitted angle-beat groups.
-- Passed the Windows Claude Desktop Home-chat acceptance test: the corrected MCPB initialized, exposed the PWS integration, called the live beta.5 bridge, and returned the loaded VWE1 state.
+- Passed the Windows Claude Desktop Home-chat acceptance test: the corrected MCPB initialized, exposed the PWS integration, called the live beta.5 bridge, and returned the loaded save state.
 - Passed all 13 non-mutating live bridge checks with the matching beta.5 TEST plugin, then live-validated B14 by successfully dry-running Wendi Richter (`Occasional Wrestler`) against a normal wrestler without creating a segment.
 
 ## 0.4.0-beta.4 - 2026-08-12
